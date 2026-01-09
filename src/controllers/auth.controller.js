@@ -147,7 +147,7 @@ export const forgotPassword = async (req, res) => {
   await user.save();
 
   // ✅ BACKEND link (same pattern as register)
-  const link = `${process.env.BACKEND_URL}auth/reset-password`;
+  const link = `${process.env.BACKEND_URL}auth/reset-password/${token}`;
   await sendResetEmail(user.email, link);
 
   res.json({ message: "If exists, email sent" });
