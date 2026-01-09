@@ -51,7 +51,7 @@ export const verifyEmail = async (req, res) => {
   });
 
   if (!user) {
-    return res.redirect(`${process.env.FRONTEND_URL}/login`);
+    return res.redirect(`${process.env.FRONTEND_URL}login`);
   }
 
   user.isEmailVerified = true;
@@ -65,7 +65,7 @@ export const verifyEmail = async (req, res) => {
   });
 
   // ✅ REDIRECT WITHOUT TOKEN
-  res.redirect(`${process.env.FRONTEND_URL}/profile-info`);
+  res.redirect(`${process.env.FRONTEND_URL}profile-info`);
 };
 
 /* ================= COMPLETE PROFILE ================= */
@@ -164,7 +164,7 @@ export const resetPasswordRedirect = async (req, res) => {
   });
 
   if (!user) {
-    return res.redirect(`${process.env.FRONTEND_URL}/login`);
+    return res.redirect(`${process.env.FRONTEND_URL}login`);
   }
 
   // ✅ STORE TOKEN IN COOKIE
@@ -175,7 +175,7 @@ export const resetPasswordRedirect = async (req, res) => {
   });
 
   // ✅ CLEAN FRONTEND URL (NO TOKEN)
-  res.redirect(`${process.env.FRONTEND_URL}/new-password`);
+  res.redirect(`${process.env.FRONTEND_URL}new-password`);
 };
 
 
