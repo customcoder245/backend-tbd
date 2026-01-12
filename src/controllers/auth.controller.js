@@ -60,7 +60,8 @@ export const verifyEmail = async (req, res) => {
   // ✅ STORE TOKEN SECURELY
   res.cookie("verifyToken", token, {
     httpOnly: true,
-    secure: false, // true in production (https)
+    secure: true, // true in production (https)
+    sameSite: "none",
     maxAge: 15 * 60 * 1000
   });
 
@@ -170,7 +171,8 @@ export const resetPasswordRedirect = async (req, res) => {
   // ✅ STORE TOKEN IN COOKIE
   res.cookie("resetToken", token, {
     httpOnly: true,
-    secure: false, // true in production
+    secure: true, // true in production
+    sameSite: "none",
     maxAge: 15 * 60 * 1000
   });
 
