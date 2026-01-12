@@ -27,7 +27,7 @@ const userSchema = new Schema(
     firstName: String,
     lastName: String,
     department: String,
-    initials: String,
+    titles: String,
 
     profileCompleted: {
       type: Boolean,

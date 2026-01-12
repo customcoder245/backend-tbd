@@ -74,7 +74,7 @@ export const verifyEmail = async (req, res) => {
 /* ================= COMPLETE PROFILE ================= */
 export const completeProfile = async (req, res) => {
   const token = req.cookies.verifyToken;
-  const { firstName, lastName, department, initials, role } = req.body;
+  const { firstName, lastName, department, titles, role } = req.body;
 
   if (!token) {
     return res.status(400).json({ message: "Verification expired" });
@@ -92,7 +92,7 @@ export const completeProfile = async (req, res) => {
   user.firstName = firstName;
   user.lastName = lastName;
   user.department = department;
-  user.initials = initials;
+  user.titles = titles;
   user.role = role;
   user.profileCompleted = true;
 
