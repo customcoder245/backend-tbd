@@ -35,7 +35,7 @@ export const register = async (req, res) => {
   });
 
   // ✅ EMAIL MUST HIT BACKEND
-  const link = `${process.env.BACKEND_URL}/api/v1/auth/verify-email/${token}`;  
+  const link = `${process.env.BACKEND_URL}auth/verify-email/${token}`;  
   await sendVerificationEmail(user, link);
 
   res.status(201).json({ message: "Verification email sent" });
@@ -148,7 +148,7 @@ export const forgotPassword = async (req, res) => {
   await user.save();
 
   // ✅ BACKEND link (same pattern as register)
-  const link = `${process.env.BACKEND_URL}/api/v1/auth/reset-password/${token}`;
+  const link = `${process.env.BACKEND_URL}auth/reset-password/${token}`;
   await sendResetEmail(user.email, link);
 
   res.json({ message: "If exists, email sent" });
