@@ -61,7 +61,7 @@ export const verifyEmail = async (req, res) => {
   res.cookie("verifyToken", token, {
     httpOnly: true,
     secure: true, // true in production (https)
-    sameSite: "lax",
+    sameSite: "none",
     maxAge: 15 * 60 * 1000
   });
 
@@ -172,7 +172,7 @@ export const resetPasswordRedirect = async (req, res) => {
   res.cookie("resetToken", token, {
     httpOnly: true,
     secure: true, // true in production
-    sameSite: "lax",
+    sameSite: "none",
     maxAge: 15 * 60 * 1000
   });
 
