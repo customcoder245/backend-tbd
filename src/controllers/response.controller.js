@@ -92,3 +92,30 @@ export const saveResponse = async (req, res) => {
     });
   }
 };
+
+
+/**
+ * GET RESPONSES BY ASSESSMENT
+ */
+export const getResponsesByAssessment = async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+
+    if (!assessmentId) {
+      return res.status(400).json({ message: "Assessment ID is required" });
+    }
+
+    const responses = await Response.find({ assessmentId });
+
+    if (!responses.length) {
+      return res.status(404).json({ message: "No responses found for this assessment" });
+    }
+
+    res.status(200).json(responses);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching responses",
+      error: error.message
+    });
+  }
+};

@@ -1,22 +1,32 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose from "mongoose";
 
 const assessmentSchema = new mongoose.Schema({
   stakeholder: {
     type: String,
     required: true
   },
+
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true
   },
+
+  // ✅ ADD THIS (person snapshot)
+  userDetails: {
+    type: Object, // snapshot of person data
+    default: null
+  },
+
   isCompleted: {
     type: Boolean,
     default: false
   },
+
   submittedAt: {
     type: Date
   },
+
   responses: [{
     questionId: { type: mongoose.Schema.Types.ObjectId, ref: "Question" },
     questionCode: String,

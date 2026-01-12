@@ -1,4 +1,6 @@
 import Assessment from "../models/assessment.model.js";
+import User from "../models/user.model.js";
+import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Response from "../models/response.model.js";
 import mongoose from "mongoose";
 
@@ -55,41 +57,67 @@ export const submitAssessment = async (req, res) => {
     const { assessmentId } = req.params;
     const { userId } = req.user;
 
-    // Ensure ObjectId types for assessmentId
     const assessmentObjectId = new mongoose.Types.ObjectId(assessmentId);
 
-    // Fetch the assessment by ID
+    // 1️⃣ Fetch assessment
     const assessment = await Assessment.findById(assessmentObjectId);
     if (!assessment) {
       return res.status(404).json({ message: "Assessment not found" });
     }
 
-    // Ensure the assessment isn't already completed
     if (assessment.isCompleted) {
       return res.status(400).json({ message: "Assessment already submitted" });
     }
 
-    // Fetch all responses for this assessment (already saved with all question details)
+    // 2️⃣ Fetch responses (JOIN)
     const responses = await Response.find({ assessmentId: assessmentObjectId });
 
-    // If no responses, return an error
     if (!responses || responses.length === 0) {
       return res.status(400).json({ message: "No responses provided" });
     }
 
-    // Directly use the saved responses data to populate the Assessment document
+    const fullResponses = responses.map(r => {
+      const obj = r.toObject();
+      delete obj.__v;
+      return obj;
+    });
+
+    // 3️⃣ Fetch & clean user
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const cleanedUserDetails = {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      department: user.department,
+      role: user.role
+    };
+
+    // 4️⃣ Mark assessment completed
     assessment.isCompleted = true;
     assessment.submittedAt = new Date();
-    assessment.responses = responses; // Directly save the existing responses in the Assessment document
-    assessment.userId = userId; // Store the ID of the leader/manager who completed the assessment
+    assessment.userId = userId;
+    assessment.userDetails = cleanedUserDetails;
+    await assessment.save();
 
-    // Save the updated assessment
-    const savedAssessment = await assessment.save();
+    // 🔥 5️⃣ SAVE SNAPSHOT (THIS IS OPTION 2)
+    const submittedAssessment = await SubmittedAssessment.create({
+      assessmentId: assessment._id,
+      stakeholder: assessment.stakeholder,
+      userId,
+      userDetails: cleanedUserDetails,
+      responses: fullResponses,
+      submittedAt: new Date()
+    });
 
-    // Return success response
+    // 6️⃣ Return response
     return res.status(200).json({
       message: "Assessment submitted successfully",
-      savedAssessment
+      submittedAssessment
     });
   } catch (error) {
     console.error("Error submitting assessment:", error);

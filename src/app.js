@@ -6,7 +6,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
 import assessmentRoutes from "./routes/assessment.routes.js";
 import questionRoutes from "./routes/question.routes.js";
-
+import responseRoutes from "./routes/response.routes.js";
 
 const app = express();
 
@@ -36,6 +36,7 @@ app.get("/", (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/assessment", assessmentRoutes);
 app.use("/api/v1/questions", questionRoutes);
+app.use("/api/v1/responses", responseRoutes);
 
 
 
