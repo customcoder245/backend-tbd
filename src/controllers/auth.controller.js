@@ -57,17 +57,19 @@ export const verifyEmail = async (req, res) => {
   user.isEmailVerified = true;
   await user.save();
 
-  // ✅ STORE TOKEN SECURELY
+  // 🔑 REQUIRED ON VERCEL
+  res.setHeader("Cache-Control", "no-store");
+
   res.cookie("verifyToken", token, {
     httpOnly: true,
-    secure: true, // true in production (https)
+    secure: true,
     sameSite: "none",
     maxAge: 15 * 60 * 1000
   });
 
-  // ✅ REDIRECT WITHOUT TOKEN
   res.redirect(`${process.env.FRONTEND_URL}/profile-info`);
 };
+
 
 /* ================= COMPLETE PROFILE ================= */
 export const completeProfile = async (req, res) => {
@@ -168,19 +170,21 @@ export const resetPasswordRedirect = async (req, res) => {
     return res.redirect(`${process.env.FRONTEND_URL}/login`);
   }
 
-  // ✅ STORE TOKEN IN COOKIE
+  // 🔑 REQUIRED ON VERCEL
+  res.setHeader("Cache-Control", "no-store");
+
   res.cookie("resetToken", token, {
     httpOnly: true,
-    secure: true, // true in production
+    secure: true,
     sameSite: "none",
     maxAge: 15 * 60 * 1000
   });
 
-  // ✅ CLEAN FRONTEND URL (NO TOKEN)
   res.redirect(`${process.env.FRONTEND_URL}/new-password`);
 };
 
 
+/* ================= RESET PASSWORD ================= */
 export const resetPassword = async (req, res) => {
   const token = req.cookies.resetToken;
   const { password } = req.body;
