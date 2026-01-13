@@ -41,17 +41,23 @@ export const register = async (req, res) => {
   res.status(201).json({ message: "Verification email sent" });
 };
 
+
 /* ================= VERIFY EMAIL (COOKIE + REDIRECT) ================= */
 export const verifyEmail = async (req, res) => {
   const { token } = req.params;
 
   const user = await User.findOne({
     emailVerificationToken: token,
-    emailVerificationExpires: { $gt: Date.now() }
+    emailVerificationExpires: { $gt: Date.now() }  // Check if the verification has expired
   });
 
   if (!user) {
-    return res.redirect(`${process.env.FRONTEND_URL}/login`);
+    return res.redirect(`${process.env.FRONTEND_URL}/register`);
+  }
+
+  if (user.emailVerificationExpires < Date.now() && !user.profileCompleted) {
+    await User.deleteOne({ _id: user._id });  
+    return res.status(400).json({ message: "Email verification expired. User has been removed." });
   }
 
   user.isEmailVerified = true;
@@ -69,6 +75,7 @@ export const verifyEmail = async (req, res) => {
 
   res.redirect(`${process.env.FRONTEND_URL}/profile-info`);
 };
+
 
 
 /* ================= COMPLETE PROFILE ================= */
