@@ -6,7 +6,9 @@ import {
   completeProfile,
   forgotPassword,
   resetPassword,
-  resetPasswordRedirect
+  resetPasswordRedirect,
+  sendInvitation, 
+  acceptInvitation
 } from "../controllers/auth.controller.js";
 
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
@@ -24,6 +26,9 @@ router.get("/reset-password/:token", resetPasswordRedirect);
 router.post("/reset-password", resetPassword);
 
 router.post("/resend-verification-email", resendVerificationEmail);
+
+router.post("/send-invitation", sendInvitation);
+router.get("/invite/:token", acceptInvitation);
 
 export default router;
 

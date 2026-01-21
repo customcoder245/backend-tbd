@@ -19,20 +19,51 @@ const userSchema = new Schema(
 
     role: {
       type: String,
-      enum: ["admin", "leader", "manager"],
-      required: false,
+      enum: ["superAdmin", "admin", "leader", "manager", "employee"],
+      required: true,
       default: null
     },
 
-    firstName: String,
-    lastName: String,
-    department: String,
-    titles: String,
+    adminId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
+
+    firstName: {
+      type: String,
+      required: true
+    },
+
+    lastName: {
+      type: String,
+      required: true
+    },
+
+    department: {
+      type: String,
+      required: true
+    },
+
+    titles: {
+      type: String
+    },
 
     profileCompleted: {
       type: Boolean,
       default: false
     },
+
+    // isApprovedByAdmin: {
+    //   type: Boolean,
+    //   default: false
+    // },
+
+    // approvedBy: {
+    //   type: Schema.Types.ObjectId,
+    //   ref: "User",
+    //   default: null
+    // },
 
     isEmailVerified: {
       type: Boolean,

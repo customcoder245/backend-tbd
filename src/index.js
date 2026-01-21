@@ -32,7 +32,7 @@ import cron from 'node-cron';   // Import the cron package
 import User from './models/user.model.js';  // Import the User model
 
 dotenv.config({
-    path: './env',  
+    path: './.env',  
     quiet: true      
 });
 

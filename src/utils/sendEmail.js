@@ -8,6 +8,80 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+export const sendInvitationEmail = async (email, link) => {
+  await transporter.sendMail({
+    from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "You are invited to join Talent By Design",
+    html: `
+      <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
+        <div style="max-width:600px;margin:0 auto;background:#ffffff;
+                    border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <div style="background:#1976d2;padding:24px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:24px;">
+              Talent By Design
+            </h1>
+          </div>
+
+          <!-- Body -->
+          <div style="padding:32px;color:#333333;">
+            <h2 style="margin-top:0;font-size:20px;">
+              You are invited to join Talent By Design 🚀
+            </h2>
+
+            <p style="font-size:15px;line-height:1.6;">
+              You have been invited to join the Talent By Design platform.
+              Please click the button below to complete your registration and get started.
+            </p>
+
+            <p style="font-size:15px;line-height:1.6;">
+              You will be assigned a role as per the invitation details, and you’ll be able to start using your account immediately after completing your registration.
+            </p>
+
+            <!-- CTA Button -->
+            <div style="text-align:center;margin:32px 0;">
+              <a href="${link}"
+                 style="
+                   display:inline-block;
+                   padding:14px 32px;
+                   background:#1976d2;
+                   color:#ffffff;
+                   text-decoration:none;
+                   border-radius:6px;
+                   font-size:15px;
+                   font-weight:bold;
+                 ">
+                Complete Registration
+              </a>
+            </div>
+
+            <p style="font-size:14px;color:#555555;">
+              This invitation link will expire in <strong>1 hour</strong>.
+              If it expires, you can request a new one by contacting the person who invited you.
+            </p>
+
+            <p style="font-size:14px;margin-top:32px;">
+              We’re excited to have you join us!  
+              <br />
+              <strong>The Talent By Design Team</strong>
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background:#f0f2f5;padding:16px;text-align:center;font-size:12px;color:#777;">
+            <p style="margin:0;">
+              If you didn’t receive this invitation, or if you believe this was sent by mistake, you can ignore this email.
+            </p>
+          </div>
+
+        </div>
+      </div>
+    `,
+  });
+};
+
 export const sendVerificationEmail = async (user, link) => {
   await transporter.sendMail({
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,

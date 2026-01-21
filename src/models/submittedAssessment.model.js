@@ -1,6 +1,6 @@
-import mongoose from "mongoose";
+import mongoose, {Schema} from "mongoose";
 
-const submittedAssessmentSchema = new mongoose.Schema(
+const submittedAssessmentSchema = new Schema(
   {
     assessmentId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -9,6 +9,11 @@ const submittedAssessmentSchema = new mongoose.Schema(
     },
 
     stakeholder: String,
+
+    adminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
 
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -32,7 +37,4 @@ const submittedAssessmentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model(
-  "SubmittedAssessment",
-  submittedAssessmentSchema
-);
+export default mongoose.model("SubmittedAssessment", submittedAssessmentSchema);
