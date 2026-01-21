@@ -12,6 +12,7 @@ import {
 } from "../controllers/auth.controller.js";
 
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
+import { protect } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ router.post("/reset-password", resetPassword);
 
 router.post("/resend-verification-email", resendVerificationEmail);
 
-router.post("/send-invitation", sendInvitation);
+router.post("/send-invitation", protect, sendInvitation);
 router.get("/invite/:token", acceptInvitation);
 
 export default router;

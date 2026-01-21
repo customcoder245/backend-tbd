@@ -20,7 +20,7 @@ const userSchema = new Schema(
     role: {
       type: String,
       enum: ["superAdmin", "admin", "leader", "manager", "employee"],
-      required: true,
+      required: false,
       default: null
     },
 
@@ -32,17 +32,17 @@ const userSchema = new Schema(
 
     firstName: {
       type: String,
-      required: true
+      required: false
     },
 
     lastName: {
       type: String,
-      required: true
+      required: false
     },
 
     department: {
       type: String,
-      required: true
+      required: false
     },
 
     titles: {

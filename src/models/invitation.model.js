@@ -10,7 +10,7 @@ const invitationSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ["leader", "manager", "employee"],
+      enum: ["admin", "leader", "manager", "employee"],
       required: true
     },
     token: {
@@ -31,7 +31,7 @@ const invitationSchema = new Schema(
     },
     expiredAt: {
       type: Date,
-      required: true,
+      // required: true,
       index: { expires: 0 }  // Makes the document expire
     },
     used: {
