@@ -436,7 +436,7 @@ export const register = async (req, res) => {
   const verificationLink = `${process.env.BACKEND_URL}auth/verify-email/${user.emailVerificationToken}`;
 
   // Send email verification
-  await sendVerificationEmail(user.email, verificationLink);
+  await sendVerificationEmail(user , verificationLink);
 
   // Step 8: Mark the invitation as used
   invitation.used = true;
