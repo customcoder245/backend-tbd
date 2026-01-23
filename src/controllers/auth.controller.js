@@ -71,7 +71,7 @@ export const acceptInvitation = async (req, res) => {
   }
 
   if (invitation.used) {
-    return res.status(400).json({ message: "This invitation has already been used." });
+    return res.redirect(`${process.env.FRONTEND_URL}/invitation-used`);
   }
 
   if (invitation.expiredAt < Date.now()) {
