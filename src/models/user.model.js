@@ -48,6 +48,8 @@ const userSchema = new Schema(
     titles: {
       type: String
     },
+    
+    invitationToken: { type: String },
 
     profileCompleted: {
       type: Boolean,

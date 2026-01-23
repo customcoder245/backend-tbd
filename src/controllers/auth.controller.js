@@ -116,86 +116,77 @@ export const acceptInvitation = async (req, res) => {
 };
 
 
-// ==================== Register ====================
-// export const register = async (req, res) => {
-//   // console.log(req.body)
-//   const { email, password, confirmPassword, token, token1 } = req.body;
+/* ==================== Register ====================  */
+export const register = async (req, res) => {
+  const { email, password, confirmPassword } = req.body;
+  const {authToken, token1} = req.cookies
 
-//   // console.log("token", token)
-//   // console.log("token1 ", token1)
-//   // Step 1: Validate input
-//   if (!email || !password || !confirmPassword || !token || !token1) {
-//     return res.status(400).json({ message: "All fields are required." });
-//   }
+  // Step 1: Validate input
+  if (!email || !password || !confirmPassword || !authToken || !token1) {
+    return res.status(400).json({ message: "All fields are required." });
+  }
 
-//   if (password !== confirmPassword) {
-//     return res.status(400).json({ message: "Passwords do not match." });
-//   }
+  if (password !== confirmPassword) {
+    return res.status(400).json({ message: "Passwords do not match." });
+  }
 
-//   // Step 2: Verify the invitation token
-//   let decoded;
-//   try {
-//     decoded = jwt.verify(token, process.env.JWT_SECRET);
-//   } catch (err) {
-//     return res.status(400).json({ message: 'Invitation expired. Please request a new invitation' });
-//   }
-//   // console.log("all data by register ", req.body)
+  // Step 2: Verify the invitation token
+  let decoded;
+  try {
+    decoded = jwt.verify(authToken, process.env.JWT_SECRET);
+  } catch (err) {
+    return res.status(400).json({ message: 'Invitation expired. Please request a new invitation' });
+  }
 
-//   // Step 3: Find the invitation using the token
-//   const invitation = await Invitation.findOne({ token: token1 });
+  // Step 3: Find the invitation using the token
+  const invitation = await Invitation.findOne({ token: token1 });
+  if (!invitation || invitation.expiresAt < Date.now()) {
+    return res.status(400).json({ message: "Invitation has expired." });
+  }
 
+  // Step 4: Check if the email in the token matches the invitation email
+  if (decoded.email !== invitation.email) {
+    return res.status(400).json({ message: "Invalid invitation email." });
+  }
 
-//   // console.log("invitation 2:",invitation)
-//   // Step 4: Check if the invitation exists and is valid ONLY after registration
-//   if (!invitation || invitation.expiresAt < Date.now()) {
-//     return res.status(400).json({ message: "Invitation has expired." });
-//   }
+  // Step 5: Check if the user already exists
+  const existingUser = await User.findOne({ email: decoded.email });
+  if (existingUser) {
+    return res.status(400).json({ message: "Email is already registered." });
+  }
 
-//   // Step 5: Check if the email in the token matches the invitation email
-//   if (decoded.email !== invitation.email) {
-//     return res.status(400).json({ message: "Invalid invitation email." });
-//   }
+  // Step 6: Create the user
+  const user = new User({
+    email: decoded.email,
+    password, // ⚠️ Remember to hash the password before saving in production
+    emailVerificationToken: jwt.sign({ email: decoded.email }, process.env.JWT_SECRET, { expiresIn: "1h" }), // Generate the email verification token
+    emailVerificationExpires: Date.now() + 60 * 60 * 1000, // 1 hour expiration for the verification token
+    invitationToken: token1,
+    isEmailVerified: false,  // User must verify their email
+    profileCompleted: false,  // Profile not yet completed
+  });
 
-//   // Step 6: Check if the user already exists
-//   const existingUser = await User.findOne({ email: decoded.email });
-//   if (existingUser) {
-//     return res.status(400).json({ message: "Email is already registered." });
-//   }
+  await user.save();
 
-//   // Step 7: Create the user (storing plain password for now)
-//   const user = await User({
-//     email: decoded.email,
-//     password, // ⚠️ Password hashing can be added later
-//     profileCompleted: false,  // Since they are completing their profile during registration
-//     isEmailVerified: false,  // Since this is registration from an invitation link
-//   });
+  // Step 7: Generate the email verification link
+  const verificationLink = `${process.env.BACKEND_URL}auth/verify-email/${user.emailVerificationToken}`;
 
-//   await user.save();
+  // Send email verification
+  await sendVerificationEmail(user , verificationLink);
 
-//   // Step 8: Generate a registration verification token
-//   const verificationToken = jwt.sign(
-//     { email: user.email, id: user._id },
-//     process.env.JWT_SECRET,
-//     { expiresIn: "1h" }
-//   );
+  // Step 8: Mark the invitation as used
+  invitation.used = true;
+  await invitation.save();
 
-//   // Step 9: Send email verification
-//   const verificationLink = `${process.env.BACKEND_URL}auth/verify-email/${verificationToken}`;
-//   await sendVerificationEmail(user.email, verificationLink);
-
-//   // Step 10: Update invitation record to mark as used
-//   invitation.used = true;
-//   await invitation.save();
-
-//   // Step 11: Respond to the user
-//   res.status(201).json({
-//     message: "Registration successful. Please verify your email.",
-//     user: {
-//       id: user._id,
-//       email: user.email,
-//     },
-//   });
-// };
+  // Step 9: Respond to the user
+  res.status(201).json({
+    message: "Registration successful. Please verify your email.",
+    user: {
+      id: user._id,
+      email: user.email,
+    },
+  });
+};
 
 
 
@@ -244,9 +235,6 @@ export const completeProfile = async (req, res) => {
     return res.status(400).json({ message: "Invalid token." });
   }
 
-  if (user.emailVerificationExpires < Date.now()) {
-    return res.status(400).json({ message: "Token has expired." });
-  }
 
   // Step 2: Update the user's profile
   user.firstName = firstName;
@@ -268,7 +256,6 @@ export const completeProfile = async (req, res) => {
 
   res.json({ message: "Profile completed successfully." });
 };
-
 
 
 /* ================= LOGIN ================= */
@@ -375,79 +362,3 @@ export const resetPassword = async (req, res) => {
   res.json({ message: "Password reset successful" });
 };
 
-
-
-
-
-
-
-
-export const register = async (req, res) => {
-  const { email, password, confirmPassword } = req.body;
-  const {authToken, token1} = req.cookies
-
-  // Step 1: Validate input
-  if (!email || !password || !confirmPassword || !authToken || !token1) {
-    return res.status(400).json({ message: "All fields are required." });
-  }
-
-  if (password !== confirmPassword) {
-    return res.status(400).json({ message: "Passwords do not match." });
-  }
-
-  // Step 2: Verify the invitation token
-  let decoded;
-  try {
-    decoded = jwt.verify(authToken, process.env.JWT_SECRET);
-  } catch (err) {
-    return res.status(400).json({ message: 'Invitation expired. Please request a new invitation' });
-  }
-
-  // Step 3: Find the invitation using the token
-  const invitation = await Invitation.findOne({ token: token1 });
-  if (!invitation || invitation.expiresAt < Date.now()) {
-    return res.status(400).json({ message: "Invitation has expired." });
-  }
-
-  // Step 4: Check if the email in the token matches the invitation email
-  if (decoded.email !== invitation.email) {
-    return res.status(400).json({ message: "Invalid invitation email." });
-  }
-
-  // Step 5: Check if the user already exists
-  const existingUser = await User.findOne({ email: decoded.email });
-  if (existingUser) {
-    return res.status(400).json({ message: "Email is already registered." });
-  }
-
-  // Step 6: Create the user
-  const user = new User({
-    email: decoded.email,
-    password, // ⚠️ Remember to hash the password before saving in production
-    emailVerificationToken: jwt.sign({ email: decoded.email }, process.env.JWT_SECRET, { expiresIn: "1h" }), // Generate the email verification token
-    emailVerificationExpires: Date.now() + 60 * 60 * 1000, // 1 hour expiration for the verification token
-    isEmailVerified: false,  // User must verify their email
-    profileCompleted: false,  // Profile not yet completed
-  });
-
-  await user.save();
-
-  // Step 7: Generate the email verification link
-  const verificationLink = `${process.env.BACKEND_URL}auth/verify-email/${user.emailVerificationToken}`;
-
-  // Send email verification
-  await sendVerificationEmail(user , verificationLink);
-
-  // Step 8: Mark the invitation as used
-  invitation.used = true;
-  await invitation.save();
-
-  // Step 9: Respond to the user
-  res.status(201).json({
-    message: "Registration successful. Please verify your email.",
-    user: {
-      id: user._id,
-      email: user.email,
-    },
-  });
-};
