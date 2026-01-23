@@ -8,6 +8,8 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+
+
 export const sendInvitationEmail = async (email, link) => {
   await transporter.sendMail({
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,

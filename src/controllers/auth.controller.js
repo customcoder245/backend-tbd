@@ -4,11 +4,11 @@ import { sendVerificationEmail, sendResetEmail, sendInvitationEmail } from "../u
 import jwt from "jsonwebtoken";
 
 
-/* ================= sendInvitation ================= */
 
+// ==================== sendInvitation ====================
 export const sendInvitation = async (req, res) => {
   const { email, role } = req.body;
-  const { userId, role: senderRole, firstName, lastName } = req.user || {}
+  const { userId, role: senderRole, firstName, lastName } = req.user || {};
 
   if (!userId) {
     return res.status(400).json({ message: "User not authenticated" });
@@ -20,79 +20,104 @@ export const sendInvitation = async (req, res) => {
     }
   } else if (senderRole == "admin") {
     if (!["leader", "manager", "employee"].includes(role)) {
-      return res.status(400).json({ message: "Admins can only invite Leaders, Managers, or Employees." })
+      return res.status(400).json({ message: "Admins can only invite Leaders, Managers, or Employees." });
     }
   } else {
-    return res.status(400).json({ message: "only superAdmin or admin can send the invitation" })
+    return res.status(400).json({ message: "only superAdmin or admin can send the invitation" });
   }
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
-    return res.status(400).json({ message: "user already existed" })
+    return res.status(400).json({ message: "User already exists" });
   }
 
   const token = jwt.sign({ email, role, invitedId: userId, inviterName: `${firstName} ${lastName}` }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
+  // Set invitation expiration time (1 hour)
   const expiredAt = Date.now() + 60 * 60 * 1000;
+
   const invitation = new Invitation({
     email,
     role,
     token,
+    token1: token,
     adminId: userId,
-    invitedBy: userId,  // The admin or superadmin who sent the invitation
-    expiredAt
-  })
+    invitedBy: userId,
+    expiredAt,
+  });
 
-  await invitation.save()
+  await invitation.save();
 
   const link = `${process.env.BACKEND_URL}auth/invite/${token}`;
 
+  // Send invitation email
   await sendInvitationEmail(email, link);
 
   res.status(200).json({ message: "Invitation sent successfully" });
+};
 
-}
-
-/* ================= AcceptInvitation ================= */
-
+// ==================== AcceptInvitation ====================
 export const acceptInvitation = async (req, res) => {
   const { token } = req.params;
+  // console.log("token at accept invitation", token)
 
+  // Step 1: Find the invitation using the token
   const invitation = await Invitation.findOne({ token });
 
-  if (!invitation || invitation.expiresAt < Date.now()) {
-    return res.status(400).json({ message: "Invitation has expired or is invalid." })
+  console.log("invitation1 :", invitation)
+  // Step 2: Check if the invitation exists (don't check expiration here)
+  if (!invitation) {
+    return res.status(400).json({ message: "Invitation is invalid." });
+  }
+
+  if (invitation.expiredAt < Date.now()) {
+    return res.status(400).json({ message: "Invitation has expired." });
   }
 
   let decode;
   try {
-    decode = jwt.verify(token, process.env.JWT_SECRET)
+    // Decode the token to extract user information
+    decode = jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
     return res.status(400).json({ message: 'Invalid token.' });
   }
 
+  // Step 3: Check if the email in the token matches the invitation email
   if (decode.email !== invitation.email) {
-    return res.status(400).json({ message: "Invalid invitation." })
+    return res.status(400).json({ message: "Invalid invitation." });
   }
 
-  if (invitation.used) {
-    return res.status(400).json({ message: "Invitation has already been used." })
-  }
+  // Step 4: Generate a JWT token for the accepted invitation (authentication token)
+  const authToken = jwt.sign({ email: decode.email, role: invitation.role, userId: invitation.adminId }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-  invitation.used = true
-  await invitation.save()
+  // console.log("Auth TOken: ", authToken)
+  // Set the cookie for the user (with the auth token)
+  res.cookie("authToken", authToken, {
+    httpOnly: true,
+    secure: true, // Set to true if you're using HTTPS
+    sameSite: "none", // Necessary for cross-site cookies
+    maxAge: 60 * 60 * 1000 // Cookie expiration (1 hour)
+  });
 
-  if (role === "employee") {
-    return res.redirect(`${process.env.FRONTEND_URL}/assessment/start`);
-  }
+  res.cookie("token1", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    maxAge: 60 * 60 * 1000  // 1 hour expiry (same as invitation)
+  });
 
-  res.redirect(`${process.env.FRONTEND_URL}/register`);
-}
+  // Redirect to registration page
+  return res.redirect(`${process.env.FRONTEND_URL}/register`);
+};
 
-/* ================= REGISTER ================= */
+
+// ==================== Register ====================
 export const register = async (req, res) => {
-  const { email, password, confirmPassword, token } = req.body;
-
+  // console.log(req.body)
+  const { email, password, confirmPassword, token, token1 } = req.body;
+  
+  console.log("token", token)
+  console.log("token1 ", token1)
   // Step 1: Validate input
   if (!email || !password || !confirmPassword || !token) {
     return res.status(400).json({ message: "All fields are required." });
@@ -107,28 +132,32 @@ export const register = async (req, res) => {
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch (err) {
-    return res.status(400).json({ message: 'Invalid or expired invitation token.' });
+    return res.status(400).json({ message: 'Invitation expired. Please request a new invitation' });
   }
+  // console.log("all data by register ", req.body)
 
   // Step 3: Find the invitation using the token
-  const invitation = await Invitation.findOne({ token });
+  const invitation = await Invitation.findOne({ token: token1 });
 
+  
+  console.log("invitation 2:",invitation)
+  // Step 4: Check if the invitation exists and is valid ONLY after registration
   if (!invitation || invitation.expiresAt < Date.now()) {
     return res.status(400).json({ message: "Invitation has expired." });
   }
 
-  // Step 4: Check if the email in the token matches the one in the invitation
+  // Step 5: Check if the email in the token matches the invitation email
   if (decoded.email !== invitation.email) {
     return res.status(400).json({ message: "Invalid invitation email." });
   }
 
-  // Step 5: Check if the user already exists
+  // Step 6: Check if the user already exists
   const existingUser = await User.findOne({ email: decoded.email });
   if (existingUser) {
     return res.status(400).json({ message: "Email is already registered." });
   }
 
-  // Step 6: Create the user (storing plain password for now)
+  // Step 7: Create the user (storing plain password for now)
   const user = new User({
     email: decoded.email,
     password, // ⚠️ Password hashing can be added later
@@ -138,22 +167,22 @@ export const register = async (req, res) => {
 
   await user.save();
 
-  // Step 7: Generate a registration verification token
+  // Step 8: Generate a registration verification token
   const verificationToken = jwt.sign(
     { email: user.email, id: user._id },
     process.env.JWT_SECRET,
-    { expiresIn: "1h" }  // This token will be used for email verification
+    { expiresIn: "1h" }
   );
 
-  // Step 8: Send email verification
+  // Step 9: Send email verification
   const verificationLink = `${process.env.BACKEND_URL}auth/verify-email/${verificationToken}`;
   await sendVerificationEmail(user.email, verificationLink);
 
-  // Step 9: Update invitation record to mark as used
+  // Step 10: Update invitation record to mark as used
   invitation.used = true;
   await invitation.save();
 
-  // Step 10: Respond to the user
+  // Step 11: Respond to the user
   res.status(201).json({
     message: "Registration successful. Please verify your email.",
     user: {
@@ -165,7 +194,7 @@ export const register = async (req, res) => {
 
 
 
-/* ================= VERIFY EMAIL (COOKIE + REDIRECT) ================= */
+// ==================== Verify Email ====================
 export const verifyEmail = async (req, res) => {
   const { token } = req.params;
 
@@ -199,14 +228,11 @@ export const verifyEmail = async (req, res) => {
   res.redirect(`${process.env.FRONTEND_URL}/profile-info`);
 };
 
-
-
-
-/* ================= COMPLETE PROFILE ================= */
+// ==================== Complete Profile ====================
 export const completeProfile = async (req, res) => {
   const { token, firstName, lastName, department, role } = req.body;
 
-  // Step 1: Find the user by the token
+  // Step 1: Find the user by the email verification token
   const user = await User.findOne({ emailVerificationToken: token });
 
   if (!user) {
@@ -223,11 +249,18 @@ export const completeProfile = async (req, res) => {
   user.department = department;
   user.role = role;
   user.profileCompleted = true;
-  user.emailVerificationToken = null; // Expire the token
+  user.emailVerificationToken = null; // Expire the token since profile is complete
 
   await user.save();
 
-  // Step 3: Respond with a success message
+  // Step 3: Mark the invitation as used after profile completion
+  const invitation = await Invitation.findOne({ email: user.email });
+  if (invitation) {
+    invitation.used = true; // Mark invitation as used after profile completion
+    invitation.expiresAt = Date.now(); // Expire the invitation after profile completion
+    await invitation.save();
+  }
+
   res.json({ message: "Profile completed successfully." });
 };
 
@@ -284,7 +317,6 @@ export const forgotPassword = async (req, res) => {
   res.json({ message: "If exists, email sent" });
 };
 
-
 /* ================= RESET PASSWORD REDIRECT ================= */
 export const resetPasswordRedirect = async (req, res) => {
   const { token } = req.params;
@@ -310,7 +342,6 @@ export const resetPasswordRedirect = async (req, res) => {
 
   res.redirect(`${process.env.FRONTEND_URL}/new-password`);
 };
-
 
 /* ================= RESET PASSWORD ================= */
 export const resetPassword = async (req, res) => {

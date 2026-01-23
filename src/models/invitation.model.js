@@ -18,6 +18,10 @@ const invitationSchema = new Schema(
       required: true,
       unique: true
     },
+    token1: {
+      type: String, 
+      unique: true
+    },
     // Organization admin
     adminId: {
       type: Schema.Types.ObjectId,
@@ -32,7 +36,8 @@ const invitationSchema = new Schema(
     expiredAt: {
       type: Date,
       // required: true,
-      index: { expires: 0 }  // Makes the document expire
+      default: Date.now,
+      expires: 0
     },
     used: {
       type: Boolean,
