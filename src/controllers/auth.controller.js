@@ -128,7 +128,7 @@ export const register = async (req, res) => {
 
   // Step 1: Validate input
   if (!email || !password || !confirmPassword || !authToken || !token1) {
-    return res.status(400).json({ message: "All fields are required." });
+    return res.status(400).json({ message: "You are not invited yet, so you cannot register." });
   }
 
   if (password !== confirmPassword) {
