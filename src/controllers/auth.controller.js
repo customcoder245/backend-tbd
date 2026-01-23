@@ -70,9 +70,14 @@ export const acceptInvitation = async (req, res) => {
     return res.status(400).json({ message: "Invitation is invalid." });
   }
 
+  if (invitation.used) {
+    return res.status(400).json({ message: "This invitation has already been used." });
+  }
+
   if (invitation.expiredAt < Date.now()) {
     return res.status(400).json({ message: "Invitation has expired." });
   }
+
 
   let decode;
   try {
@@ -142,6 +147,10 @@ export const register = async (req, res) => {
   const invitation = await Invitation.findOne({ token: token1 });
   if (!invitation || invitation.expiresAt < Date.now()) {
     return res.status(400).json({ message: "Invitation has expired." });
+  }
+
+  if (invitation.used) {
+    return res.status(400).json({ message: "This invitation has already been used." });
   }
 
   // Step 4: Check if the email in the token matches the invitation email
@@ -243,7 +252,8 @@ export const completeProfile = async (req, res) => {
   user.role = role;
   user.profileCompleted = true;
   user.emailVerificationToken = null; // Expire the token since profile is complete
-
+  user.emailVerificationExpires = null;
+  
   await user.save();
 
   // Step 3: Mark the invitation as used after profile completion
@@ -253,7 +263,7 @@ export const completeProfile = async (req, res) => {
     invitation.expiresAt = Date.now(); // Expire the invitation after profile completion
     await invitation.save();
   }
-
+  res.clearCookie("verifyToken");
   res.json({ message: "Profile completed successfully." });
 };
 
