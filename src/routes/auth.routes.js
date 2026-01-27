@@ -8,7 +8,8 @@ import {
   resetPassword,
   resetPasswordRedirect,
   sendInvitation, 
-  acceptInvitation
+  acceptInvitation, 
+  getCurrentUserSession
 } from "../controllers/auth.controller.js";
 
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
@@ -30,6 +31,9 @@ router.post("/resend-verification-email", resendVerificationEmail);
 
 router.post("/send-invitation", protect, sendInvitation);
 router.get("/invite/:token", acceptInvitation);
+
+
+router.get("/current-user-session", getCurrentUserSession);
 
 export default router;
 
