@@ -2,6 +2,7 @@ import express from "express";
 import {
   register,
   login,
+  logout,
   verifyEmail,
   completeProfile,
   forgotPassword,
@@ -9,7 +10,8 @@ import {
   resetPasswordRedirect,
   sendInvitation, 
   acceptInvitation, 
-  getCurrentUserSession
+  getCurrentUserSession,
+  getInvitations
 } from "../controllers/auth.controller.js";
 
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
@@ -19,6 +21,7 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/logout", logout); // 
 
 router.get("/verify-email/:token", verifyEmail);
 router.post("/complete-profile", completeProfile);
@@ -32,8 +35,8 @@ router.post("/resend-verification-email", resendVerificationEmail);
 router.post("/send-invitation", protect, sendInvitation);
 router.get("/invite/:token", acceptInvitation);
 
-
 router.get("/current-user-session", getCurrentUserSession);
 
-export default router;
+router.get("/invitations", protect, getInvitations);
 
+export default router;

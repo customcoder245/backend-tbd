@@ -22,6 +22,7 @@ const invitationSchema = new Schema(
       type: String, 
       unique: true
     },
+    orgName: { type: String },
     // Organization admin
     adminId: {
       type: Schema.Types.ObjectId,

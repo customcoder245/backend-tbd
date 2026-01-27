@@ -24,6 +24,13 @@ const userSchema = new Schema(
       default: null
     },
 
+    orgName: {
+      type: String,
+      required: false,
+      unique: false,
+      default: null
+    },
+
     adminId: {
       type: Schema.Types.ObjectId,
       ref: "User",

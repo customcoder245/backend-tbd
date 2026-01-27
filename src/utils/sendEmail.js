@@ -254,54 +254,47 @@ const sendEmail = async (mailOptions) => {
 };
 
 // Function to send invitation email
-export const sendInvitationEmail = async (email, link) => {
+// Function to send invitation email with dynamic content based on role
+export const sendInvitationEmail = async (email, link, role) => {
   if (!email || !link) {
     console.error("Error: Missing email or invitation link.");
     return;
   }
 
-  console.log("Sending invitation email to:", email);
+  const isEmployee = role === 'employee';
+  
+  // Custom text based on role
+  const title = isEmployee ? "Your Assessment Invitation" : "You are invited to join Talent By Design";
+  const bodyText = isEmployee 
+    ? "You have been invited to complete an assessment on the Talent By Design platform. Click the button below to get started."
+    : "You have been invited to join the Talent By Design platform as an administrative member. Please click the button below to complete your registration.";
+  const buttonText = isEmployee ? "Start Assessment" : "Complete Registration";
 
   const mailOptions = {
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
-    to: email, // Ensure 'email' is valid and not undefined or empty
-    subject: "You are invited to join Talent By Design",
+    to: email,
+    subject: title,
     html: `
       <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
-        <div style="max-width:600px;margin:0 auto;background:#ffffff;
-                    border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+        <div style="max-width:600px;margin:0 auto;background:#ffffff; border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
           <div style="background:#1976d2;padding:24px;text-align:center;">
-            <h1 style="color:#ffffff;margin:0;font-size:24px;">
-              Talent By Design
-            </h1>
+            <h1 style="color:#ffffff;margin:0;font-size:24px;">Talent By Design</h1>
           </div>
           <div style="padding:32px;color:#333333;">
-            <h2 style="margin-top:0;font-size:20px;">
-              You are invited to join Talent By Design 🚀
-            </h2>
-            <p style="font-size:15px;line-height:1.6;">
-              You have been invited to join the Talent By Design platform.
-              Please click the button below to complete your registration and get started.
-            </p>
+            <h2 style="margin-top:0;font-size:20px;">${title} 🚀</h2>
+            <p style="font-size:15px;line-height:1.6;">${bodyText}</p>
             <div style="text-align:center;margin:32px 0;">
               <a href="${link}"
                  style="display:inline-block;padding:14px 32px;background:#1976d2;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:bold;">
-                Complete Registration
+                ${buttonText}
               </a>
             </div>
             <p style="font-size:14px;color:#555555;">
-              This invitation link will expire in <strong>1 hour</strong>.
-              If it expires, you can request a new one by contacting the person who invited you.
+              This link will expire in <strong>1 hour</strong>.
             </p>
             <p style="font-size:14px;margin-top:32px;">
-              We’re excited to have you join us!  
-              <br />
+              Best regards,<br />
               <strong>The Talent By Design Team</strong>
-            </p>
-          </div>
-          <div style="background:#f0f2f5;padding:16px;text-align:center;font-size:12px;color:#777;">
-            <p style="margin:0;">
-              If you didn’t receive this invitation, or if you believe this was sent by mistake, you can ignore this email.
             </p>
           </div>
         </div>
