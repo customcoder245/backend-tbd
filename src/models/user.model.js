@@ -90,7 +90,7 @@ const userSchema = new Schema(
 
 userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
-    { userId: this._id, role: this.role },
+    { userId: this._id, role: this.role , orgName: this.orgName},
     process.env.JWT_SECRET,
     { expiresIn: "15m" }
   );

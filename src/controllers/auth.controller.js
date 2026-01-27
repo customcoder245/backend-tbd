@@ -6,13 +6,22 @@ import jwt from "jsonwebtoken";
 // ================= Send Invitation ================= 
 export const sendInvitation = async (req, res) => {
   const { email, role } = req.body;
-  const { userId, role: senderRole, firstName, lastName } = req.user || {};
-
-  console.log(userId, senderRole, firstName, lastName);
+  const { userId } = req.user || {}; // We only rely on userId from the token
 
   if (!userId) {
     return res.status(400).json({ message: "User not authenticated" });
   }
+
+  // Fetch the full inviter details to get names and orgName
+  const inviter = await User.findById(userId);
+  if (!inviter) {
+    return res.status(404).json({ message: "Inviter not found" });
+  }
+
+  const senderRole = inviter.role;
+  const firstName = inviter.firstName || "Admin";
+  const lastName = inviter.lastName || "";
+  const organizationName = inviter.orgName;
 
   // 1. Role Authorization Logic
   if (senderRole === "superAdmin") {
@@ -23,8 +32,6 @@ export const sendInvitation = async (req, res) => {
     if (!["leader", "manager", "employee"].includes(role)) {
       return res.status(400).json({ message: "Admins can only invite Leaders, Managers, or Employees." });
     }
-  } else {
-    return res.status(400).json({ message: "Only superAdmin or admin can send invitations." });
   }
 
   // 2. Check if user already exists
@@ -33,13 +40,7 @@ export const sendInvitation = async (req, res) => {
     return res.status(400).json({ message: "User already exists" });
   }
 
-  // 3. NEW: Fetch the Inviter's Organization Name
-  // We need to get the orgName from the person sending the invite
-  const inviter = await User.findById(userId);
-  const organizationName = inviter ? inviter.orgName : null;
-
-  console.log("Inviter's Organization Name:", organizationName);
-  // 4. Generate JWT Token (Including orgName in payload for extra security)
+  // 3. Generate Token
   const token = jwt.sign(
     { 
       email, 
@@ -52,27 +53,21 @@ export const sendInvitation = async (req, res) => {
     { expiresIn: '1h' }
   );
 
-  // 5. Set invitation expiration time (1 hour)
-  const expiredAt = Date.now() + 60 * 60 * 1000;
-
-  // 6. Create Invitation record with orgName
+  // 4. Create Invitation record
   const invitation = new Invitation({
     email,
     role,
     token,
-    token1: token, // keeping your existing field
+    token1: token,
     adminId: userId,
-    invitedBy: userId,
-    orgName: organizationName, // Storing the org name here so register can find it
-    expiredAt,
+    invitedBy: userId, // Used for the Admin query filter
+    orgName: organizationName, // Stored so the Admin can find it in getInvitations
+    expiredAt: Date.now() + 60 * 60 * 1000,
   });
 
   await invitation.save();
 
   const link = `${process.env.BACKEND_URL}auth/invite/${token}`;
-
-  // 7. Send invitation email
-  // You might want to pass organizationName to the email function so the user sees it in their inbox
   await sendInvitationEmail(email, link, role, organizationName);
 
   res.status(200).json({ message: "Invitation sent successfully" });
@@ -471,47 +466,56 @@ export const logout = async (req, res) => {
 
 // ==================== Get Invitations ====================
 export const getInvitations = async (req, res) => {
-  const { role, orgName, userId } = req.user; 
+  // Extract data from the logged-in user (req.user is populated by your auth middleware)
+  const role = req.user.role;
+  const orgName = req.user.orgName;
+  const userId = req.user.userId;
 
   try {
     let query = {};
 
-    if (role === "superAdmin") {
+    // Normalize role check to handle case sensitivity (superAdmin vs superadmin)
+    if (role.toLowerCase() === "superadmin") {
       query = {}; 
-    } else if (role === "admin") {
-      // We use both orgName and invitedBy to be safe
-      // IMPORTANT: Ensure orgName matches 'customcoder' exactly as in your DB
+    } else if (role.toLowerCase() === "admin") {
+      // FIX: Admin only sees invitations for THEIR organization that THEY sent
       query = { 
-        orgName: orgName,
+        orgName: orgName, 
         invitedBy: userId 
       };
     } else {
       return res.status(403).json({ message: "Access denied." });
     }
 
-    // DEBUG: Look at your terminal! If userId is undefined, this is why frontend is empty.
-    console.log("Admin Query:", query);
-
     const invitations = await Invitation.find(query).sort({ createdAt: -1 });
-    
-    // If this says 0, your query filter (orgName or userId) is wrong.
-    console.log("Invitations found:", invitations.length);
 
-    const formattedData = invitations.map((inv) => {
-      let status = "Pending";
-      const isExpired = new Date(inv.expiredAt) < new Date();
-      if (inv.used) status = "Accept";
-      else if (isExpired) status = "Expire";
-      
-      return {
-        _id: inv._id,
-        email: inv.email,
-        role: inv.role,
-        orgName: inv.orgName,
-        createdAt: inv.createdAt,
-        status: status,
-      };
-    });
+    const formattedData = await Promise.all(
+      invitations.map(async (inv) => {
+        let status = "Pending";
+        let name = "—";
+        const isExpired = new Date(inv.expiredAt) < new Date();
+
+        if (inv.used) {
+          status = "Accept";
+          const registeredUser = await User.findOne({ email: inv.email });
+          if (registeredUser) {
+            name = `${registeredUser.firstName} ${registeredUser.lastName}`;
+          }
+        } else if (isExpired) {
+          status = "Expire";
+        }
+
+        return {
+          _id: inv._id,
+          name: name,
+          email: inv.email,
+          role: inv.role,
+          orgName: inv.orgName,
+          createdAt: inv.createdAt,
+          status: status,
+        };
+      })
+    );
 
     res.status(200).json(formattedData);
   } catch (error) {
