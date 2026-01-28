@@ -24,6 +24,7 @@
 
 
 
+// import mongoose from 'mongoose';
 
 import dotenv from 'dotenv';
 import connectDB from "./db/index.js";
@@ -60,3 +61,15 @@ connectDB()
 .catch((err) => {
     console.log("MONGO db connection failed !!! ", err);
 });
+
+
+
+// Add this in your index.js or server.js file
+// mongoose.connection.once("open", async () => {
+//   try {
+//     await mongoose.connection.db.collection("users").dropIndex("orgName_1");
+//     console.log("✅ Successfully dropped the unique orgName index.");
+//   } catch (error) {
+//     console.log("ℹ️ Index orgName_1 not found or already deleted.");
+//   }
+// });

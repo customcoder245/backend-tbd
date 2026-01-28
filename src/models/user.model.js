@@ -27,8 +27,7 @@ const userSchema = new Schema(
     orgName: {
       type: String,
       required: false,
-      unique: false,
-      default: null
+      trim: true
     },
 
     adminId: {

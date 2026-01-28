@@ -132,7 +132,10 @@ export const register = async (req, res) => {
   const { email, password, confirmPassword } = req.body;
   const { authToken, token1 } = req.cookies
 
-  console.log("Register called with:", { email, authToken, token1 });
+  console.log("Register called with body:", req.body);
+  console.log("Cookies:", req.cookies);
+  
+  // Step 1: Validate input
   if (!email || !password || !confirmPassword || !authToken || !token1) {
     return res.status(400).json({ message: "You are not invited yet, so you cannot register." });
   }
@@ -182,7 +185,9 @@ export const register = async (req, res) => {
     isEmailVerified: false,  // User must verify their email
     profileCompleted: false,  // Profile not yet completed
   });
-  console.log("Creating user with orgName:", invitation.orgName);
+  // console.log("Creating user with orgName:", invitation.orgName);
+
+  // console.log(`Creating ${invitation.role} for Org: ${invitation.orgName} linked to Admin: ${user.adminId}`);
 
   await user.save();
 
