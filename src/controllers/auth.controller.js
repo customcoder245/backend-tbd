@@ -639,24 +639,39 @@ export const getInvitations = async (req, res) => {
 };
 
 export const deleteInvitation = async (req, res) => {
-  const { id } = req.params; 
+  const { id } = req.params;
 
   try {
-    // We check both _id and email because SuperAdmin UI uses Email as the key
-    const deleted = await Invitation.deleteMany({
-      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { email: id }]
-    });
+    // 1. Find the invitation first to check its status
+    // We handle both MongoDB ID and Email (for SuperAdmin grouping)
+    const query = id.match(/^[0-9a-fA-F]{24}$/) ? { _id: id } : { email: id };
+    const invites = await Invitation.find(query);
 
-    if (deleted.deletedCount === 0) {
+    if (invites.length === 0) {
       return res.status(404).json({ message: "No records found to delete" });
     }
 
-    res.status(200).json({ message: "Deleted successfully" });
+    // 2. Check if ANY of the matched records are still Pending or Accepted
+    // We only want to delete if the status is "Expire"
+    const canDelete = invites.every(inv => {
+      const isExpired = inv.expiredAt && new Date(inv.expiredAt) < new Date();
+      return isExpired && !inv.used; // Only true if Expired AND NOT used
+    });
+
+    if (!canDelete) {
+      return res.status(400).json({ 
+        message: "Only expired invitations can be deleted. Accepted or Pending invites must remain." 
+      });
+    }
+
+    // 3. Perform the deletion
+    await Invitation.deleteMany(query);
+
+    res.status(200).json({ message: "Expired invitation deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete" });
   }
 };
-
 // ==================== Complete Profile ====================
 // export const completeProfile = async (req, res) => {
 //   const { token, firstName, lastName, department} = req.body;

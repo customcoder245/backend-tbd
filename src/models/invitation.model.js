@@ -13,31 +13,22 @@ const invitationSchema = new Schema(
       enum: ["admin", "leader", "manager", "employee"],
       required: true
     },
-    token: {
-      type: String,
-      required: true,
-      unique: true
-    },
-    token1: {
-      type: String, 
-      unique: true
-    },
+    token: { type: String, required: true, unique: true },
+    token1: { type: String, unique: true },
     orgName: { type: String },
-    // Organization admin
     adminId: {
       type: Schema.Types.ObjectId,
-      ref: "User",  // Reference to User model
+      ref: "User",
       required: true
     },
     invitedBy: {
       type: Schema.Types.ObjectId,
-      ref: "User",  // Reference to User model
+      ref: "User",
       required: true
     },
     expiredAt: {
       type: Date,
-      // required: true,
-      default: Date.now
+      required: true // Ensure this is always set in your controller
     },
     used: {
       type: Boolean,
