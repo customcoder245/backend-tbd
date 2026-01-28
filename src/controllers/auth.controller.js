@@ -471,58 +471,72 @@ export const logout = async (req, res) => {
 
 // ==================== Get Invitations ====================
 export const getInvitations = async (req, res) => {
-  // Extract data from the logged-in user (req.user is populated by your auth middleware)
-  const role = req.user.role;
-  const orgName = req.user.orgName;
+  const role = req.user.role.toLowerCase();
+  const userOrg = req.user.orgName;
   const userId = req.user.userId;
 
   try {
-    let query = {};
-
-    // Normalize role check to handle case sensitivity (superAdmin vs superadmin)
-    if (role.toLowerCase() === "superadmin") {
-      query = {}; 
-    } else if (role.toLowerCase() === "admin") {
-      // FIX: Admin only sees invitations for THEIR organization that THEY sent
-      query = { 
-        orgName: orgName, 
-        invitedBy: userId 
-      };
-    } else {
-      return res.status(403).json({ message: "Access denied." });
-    }
-
-    const invitations = await Invitation.find(query).sort({ createdAt: -1 });
-
-    const formattedData = await Promise.all(
-      invitations.map(async (inv) => {
-        let status = "Pending";
-        let name = "—";
-        const isExpired = new Date(inv.expiredAt) < new Date();
-
-        if (inv.used) {
-          status = "Accept";
-          const registeredUser = await User.findOne({ email: inv.email });
-          if (registeredUser) {
-            name = `${registeredUser.firstName} ${registeredUser.lastName}`;
+    if (role === "superadmin") {
+      // Group by orgName so Super Admin sees 1 row per Organization
+      const orgStats = await Invitation.aggregate([
+        {
+          $group: {
+            _id: "$orgName",
+            email: { $first: "$email" }, // Admin email
+            createdAt: { $min: "$createdAt" }, // First invite date
+            status: { $first: "$used" }, // Check if at least one is used
           }
-        } else if (isExpired) {
-          status = "Expire";
-        }
+        },
+        { $sort: { createdAt: -1 } }
+      ]);
 
-        return {
-          _id: inv._id,
-          name: name,
-          email: inv.email,
-          role: inv.role,
-          orgName: inv.orgName,
-          createdAt: inv.createdAt,
-          status: status,
-        };
-      })
-    );
+      const formattedData = await Promise.all(
+        orgStats.map(async (org) => {
+          // Count actual registered users for this org
+          const totalUsers = await User.countDocuments({ orgName: org._id });
+          
+          return {
+            _id: org._id, // Using orgName as ID for the key
+            orgName: org._id,
+            email: org.email,
+            createdAt: org.createdAt,
+            totalUsers: totalUsers,
+            status: org.status ? "Accept" : "Pending",
+            role: "admin"
+          };
+        })
+      );
+      return res.status(200).json(formattedData);
 
-    res.status(200).json(formattedData);
+    } else {
+      // Standard logic for Regular Admins (Individual Invites)
+      const invitations = await Invitation.find({ 
+        orgName: userOrg, 
+        invitedBy: userId 
+      }).sort({ createdAt: -1 });
+
+      const formattedData = await Promise.all(
+        invitations.map(async (inv) => {
+          let name = "—";
+          let status = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
+
+          if (inv.used) {
+            const registeredUser = await User.findOne({ email: inv.email });
+            if (registeredUser) name = `${registeredUser.firstName} ${registeredUser.lastName}`;
+          }
+
+          return {
+            _id: inv._id,
+            name: name,
+            email: inv.email,
+            role: inv.role,
+            createdAt: inv.createdAt,
+            status: status
+          };
+        })
+      );
+      return res.status(200).json(formattedData);
+    }
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
