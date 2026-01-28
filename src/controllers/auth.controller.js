@@ -560,15 +560,17 @@ export const getInvitations = async (req, res) => {
     const userOrg = req.user.orgName;
     const userId = req.user.userId;
 
-    console.log(userId, userOrg, role);
     if (role === "superadmin") {
       const orgStats = await Invitation.aggregate([
+        // STEP 1: Get only admin invitations
         { $match: { role: "admin" } },
+        
+        // STEP 2: Group by EMAIL. This ensures every admin gets their own row.
         {
           $group: {
-            _id: "$orgName",
-            email: { $first: "$email" },
-            createdAt: { $min: "$createdAt" },
+            _id: "$email", 
+            orgNameFromInvite: { $first: "$orgName" },
+            createdAt: { $first: "$createdAt" },
             status: { $first: "$used" },
           }
         },
@@ -576,33 +578,31 @@ export const getInvitations = async (req, res) => {
       ]);
 
       const formattedData = await Promise.all(
-        orgStats.map(async (org) => {
+        orgStats.map(async (item) => {
           try {
-            let finalOrgName = org._id;
+            // Find the specific user profile for this admin email
+            const adminUser = await User.findOne({ email: item._id });
+            
+            // Priority: User's chosen orgName > Invitation orgName > Fallback
+            const finalOrgName = adminUser?.orgName || item.orgNameFromInvite || "Pending Setup";
 
-            // If Invitation has no orgName, find it from the User collection
-            if (!finalOrgName || finalOrgName === null) {
-              const adminUser = await User.findOne({ email: org.email });
-              finalOrgName = adminUser?.orgName || "Pending Setup";
-            }
-
-            const totalUsers = await User.countDocuments({ orgName: finalOrgName });
+            // Count how many people belong to this admin's organization
+            const totalUsers = await User.countDocuments({ orgName: finalOrgName, role: { $ne: "admin" } });
 
             return {
-              _id: org.email, 
+              _id: item._id, // Email acts as the unique ID
               orgName: finalOrgName, 
-              email: org.email,
-              createdAt: org.createdAt,
+              email: item._id,
+              createdAt: item.createdAt,
               totalUsers: totalUsers,
-              status: org.status ? "Accept" : "Pending",
+              status: item.status ? "Accept" : "Pending",
               role: "admin"
             };
           } catch (innerErr) {
-            // If one row fails, return a fallback so the whole page doesn't break
             return {
-              _id: org.email,
-              orgName: "Error loading name",
-              email: org.email,
+              _id: item._id,
+              orgName: "Error loading",
+              email: item._id,
               status: "Pending",
               totalUsers: 0
             };
@@ -612,7 +612,7 @@ export const getInvitations = async (req, res) => {
       return res.status(200).json(formattedData);
 
     } else {
-      // Logic for regular Admins remains the same...
+      // Logic for regular Admins (fetching their team members)
       const invitations = await Invitation.find({ orgName: userOrg, invitedBy: userId }).sort({ createdAt: -1 });
       const formattedData = await Promise.all(
         invitations.map(async (inv) => {
@@ -634,7 +634,7 @@ export const getInvitations = async (req, res) => {
       return res.status(200).json(formattedData);
     }
   } catch (error) {
-    console.error("CRASH ERROR:", error); // Check your terminal for this!
+    console.error("CRASH ERROR:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
