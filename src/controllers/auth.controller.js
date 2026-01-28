@@ -449,8 +449,8 @@ export const logout = async (req, res) => {
     };
     
     // Clear ALL auth-related cookies
-    res.clearCookie("authToken", cookieOptions);
-    res.clearCookie("token1", cookieOptions);
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("user", cookieOptions);
     res.clearCookie("verifyToken", cookieOptions);
     res.clearCookie("resetToken", cookieOptions);
 
