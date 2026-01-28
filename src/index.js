@@ -24,12 +24,13 @@
 
 
 
-import mongoose from 'mongoose';
+// import mongoose from 'mongoose';
+
 import dotenv from 'dotenv';
 import connectDB from "./db/index.js";
-import { app } from './app.js';
-import cron from 'node-cron';
-import User from './models/user.model.js';
+import { app } from './app.js';  // Import your Express app
+import cron from 'node-cron';   // Import the cron package
+import User from './models/user.model.js';  // Import the User model
 
 dotenv.config({
     path: './.env',  
@@ -38,41 +39,37 @@ dotenv.config({
 
 connectDB()
 .then(() => {
-    // 1. Start the Server
-    const port = process.env.PORT || 3000;
-    app.listen(port, () => {
-        console.log(`🚀 Server is running at port : ${port}`);
+    app.listen(process.env.PORT || 3000, () => {
+        console.log(`Server is running at port : ${process.env.PORT}`);
     });
 
-    // 2. Index Cleanup: Stop Invitations from auto-deleting
-    // We use .once to ensure this only attempts to run one time after connection
-    mongoose.connection.once("open", async () => {
-        try {
-            const collection = mongoose.connection.db.collection("invitations");
-            // This removes the TTL (Time To Live) rule so invitations stay in DB
-            await collection.dropIndex("expiredAt_1");
-            console.log("✅ SUCCESS: Auto-delete rule removed for Invitations.");
-        } catch (err) {
-            console.log("ℹ️ Invitation TTL Index already removed or not found.");
-        }
-    });
-
-    // 3. Cron Job: Clean up unverified users every minute
+    // Run the cron job to clean expired users every minute
     cron.schedule('* * * * *', async () => {
-        try {
-            const result = await User.deleteMany({
-                emailVerificationExpires: { $lt: Date.now() },
-                profileCompleted: false
-            });
+        const expiredUsers = await User.find({
+            emailVerificationExpires: { $lt: Date.now() },  // Check if verification has expired
+            profileCompleted: false  // Ensure profile is not completed
+        });
 
-            if (result.deletedCount > 0) {
-                console.log(`🧹 Cleanup: ${result.deletedCount} unverified users removed.`);
-            }
-        } catch (error) {
-            console.error("❌ Cron Job Error:", error);
+        if (expiredUsers.length > 0) {
+            await User.deleteMany({
+                _id: { $in: expiredUsers.map(user => user._id) }
+            });
+            console.log(`${expiredUsers.length} expired users removed.`);
         }
     });
 })
 .catch((err) => {
-    console.log("❌ MONGO db connection failed !!! ", err);
+    console.log("MONGO db connection failed !!! ", err);
 });
+
+
+
+// Add this in your index.js or server.js file
+// mongoose.connection.once("open", async () => {
+//   try {
+//     await mongoose.connection.db.collection("users").dropIndex("orgName_1");
+//     console.log("✅ Successfully dropped the unique orgName index.");
+//   } catch (error) {
+//     console.log("ℹ️ Index orgName_1 not found or already deleted.");
+//   }
+// });
