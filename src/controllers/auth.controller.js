@@ -62,7 +62,7 @@ export const sendInvitation = async (req, res) => {
     adminId: userId,
     invitedBy: userId, // Used for the Admin query filter
     orgName: organizationName, // Stored so the Admin can find it in getInvitations
-    expiredAt: Date.now() + 60 * 60 * 1000,
+    expiredAt: Date.now() + 5 * 60 * 1000,
   });
 
   await invitation.save();
@@ -562,16 +562,14 @@ export const getInvitations = async (req, res) => {
 
     if (role === "superadmin") {
       const orgStats = await Invitation.aggregate([
-        // STEP 1: Get only admin invitations
         { $match: { role: "admin" } },
-        
-        // STEP 2: Group by EMAIL. This ensures every admin gets their own row.
         {
           $group: {
-            _id: "$email", 
+            _id: "$email",
             orgNameFromInvite: { $first: "$orgName" },
             createdAt: { $first: "$createdAt" },
             status: { $first: "$used" },
+            expiredAt: { $first: "$expiredAt" }
           }
         },
         { $sort: { createdAt: -1 } }
@@ -580,62 +578,82 @@ export const getInvitations = async (req, res) => {
       const formattedData = await Promise.all(
         orgStats.map(async (item) => {
           try {
-            // Find the specific user profile for this admin email
             const adminUser = await User.findOne({ email: item._id });
-            
-            // Priority: User's chosen orgName > Invitation orgName > Fallback
             const finalOrgName = adminUser?.orgName || item.orgNameFromInvite || "Pending Setup";
 
-            // Count how many people belong to this admin's organization
-            const totalUsers = await User.countDocuments({ orgName: finalOrgName, role: { $ne: "admin" } });
+            let currentStatus = "Pending";
+            if (item.status) {
+              currentStatus = "Accept";
+            } else if (item.expiredAt && new Date(item.expiredAt) < new Date()) {
+              currentStatus = "Expire"; 
+            }
+
+            const totalUsers = await User.countDocuments({
+              orgName: finalOrgName,
+              role: { $ne: "admin" }
+            });
 
             return {
-              _id: item._id, // Email acts as the unique ID
-              orgName: finalOrgName, 
+              _id: item._id, // This is the email for SuperAdmin grouping
+              orgName: finalOrgName,
               email: item._id,
               createdAt: item.createdAt,
               totalUsers: totalUsers,
-              status: item.status ? "Accept" : "Pending",
+              status: currentStatus,
               role: "admin"
             };
           } catch (innerErr) {
-            return {
-              _id: item._id,
-              orgName: "Error loading",
-              email: item._id,
-              status: "Pending",
-              totalUsers: 0
-            };
+            return { _id: item._id, orgName: "Error", email: item._id, status: "Pending", totalUsers: 0 };
           }
         })
       );
       return res.status(200).json(formattedData);
 
     } else {
-      // Logic for regular Admins (fetching their team members)
       const invitations = await Invitation.find({ orgName: userOrg, invitedBy: userId }).sort({ createdAt: -1 });
       const formattedData = await Promise.all(
         invitations.map(async (inv) => {
           let name = "—";
+          let currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
+
           if (inv.used) {
             const registeredUser = await User.findOne({ email: inv.email });
             if (registeredUser) name = `${registeredUser.firstName} ${registeredUser.lastName}`;
           }
+
           return {
-            _id: inv._id,
+            _id: inv._id, // This is the MongoDB ID
             name: name,
             email: inv.email,
             role: inv.role,
             createdAt: inv.createdAt,
-            status: inv.used ? "Accept" : "Pending"
+            status: currentStatus
           };
         })
       );
       return res.status(200).json(formattedData);
     }
   } catch (error) {
-    console.error("CRASH ERROR:", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const deleteInvitation = async (req, res) => {
+  const { id } = req.params; 
+
+  try {
+    // We check both _id and email because SuperAdmin UI uses Email as the key
+    const deleted = await Invitation.deleteMany({
+      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { email: id }]
+    });
+
+    if (deleted.deletedCount === 0) {
+      return res.status(404).json({ message: "No records found to delete" });
+    }
+
+    res.status(200).json({ message: "Deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete" });
   }
 };
 
