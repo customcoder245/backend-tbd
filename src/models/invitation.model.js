@@ -37,8 +37,7 @@ const invitationSchema = new Schema(
     expiredAt: {
       type: Date,
       // required: true,
-      default: Date.now,
-      expires: 0
+      default: Date.now
     },
     used: {
       type: Boolean,
