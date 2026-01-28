@@ -42,14 +42,14 @@ export const sendInvitation = async (req, res) => {
 
   // 3. Generate Token
   const token = jwt.sign(
-    { 
-      email, 
-      role, 
-      invitedId: userId, 
+    {
+      email,
+      role,
+      invitedId: userId,
       inviterName: `${firstName} ${lastName}`,
-      orgName: organizationName 
-    }, 
-    process.env.JWT_SECRET, 
+      orgName: organizationName
+    },
+    process.env.JWT_SECRET,
     { expiresIn: '1h' }
   );
 
@@ -134,7 +134,7 @@ export const register = async (req, res) => {
 
   console.log("Register called with body:", req.body);
   console.log("Cookies:", req.cookies);
-  
+
   // Step 1: Validate input
   if (!email || !password || !confirmPassword || !authToken || !token1) {
     return res.status(400).json({ message: "You are not invited yet, so you cannot register." });
@@ -250,7 +250,7 @@ export const completeProfile = async (req, res) => {
   try {
     const tokenFromCookie = req.cookies.verifyToken;
     const { firstName, lastName, department, titles, orgName } = req.body;
-    
+
     if (!tokenFromCookie) {
       return res.status(401).json({ message: "Verification session expired." });
     }
@@ -272,7 +272,7 @@ export const completeProfile = async (req, res) => {
         user.orgName = inviter.orgName;
       }
     }
-    
+
     user.firstName = firstName;
     user.lastName = lastName;
     user.department = department;
@@ -280,22 +280,22 @@ export const completeProfile = async (req, res) => {
     user.profileCompleted = true;
     user.emailVerificationToken = null;
     user.emailVerificationExpires = null;
-    
+
     await user.save();
-    
+
     const invitation = await Invitation.findOne({ email: user.email });
     if (invitation) {
       invitation.used = true;
       await invitation.save();
     }
-    
+
     res.clearCookie("verifyToken", {
       httpOnly: true,
       secure: true,
       sameSite: "none",
       path: "/"
     });
-    
+
     res.status(200).json({ message: "Profile completed successfully!" });
   } catch (error) {
     if (error.code === 11000) {
@@ -325,9 +325,9 @@ export const getCurrentUserSession = async (req, res) => {
       inheritedOrgName = inviter ? inviter.orgName : "";
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       role: user.role,
-      inheritedOrgName: inheritedOrgName 
+      inheritedOrgName: inheritedOrgName
     });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
@@ -337,23 +337,23 @@ export const getCurrentUserSession = async (req, res) => {
 // ================= LOGIN =================
 export const login = async (req, res) => {
   const { email, password } = req.body;
-  
+
   const user = await User.findOne({ email });
-  
+
   if (!user || user.password !== password) {
     return res.status(401).json({ message: "Invalid credentials" });
   }
-  
+
   if (!user.isEmailVerified) {
     return res.status(403).json({ message: "Please verify your email first" });
   }
-  
+
   if (!user.profileCompleted) {
     return res.status(403).json({ message: "Please complete your profile" });
   }
-  
+
   const token = user.generateAccessToken();
-  
+
   res.json({
     accessToken: token,
     user: {
@@ -366,48 +366,48 @@ export const login = async (req, res) => {
 // ================= FORGOT PASSWORD ================= 
 export const forgotPassword = async (req, res) => {
   const user = await User.findOne({ email: req.body.email });
-  
+
   // 🔒 security: same response always
   if (!user) {
     return res.json({ message: "If exists, email sent" });
   }
-  
+
   const token = Math.random().toString(36).substring(2, 15);
-  
+
   user.resetPasswordToken = token;
   user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
   await user.save();
-  
+
   // ✅ BACKEND link (same pattern as register)
   const link = `${process.env.BACKEND_URL}auth/reset-password/${token}`;
   await sendResetEmail(user.email, link);
-  
+
   res.json({ message: "If exists, email sent" });
 };
 
 // ================= RESET PASSWORD REDIRECT =================
 export const resetPasswordRedirect = async (req, res) => {
   const { token } = req.params;
-  
+
   const user = await User.findOne({
     resetPasswordToken: token,
     resetPasswordExpires: { $gt: Date.now() }
   });
-  
+
   if (!user) {
     return res.redirect(`${process.env.FRONTEND_URL}/login`);
   }
-  
+
   // 🔑 REQUIRED ON VERCEL
   res.setHeader("Cache-Control", "no-store");
-  
+
   res.cookie("resetToken", token, {
     httpOnly: true,
     secure: true,
     sameSite: "none",
     maxAge: 15 * 60 * 1000
   });
-  
+
   res.redirect(`${process.env.FRONTEND_URL}/new-password`);
 };
 
@@ -415,25 +415,25 @@ export const resetPasswordRedirect = async (req, res) => {
 export const resetPassword = async (req, res) => {
   const token = req.cookies.resetToken;
   const { password } = req.body;
-  
+
   if (!token) {
     return res.status(400).json({ message: "Reset token expired" });
   }
-  
+
   const user = await User.findOne({
     resetPasswordToken: token,
     resetPasswordExpires: { $gt: Date.now() }
   });
-  
+
   if (!user) {
     return res.status(400).json({ message: "Invalid or expired token" });
   }
-  
+
   user.password = password;
   user.resetPasswordToken = null;
   user.resetPasswordExpires = null;
   await user.save();
-  
+
   res.clearCookie("resetToken");
   res.json({ message: "Password reset successful" });
 };
@@ -447,7 +447,7 @@ export const logout = async (req, res) => {
       sameSite: "none",
       path: "/",
     };
-    
+
     // Clear ALL auth-related cookies
     res.clearCookie("accessToken", cookieOptions);
     res.clearCookie("user", cookieOptions);
@@ -458,7 +458,7 @@ export const logout = async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
-    
+
     return res.status(200).json({
       message: "Logged out successfully",
     });
@@ -470,21 +470,106 @@ export const logout = async (req, res) => {
 };
 
 // ==================== Get Invitations ====================
-export const getInvitations = async (req, res) => {
-  const role = req.user.role.toLowerCase();
-  const userOrg = req.user.orgName;
-  const userId = req.user.userId;
+// export const getInvitations = async (req, res) => {
+//   if (!req.user || !req.user.role) {
+//     return res.status(401).json({ message: "Unauthorized" });
+//   }
 
+//   const role = req.user.role.toLowerCase();
+//   const userOrg = req.user.orgName;
+//   const userId = req.user.userId;
+
+//   try {
+//     if (role === "superadmin") {
+//       const orgStats = await Invitation.aggregate([
+//         // STEP 1: Only look for Admin invitations
+//         { $match: { role: "admin" } },
+
+//         // STEP 2: Group by Organization
+//         {
+//           $group: {
+//             _id: "$orgName",
+//             email: { $first: "$email" },
+//             createdAt: { $min: "$createdAt" },
+//             status: { $first: "$used" },
+//           }
+//         },
+//         { $sort: { createdAt: -1 } }
+//       ]);
+
+//       const formattedData = await Promise.all(
+//         orgStats.map(async (org) => {
+//           // STEP 3: Count EVERYONE (Admin + Leader + Manager + Employee) in this org
+//           const totalUsers = await User.countDocuments({ orgName: org._id });
+
+//           return {
+//             _id: org._id,
+//             orgName: org.orgName,
+//             email: org.email,
+//             createdAt: org.createdAt,
+//             totalUsers: totalUsers, // This will now show the count of the whole team
+//             status: org.status ? "Accept" : "Pending",
+//             role: "admin"
+//           };
+//         })
+//       );
+//       return res.status(200).json(formattedData);
+
+//     } else {
+//       // Standard logic for Regular Admins (Individual Invites)
+//       const invitations = await Invitation.find({
+//         orgName: userOrg,
+//         invitedBy: userId
+//       }).sort({ createdAt: -1 });
+
+//       const formattedData = await Promise.all(
+//         invitations.map(async (inv) => {
+//           let name = "—";
+//           let status = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
+
+//           if (inv.used) {
+//             const registeredUser = await User.findOne({ email: inv.email });
+//             if (registeredUser) name = `${registeredUser.firstName} ${registeredUser.lastName}`;
+//           }
+
+//           return {
+//             _id: inv._id,
+//             name: name,
+//             email: inv.email,
+//             role: inv.role,
+//             createdAt: inv.createdAt,
+//             status: status
+//           };
+//         })
+//       );
+//       return res.status(200).json(formattedData);
+//     }
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
+
+
+export const getInvitations = async (req, res) => {
   try {
+    if (!req.user || !req.user.role) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const role = req.user.role.toLowerCase();
+    const userOrg = req.user.orgName;
+    const userId = req.user.userId;
+
+    console.log(userId, userOrg, role);
     if (role === "superadmin") {
-      // Group by orgName so Super Admin sees 1 row per Organization
       const orgStats = await Invitation.aggregate([
+        { $match: { role: "admin" } },
         {
           $group: {
             _id: "$orgName",
-            email: { $first: "$email" }, // Admin email
-            createdAt: { $min: "$createdAt" }, // First invite date
-            status: { $first: "$used" }, // Check if at least one is used
+            email: { $first: "$email" },
+            createdAt: { $min: "$createdAt" },
+            status: { $first: "$used" },
           }
         },
         { $sort: { createdAt: -1 } }
@@ -492,52 +577,64 @@ export const getInvitations = async (req, res) => {
 
       const formattedData = await Promise.all(
         orgStats.map(async (org) => {
-          // Count actual registered users for this org
-          const totalUsers = await User.countDocuments({ orgName: org._id });
-          
-          return {
-            _id: org._id, // Using orgName as ID for the key
-            orgName: org._id,
-            email: org.email,
-            createdAt: org.createdAt,
-            totalUsers: totalUsers,
-            status: org.status ? "Accept" : "Pending",
-            role: "admin"
-          };
+          try {
+            let finalOrgName = org._id;
+
+            // If Invitation has no orgName, find it from the User collection
+            if (!finalOrgName || finalOrgName === null) {
+              const adminUser = await User.findOne({ email: org.email });
+              finalOrgName = adminUser?.orgName || "Pending Setup";
+            }
+
+            const totalUsers = await User.countDocuments({ orgName: finalOrgName });
+
+            return {
+              _id: org.email, 
+              orgName: finalOrgName, 
+              email: org.email,
+              createdAt: org.createdAt,
+              totalUsers: totalUsers,
+              status: org.status ? "Accept" : "Pending",
+              role: "admin"
+            };
+          } catch (innerErr) {
+            // If one row fails, return a fallback so the whole page doesn't break
+            return {
+              _id: org.email,
+              orgName: "Error loading name",
+              email: org.email,
+              status: "Pending",
+              totalUsers: 0
+            };
+          }
         })
       );
       return res.status(200).json(formattedData);
 
     } else {
-      // Standard logic for Regular Admins (Individual Invites)
-      const invitations = await Invitation.find({ 
-        orgName: userOrg, 
-        invitedBy: userId 
-      }).sort({ createdAt: -1 });
-
+      // Logic for regular Admins remains the same...
+      const invitations = await Invitation.find({ orgName: userOrg, invitedBy: userId }).sort({ createdAt: -1 });
       const formattedData = await Promise.all(
         invitations.map(async (inv) => {
           let name = "—";
-          let status = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
-
           if (inv.used) {
             const registeredUser = await User.findOne({ email: inv.email });
             if (registeredUser) name = `${registeredUser.firstName} ${registeredUser.lastName}`;
           }
-
           return {
             _id: inv._id,
             name: name,
             email: inv.email,
             role: inv.role,
             createdAt: inv.createdAt,
-            status: status
+            status: inv.used ? "Accept" : "Pending"
           };
         })
       );
       return res.status(200).json(formattedData);
     }
   } catch (error) {
+    console.error("CRASH ERROR:", error); // Check your terminal for this!
     res.status(500).json({ message: "Server error" });
   }
 };
