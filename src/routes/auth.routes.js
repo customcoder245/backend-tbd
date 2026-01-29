@@ -12,7 +12,8 @@ import {
   acceptInvitation, 
   getCurrentUserSession,
   getInvitations,
-  deleteInvitation
+  deleteInvitation,
+  getMe,
 } from "../controllers/auth.controller.js";
 
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
@@ -40,5 +41,7 @@ router.get("/current-user-session", getCurrentUserSession);
 
 router.get("/invitations", protect, getInvitations);
 router.delete("/invitation/:id", protect, deleteInvitation);
+
+router.get("/me", protect, getMe);
 
 export default router;

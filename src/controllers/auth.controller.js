@@ -672,6 +672,30 @@ export const deleteInvitation = async (req, res) => {
     res.status(500).json({ message: "Failed to delete" });
   }
 };
+
+// ==================== GET Current Authenticated User (auth/me) ====================
+export const getMe = async (req, res) => {
+  try {
+    // req.user.id comes from your verifyToken/protect middleware
+    const user = await User.findById(req.user.userId).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      email: user.email,
+      orgName: user.orgName
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
 // ==================== Complete Profile ====================
 // export const completeProfile = async (req, res) => {
 //   const { token, firstName, lastName, department} = req.body;
