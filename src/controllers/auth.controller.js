@@ -585,7 +585,7 @@ export const getInvitations = async (req, res) => {
             if (item.status) {
               currentStatus = "Accept";
             } else if (item.expiredAt && new Date(item.expiredAt) < new Date()) {
-              currentStatus = "Expire"; 
+              currentStatus = "Expire";
             }
 
             const totalUsers = await User.countDocuments({
@@ -659,8 +659,8 @@ export const deleteInvitation = async (req, res) => {
     });
 
     if (!canDelete) {
-      return res.status(400).json({ 
-        message: "Only expired invitations can be deleted. Accepted or Pending invites must remain." 
+      return res.status(400).json({
+        message: "Only expired invitations can be deleted. Accepted or Pending invites must remain."
       });
     }
 
@@ -676,18 +676,14 @@ export const deleteInvitation = async (req, res) => {
 // ==================== GET Current Authenticated User (auth/me) ====================
 export const getMe = async (req, res) => {
   try {
-    // req.user.id comes from your verifyToken/protect middleware
+    // req.user is populated by your auth middleware from the accessToken
     const user = await User.findById(req.user.userId).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     res.status(200).json({
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
-      email: user.email,
       orgName: user.orgName
     });
   } catch (error) {
