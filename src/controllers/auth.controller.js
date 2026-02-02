@@ -121,7 +121,7 @@ export const acceptInvitation = async (req, res) => {
 
   // FIX: Use invitation.role instead of just 'role'
   if (invitation.role === "employee") {
-    return res.redirect(`${process.env.FRONTEND_URL}/start-assessment`);
+    return res.redirect(`${process.env.FRONTEND_URL}/start-assessment?token=${token}`);
   }
 
   return res.redirect(`${process.env.FRONTEND_URL}/register`);

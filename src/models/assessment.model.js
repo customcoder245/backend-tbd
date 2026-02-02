@@ -1,20 +1,32 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
-const assessmentSchema = new mongoose.Schema({
+const assessmentSchema = new Schema({
   stakeholder: {
     type: String,
     required: true
   },
 
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true
+    type: Schema.Types.ObjectId,
+    ref: "User"
   },
 
-  // ✅ ADD THIS (person snapshot)
+  employeeEmail: {
+    type: String
+  },
+
+  invitedBy: {
+    type: Schema.Types.ObjectId,
+    ref: "User"
+  },
+
+  orgName: {
+    type: String
+  },
+
+  // person snapshot
   userDetails: {
-    type: Object, // snapshot of person data
+    type: Object,
     default: null
   },
 
@@ -27,12 +39,17 @@ const assessmentSchema = new mongoose.Schema({
     type: Date
   },
 
-  responses: [{
-    questionId: { type: mongoose.Schema.Types.ObjectId, ref: "Question" },
-    questionCode: String,
-    answer: mongoose.Schema.Types.Mixed,
-    comment: String
-  }]
+  responses: [
+    {
+      questionId: {
+        type: Schema.Types.ObjectId,
+        ref: "Question"
+      },
+      questionCode: String,
+      answer: Schema.Types.Mixed,
+      comment: String
+    }
+  ]
 });
 
 export default mongoose.model("Assessment", assessmentSchema);

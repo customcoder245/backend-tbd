@@ -13,9 +13,12 @@ const employeeAssessmentSchema = new Schema(
         email: {
             type: String,
             required: true,
-            unique: true,
             lowercase: true,
             trim: true
+        },
+        invitationId: {
+            type: Schema.Types.ObjectId,
+            ref: "Invitation",
         },
         adminId: {
             type: Schema.Types.ObjectId,
@@ -31,7 +34,7 @@ const employeeAssessmentSchema = new Schema(
         assessmentStartedAt: {
             type: Date
         },
-        assessmnetCompletedAt: {
+        assessmentCompletedAt: {
             type: Date
         },
         answer: {
@@ -51,9 +54,10 @@ const employeeAssessmentSchema = new Schema(
         convertedToUser: { type: Boolean, default: false },
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
         expiresAt: { type: Date },
-        createdAt: { type: Date, default: Date.now },
-        updatedAt: { type: Date, default: Date.now }
+        
+    }, {
+        timestamps: true
     }
 )
 
-export default mongoose.Schema("EmployeeAssessment", employeeAssessmentSchema)
+export default mongoose.model("EmployeeAssessment", employeeAssessmentSchema)

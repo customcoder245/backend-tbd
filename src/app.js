@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 // ROUTES
 import authRoutes from "./routes/auth.routes.js";
 import assessmentRoutes from "./routes/assessment.routes.js";
+import employeeAssessmentRoutes from "./routes/employeeAssessment.routes.js";
 import questionRoutes from "./routes/question.routes.js";
 import responseRoutes from "./routes/response.routes.js";
 
@@ -36,6 +37,7 @@ app.get("/", (req, res) => {
 // ROUTE MOUNTING
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/assessment", assessmentRoutes);
+app.use("/api/v1/employee-assessment", employeeAssessmentRoutes);
 app.use("/api/v1/questions", questionRoutes);
 app.use("/api/v1/responses", responseRoutes);
 

@@ -19,7 +19,7 @@ export const startAssessment = async (req, res) => {
     const assessmentData = { stakeholder };
 
     // For "leader" or "manager", add the userId (assessment token)
-    if (stakeholder === "leader" || stakeholder === "manager") {
+    if (stakeholder === "leader" || stakeholder === "manager" || stakeholder === "admin") {
       assessmentData.userId = req.user.userId;
     }
 
@@ -123,6 +123,18 @@ export const submitAssessment = async (req, res) => {
   }
 };
 
+// controllers/assessment.controller.js
+
+export const getAssessmentStartData = async (req, res) => {
+  return res.status(200).json({
+    title: "POD-360™ | From Friction to Flow",
+    description_one:
+      "Every organization experiences friction especially during times of rapid and constant change.",
+    description_two:
+      "is a confidential, organization-level assessment designed to identify how friction impacts performance.",
+    duration_minutes: 40
+  });
+};
 
 
 
