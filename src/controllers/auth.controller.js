@@ -62,7 +62,7 @@ export const sendInvitation = async (req, res) => {
     adminId: userId,
     invitedBy: userId, // Used for the Admin query filter
     orgName: organizationName, // Stored so the Admin can find it in getInvitations
-    expiredAt: Date.now() + 10 * 60 * 1000,
+    expiredAt: Date.now() + 60 * 60 * 1000,
   });
 
   await invitation.save();

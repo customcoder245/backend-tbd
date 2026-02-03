@@ -4,6 +4,7 @@ import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Invitation from "../models/invitation.model.js";
 import mongoose from "mongoose";
 
+
 export const startEmployeeAssessment = async (req, res) => {
   try {
     if (!req.employee) {
@@ -12,22 +13,36 @@ export const startEmployeeAssessment = async (req, res) => {
       });
     }
 
-    // ✅ FIX: extract invitationId correctly
-    const invitationId =
+    // 1️⃣ Extract raw invitationId
+    const rawInvitationId =
       req.employee.invitationId || req.employee.invitedId;
 
-    if (!invitationId) {
+    if (!rawInvitationId || !mongoose.Types.ObjectId.isValid(rawInvitationId)) {
       return res.status(400).json({
-        message: "Invitation ID missing in token"
+        message: "Invalid invitation ID"
       });
     }
 
+    // 2️⃣ Cast to ObjectId
+    const invitationId = new mongoose.Types.ObjectId(rawInvitationId);
+
+    // 3️⃣ 🔒 CHECK IF ALREADY EXISTS (THIS IS THE MAIN FIX)
+    const existingAssessment = await Assessment.findOne({ invitationId });
+
+    if (existingAssessment) {
+      return res.status(200).json({
+        message: "Assessment already started",
+        assessmentId: existingAssessment._id
+      });
+    }
+
+    // 4️⃣ Create ONLY if not exists
     const assessment = await Assessment.create({
       stakeholder: "employee",
       invitedBy: req.employee.invitedBy,
       orgName: req.employee.orgName,
       employeeEmail: req.employee.email,
-      invitationId, // ✅ now defined
+      invitationId
     });
 
     return res.status(201).json({
@@ -42,6 +57,7 @@ export const startEmployeeAssessment = async (req, res) => {
     });
   }
 };
+
 
 
 export const submitEmployeeAssessment = async (req, res) => {

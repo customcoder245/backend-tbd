@@ -24,6 +24,13 @@ const assessmentSchema = new Schema({
     type: String
   },
 
+  invitationId: {
+    type: Schema.Types.ObjectId,
+    ref: "Invitation",
+    required: true,
+    unique: true
+  },
+  
   // person snapshot
   userDetails: {
     type: Object,

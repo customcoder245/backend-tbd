@@ -12,7 +12,7 @@ const router = express.Router();
  * EMPLOYEE ONLY (NO LOGIN)
  * Token-based access
  */
-router.post("/start/:token", employeeAccess, startEmployeeAssessment);
+router.post("/start", employeeAccess, startEmployeeAssessment);
 router.post("/:assessmentId/submit/:token", employeeAccess, submitEmployeeAssessment);
 
 export default router;
