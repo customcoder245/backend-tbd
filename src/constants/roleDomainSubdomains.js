@@ -1,6 +1,26 @@
 // /constants/roleDomainSubdomains.js
 
 export const ROLE_DOMAIN_SUBDOMAINS = {
+  admin: {
+    "People Potential": [
+      "Psychological Safety Leadership",
+      "Talent, Learning & Workforce Strategy",
+      "Engagement & Culture Stewardship",
+      "Leadership Communication & Visibility"
+    ],
+    "Operational Steadiness": [
+      "Operating Model Clarity",
+      "Cross-Functional Governance",
+      "Decision Rights & Accountability",
+      "Risk, Resilience & Change Readiness"
+    ],
+    "Digital Fluency": [
+      "Digital Modernization Leadership",
+      "Strategic Collaboration Architecture",
+      "Operational Governance & Risk",
+      "AI Strategy & Data Fluency"
+    ]
+  },
   leader: {
     "People Potential": [
       "Psychological Safety Leadership",
@@ -61,27 +81,6 @@ export const ROLE_DOMAIN_SUBDOMAINS = {
       "Collaboration & Coordination",
       "Workflow Efficiency",
       "AI Readiness"
-    ]
-  },
-
-  admin: {
-    "People Potential": [
-      "Psychological Safety Leadership",
-      "Talent, Learning & Workforce Strategy",
-      "Engagement & Culture Stewardship",
-      "Leadership Communication & Visibility"
-    ],
-    "Operational Steadiness": [
-      "Operating Model Clarity",
-      "Cross-Functional Governance",
-      "Decision Rights & Accountability",
-      "Risk, Resilience & Change Readiness"
-    ],
-    "Digital Fluency": [
-      "Digital Modernization Leadership",
-      "Strategic Collaboration Architecture",
-      "Operational Governance & Risk",
-      "AI Strategy & Data Fluency"
     ]
   }
 };

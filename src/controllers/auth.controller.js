@@ -115,7 +115,7 @@ export const acceptInvitation = async (req, res) => {
     maxAge: 60 * 60 * 1000,
     path: "/"
   };
- 
+
   res.cookie("authToken", authToken, cookieOptions);
   res.cookie("token1", token, cookieOptions);
 
