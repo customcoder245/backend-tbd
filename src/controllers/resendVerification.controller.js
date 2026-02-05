@@ -1,5 +1,6 @@
-import User from "../models/user.model.js";  // Import the User model
-import { sendVerificationEmail } from "../utils/sendEmail.js";  // Import the sendVerificationEmail function
+import User from "../models/user.model.js";
+import { sendVerificationEmail } from "../utils/sendEmail.js";
+import jwt from "jsonwebtoken";
 
 // Controller to handle resending the verification email
 export const resendVerificationEmail = async (req, res) => {
@@ -23,14 +24,14 @@ export const resendVerificationEmail = async (req, res) => {
 
     if (isTokenExpired) {
       // Step 4: If the token is expired, generate a new token and set a new expiration time
-      const newToken = Math.random().toString(36).substring(2, 15);
+      const newToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: "1h" });
       user.emailVerificationToken = newToken;
-      user.emailVerificationExpires = Date.now() + 15 * 60 * 1000;  // New token expiration time (15 minutes)
-      
+      user.emailVerificationExpires = Date.now() + 60 * 60 * 1000;  // 1 hour expiration
+
       await user.save();  // Save the updated user object
 
       // Step 5: Send the new verification email with the new token
-      const verifyLink = `${process.env.FRONTEND_URL}/verify-email/${newToken}`;
+      const verifyLink = `${process.env.BACKEND_URL}auth/verify-email/${newToken}`;
       await sendVerificationEmail(user, verifyLink);
 
       return res.status(200).json({
