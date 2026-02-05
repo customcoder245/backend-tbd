@@ -380,3 +380,71 @@ export const getQuestionsByStakeholder = async (req, res) => {
     });
   }
 };
+
+/**
+ * GET ALL QUESTIONS WITH FILTERS (Admin/CRUD)
+ * Supports filtering by stakeholder, domain, and subdomain
+ */
+export const getAllQuestions = async (req, res) => {
+  try {
+    const { stakeholder, domain, subdomain } = req.query;
+
+    // Build filter object
+    const filter = { isDeleted: false };
+    
+    if (stakeholder) {
+      filter.stakeholder = stakeholder;
+    }
+    
+    if (domain) {
+      filter.domain = domain;
+    }
+    
+    if (subdomain) {
+      filter.subdomain = subdomain;
+    }
+
+    const questions = await Question.find(filter).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      data: questions,
+      count: questions.length
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching questions",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * GET SINGLE QUESTION BY ID (Admin/CRUD)
+ */
+export const getQuestionById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const question = await Question.findById(id);
+
+    if (!question || question.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Question not found"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: question
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching question",
+      error: error.message
+    });
+  }
+};

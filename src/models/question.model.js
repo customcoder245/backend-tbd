@@ -6,7 +6,7 @@ const questionSchema = new Schema(
   {
     stakeholder: {
       type: String,
-      enum: ["leader", "manager", "employee"],
+      enum: ["leader", "manager", "employee", "admin"],
       required: true
     },
 
@@ -20,7 +20,7 @@ const questionSchema = new Schema(
       type: String,
       required: true,
       validate: {
-        validator: function(value) {
+        validator: function (value) {
           return ROLE_DOMAIN_SUBDOMAINS[this.stakeholder]?.[this.domain]?.includes(value);
         },
         message: "Invalid subdomain for selected stakeholder and domain"

@@ -57,10 +57,31 @@ export const ROLE_DOMAIN_SUBDOMAINS = {
       "Workload & Capacity"
     ],
     "Digital Fluency": [
-      "tsp",
-      "cc",
-      "we",
-      "aiso"
+      "Tool & System Proficiency",
+      "Collaboration & Coordination",
+      "Workflow Efficiency",
+      "AI Readiness"
+    ]
+  },
+
+  admin: {
+    "People Potential": [
+      "Psychological Safety Leadership",
+      "Talent, Learning & Workforce Strategy",
+      "Engagement & Culture Stewardship",
+      "Leadership Communication & Visibility"
+    ],
+    "Operational Steadiness": [
+      "Operating Model Clarity",
+      "Cross-Functional Governance",
+      "Decision Rights & Accountability",
+      "Risk, Resilience & Change Readiness"
+    ],
+    "Digital Fluency": [
+      "Digital Modernization Leadership",
+      "Strategic Collaboration Architecture",
+      "Operational Governance & Risk",
+      "AI Strategy & Data Fluency"
     ]
   }
 };
