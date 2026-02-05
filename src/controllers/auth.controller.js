@@ -115,7 +115,7 @@ export const acceptInvitation = async (req, res) => {
     maxAge: 60 * 60 * 1000,
     path: "/"
   };
-
+ 
   res.cookie("authToken", authToken, cookieOptions);
   res.cookie("token1", token, cookieOptions);
 
@@ -198,7 +198,7 @@ export const register = async (req, res) => {
   await sendVerificationEmail(user, verificationLink);
 
   // Step 8: Mark the invitation as used
-  invitation.used = true;
+  invitation.used = false;
   await invitation.save();
 
   // Step 9: Respond to the user
