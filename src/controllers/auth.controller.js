@@ -253,7 +253,7 @@ export const verifyEmail = async (req, res) => {
     maxAge: 15 * 60 * 1000
   });
 
-  res.redirect(`${process.env.FRONTEND_URL}/profile-info`);
+  res.redirect(`${process.env.FRONTEND_URL}/profile-info?verifyToken=${token}`);
 };
 
 // ==================== Complete Profile ====================
