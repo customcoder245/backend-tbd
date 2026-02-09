@@ -103,7 +103,12 @@ export const acceptInvitation = async (req, res) => {
   }
 
   const authToken = jwt.sign(
-    { email: decode.email, role: invitation.role, userId: invitation.adminId },
+    {
+      email: decode.email,
+      role: invitation.role,
+      userId: invitation.adminId,
+      orgName: invitation.orgName
+    },
     process.env.JWT_SECRET,
     { expiresIn: '1h' }
   );
@@ -132,9 +137,12 @@ export const acceptInvitation = async (req, res) => {
 // ================= REGISTER ================= 
 export const register = async (req, res) => {
   const { email, password, confirmPassword } = req.body;
-  const { authToken, token1 } = req.cookies
+  const authToken = req.cookies.authToken || req.headers["x-auth-token"];
+  const token1 = req.cookies.token1 || req.headers["x-invitation-token"];
 
-  console.log("Register Request - Cookies received:", req.cookies);
+  console.log("Register Request - Tokens source check:");
+  console.log("authToken found in cookies:", !!req.cookies.authToken, "or headers:", !!req.headers["x-auth-token"]);
+  console.log("token1 found in cookies:", !!req.cookies.token1, "or headers:", !!req.headers["x-invitation-token"]);
   console.log("Register Request - Body email:", email);
 
   // Step 1: Validate input
@@ -143,8 +151,8 @@ export const register = async (req, res) => {
     if (!email) missing.push("email");
     if (!password) missing.push("password");
     if (!confirmPassword) missing.push("confirmPassword");
-    if (!authToken) missing.push("authToken cookie");
-    if (!token1) missing.push("token1 cookie");
+    if (!authToken) missing.push("authToken token (cookie or header)");
+    if (!token1) missing.push("token1 token (cookie or header)");
 
     console.log("Validation failed. Missing:", missing.join(", "));
     return res.status(400).json({ message: "You are not invited yet, so you cannot register." });
@@ -187,7 +195,9 @@ export const register = async (req, res) => {
   const user = new User({
     email: decoded.email,
     password, // ⚠️ Remember to hash the password before saving in production
-    orgName: invitation.orgName || "",
+    orgName: decoded.orgName || invitation.orgName || "",
+    adminId: invitation.adminId || invitation.invitedBy,
+    invitedBy: invitation.invitedBy || invitation.adminId,
     emailVerificationToken: jwt.sign({ email: decoded.email }, process.env.JWT_SECRET, { expiresIn: "1h" }), // Generate the email verification token
     role: invitation.role,
     emailVerificationExpires: Date.now() + 60 * 60 * 1000, // 1 hour expiration for the verification token
@@ -259,10 +269,11 @@ export const verifyEmail = async (req, res) => {
 // ==================== Complete Profile ====================
 export const completeProfile = async (req, res) => {
   try {
-    const tokenFromCookie = req.cookies.verifyToken;
+    const tokenFromCookie = req.cookies.verifyToken || req.headers["x-verify-token"];
     const { firstName, lastName, department, titles, orgName } = req.body;
 
     if (!tokenFromCookie) {
+      console.log("Complete Profile: No verifyToken found in cookies or headers");
       return res.status(401).json({ message: "Verification session expired." });
     }
 
@@ -320,8 +331,9 @@ export const completeProfile = async (req, res) => {
 // ==================== GET Current User Session ====================
 export const getCurrentUserSession = async (req, res) => {
   try {
-    const { verifyToken } = req.cookies;
+    const verifyToken = req.cookies.verifyToken || req.headers["x-verify-token"];
     if (!verifyToken) {
+      console.log("Current User Session: No verifyToken found in cookies or headers");
       return res.status(401).json({ message: "No verification token found." });
     }
 
@@ -525,7 +537,7 @@ export const getInvitations = async (req, res) => {
 
             const totalUsers = await User.countDocuments({
               orgName: finalOrgName,
-              role: { $ne: "admin" }
+              role: { $ne: "superAdmin" }
             });
 
             return {
@@ -551,9 +563,21 @@ export const getInvitations = async (req, res) => {
           let name = "—";
           let currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
 
-          if (inv.used) {
-            const registeredUser = await User.findOne({ email: inv.email });
-            if (registeredUser) name = `${registeredUser.firstName} ${registeredUser.lastName}`;
+          // Try to find the registered user by token or email for more robustness
+          const registeredUser = await User.findOne({
+            $or: [
+              { invitationToken: inv.token1 },
+              { invitationToken: inv.token },
+              { email: inv.email }
+            ]
+          });
+
+          if (registeredUser) {
+            if (registeredUser.firstName || registeredUser.lastName) {
+              name = `${registeredUser.firstName || ""} ${registeredUser.lastName || ""}`.trim();
+            } else {
+              name = "Registered (Pending Info)";
+            }
           }
 
           return {
