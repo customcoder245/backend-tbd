@@ -2,6 +2,7 @@ import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js"
 import { sendVerificationEmail, sendResetEmail, sendInvitationEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 // ================= Send Invitation ================= 
 export const sendInvitation = async (req, res) => {
@@ -635,18 +636,156 @@ export const deleteInvitation = async (req, res) => {
 // ==================== GET Current Authenticated User (auth/me) ====================
 export const getMe = async (req, res) => {
   try {
-    // req.user is populated by your auth middleware from the accessToken
     const user = await User.findById(req.user.userId).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    // console.log("DEBUG: getMe finding user:", user._id, "Image:", user.profileImage);
+
     res.status(200).json({
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      orgName: user.orgName
+      _id: user._id,
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      role: user.role || "",
+      orgName: user.orgName || "",
+      profileImage: user.profileImage || "",
+      debug: "v2"
     });
   } catch (error) {
+    console.error("getMe error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
+
+// ------------------------ Get profile information ---------------------
+export const myProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      // Basic Info
+      firstName: user.firstName || "",
+      middleInitial: user.middleInitial || "",
+      lastName: user.lastName || "",
+      email: user.email || "",
+      role: user.role || "",
+      orgName: user.orgName || "",
+
+      // Personal Info
+      dob: user.dob || "",
+      gender: user.gender || "",
+      phoneNumber: user.phoneNumber || "",
+
+      // Address Info
+      country: user.country || "",
+      state: user.state || "",
+      zipCode: user.zipCode || "",
+
+      profileImage: user.profileImage || "",
+
+      // Optional flags (helpful for frontend)
+      profileCompleted: user.profileCompleted
+    });
+
+  } catch (error) {
+    console.error("myProfile error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ------------------------ Update Profile ---------------------
+export const updateProfile = async (req, res) => {
+  try {
+    const {
+      firstName,
+      middleInitial,
+      lastName,
+      dob,
+      gender,
+      phoneNumber,
+      country,
+      state,
+      zipCode
+    } = req.body;
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Use !== undefined to allow clearing optional fields, 
+    // but convert empty strings to null or undefined for fields with unique indexes or special types
+    if (firstName !== undefined) user.firstName = firstName;
+    if (middleInitial !== undefined) user.middleInitial = middleInitial;
+    if (lastName !== undefined) user.lastName = lastName;
+
+    // Date fields should be null if empty string
+    if (dob !== undefined) user.dob = dob || null;
+
+    if (gender !== undefined) user.gender = gender || "";
+
+    // IMPORTANT: phoneNumber has a unique sparse index. 
+    // Multiple empty strings "" will COLLIDE. They must be undefined or null.
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber || undefined;
+
+    if (country !== undefined) user.country = country;
+    if (state !== undefined) user.state = state;
+    if (zipCode !== undefined) user.zipCode = zipCode;
+
+    // Handle Profile Image upload
+    if (req.file) {
+      const cloudinaryResponse = await uploadOnCloudinary(req.file.path);
+      if (cloudinaryResponse) {
+        user.profileImage = cloudinaryResponse.secure_url;
+      }
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      user: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImage: user.profileImage,
+        state: user.state,
+        zipCode: user.zipCode,
+        phoneNumber: user.phoneNumber
+      }
+    });
+
+  } catch (error) {
+    console.error("updateProfile error:", error);
+
+    // Handle duplicate key error (MongoDB 11000)
+    if (error.code === 11000) {
+      let field = "Field";
+      if (error.keyPattern) {
+        field = Object.keys(error.keyPattern)[0];
+      } else if (error.message && error.message.includes("index: ")) {
+        // Fallback for some mongo versions
+        const match = error.message.match(/index: (?:.*\.)?\$?([a-zA-Z0-9_]+)_/);
+        if (match) field = match[1];
+      }
+
+      return res.status(400).json({
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists.`
+      });
+    }
+
+    // Handle Mongoose validation errors
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ message: messages.join(", ") });
+    }
+
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};

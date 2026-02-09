@@ -41,9 +41,50 @@ const userSchema = new Schema(
       required: false
     },
 
+    middleInitial: {
+      type: String,
+      required: false
+    },
+
     lastName: {
       type: String,
       required: false
+    },
+
+    dob: {
+      type: Date,
+      required: false,
+    },
+
+    gender: {
+      type: String,
+      required: false
+    },
+
+    phoneNumber: {
+      type: String,
+      required: false,
+      unique: true,
+      sparse: true,
+      trim: true
+    },
+
+    country: {
+      type: String,
+      required: false,
+      trim: true
+    },
+
+    state: {
+      type: String,
+      required: false,
+      trim: true
+    },
+
+    zipCode: {
+      type: String,
+      required: false,
+      trim: true
     },
 
     department: {
@@ -54,7 +95,7 @@ const userSchema = new Schema(
     titles: {
       type: String
     },
-    
+
     invitationToken: { type: String },
 
     profileCompleted: {
@@ -62,16 +103,15 @@ const userSchema = new Schema(
       default: false
     },
 
-    // isApprovedByAdmin: {
-    //   type: Boolean,
-    //   default: false
-    // },
+    profileCompletedAfterRegistration: {
+      type: Boolean,
+      default: false
+    },
 
-    // approvedBy: {
-    //   type: Schema.Types.ObjectId,
-    //   ref: "User",
-    //   default: null
-    // },
+    profileImage: {
+      type: String,
+      required: false
+    },
 
     isEmailVerified: {
       type: Boolean,
@@ -89,7 +129,7 @@ const userSchema = new Schema(
 
 userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
-    { userId: this._id, role: this.role , orgName: this.orgName},
+    { userId: this._id, role: this.role, orgName: this.orgName },
     process.env.JWT_SECRET,
     { expiresIn: "60m" }
   );

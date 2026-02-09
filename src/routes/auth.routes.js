@@ -8,16 +8,19 @@ import {
   forgotPassword,
   resetPassword,
   resetPasswordRedirect,
-  sendInvitation, 
-  acceptInvitation, 
+  sendInvitation,
+  acceptInvitation,
   getCurrentUserSession,
   getInvitations,
   deleteInvitation,
   getMe,
+  myProfile,
+  updateProfile
 } from "../controllers/auth.controller.js";
 
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = express.Router();
 
@@ -43,5 +46,7 @@ router.get("/invitations", protect, getInvitations);
 router.delete("/invitation/:id", protect, deleteInvitation);
 
 router.get("/me", protect, getMe);
+router.get("/my-profile", protect, myProfile);
+router.patch("/update-profile", protect, upload.single("profileImage"), updateProfile);
 
 export default router;

@@ -10,6 +10,7 @@ import questionRoutes from "./routes/question.routes.js";
 import responseRoutes from "./routes/response.routes.js";
 
 const app = express();
+// Trigger restart.
 
 // Parse incoming JSON requests
 app.use(express.json());
