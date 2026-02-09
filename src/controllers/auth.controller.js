@@ -108,10 +108,11 @@ export const acceptInvitation = async (req, res) => {
     { expiresIn: '1h' }
   );
 
+  const isProduction = process.env.NODE_ENV === "production";
   const cookieOptions = {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 60 * 60 * 1000,
     path: "/"
   };
@@ -197,7 +198,7 @@ export const register = async (req, res) => {
   // Send email verification
   await sendVerificationEmail(user, verificationLink);
 
-  // Step 8: Mark the invitation as used
+  // Step 8: Marks the invitation as used only in the complete profile but good to keep it false here or remove
   invitation.used = false;
   await invitation.save();
 
@@ -235,10 +236,11 @@ export const verifyEmail = async (req, res) => {
   // 🔑 REQUIRED ON VERCEL
   res.setHeader("Cache-Control", "no-store");
 
+  const isProduction = process.env.NODE_ENV === "production";
   res.cookie("verifyToken", token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 15 * 60 * 1000
   });
 
@@ -289,10 +291,11 @@ export const completeProfile = async (req, res) => {
       await invitation.save();
     }
 
+    const isProduction = process.env.NODE_ENV === "production";
     res.clearCookie("verifyToken", {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       path: "/"
     });
 
@@ -401,10 +404,11 @@ export const resetPasswordRedirect = async (req, res) => {
   // 🔑 REQUIRED ON VERCEL
   res.setHeader("Cache-Control", "no-store");
 
+  const isProduction = process.env.NODE_ENV === "production";
   res.cookie("resetToken", token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 15 * 60 * 1000
   });
 
@@ -441,10 +445,11 @@ export const resetPassword = async (req, res) => {
 //================= LOGOUT ================= 
 export const logout = async (req, res) => {
   try {
+    const isProduction = process.env.NODE_ENV === "production";
     const cookieOptions = {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       path: "/",
     };
 
