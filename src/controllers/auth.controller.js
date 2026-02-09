@@ -108,7 +108,8 @@ export const acceptInvitation = async (req, res) => {
     { expiresIn: '1h' }
   );
 
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+  console.log("Setting cookies. isProduction:", isProduction);
   const cookieOptions = {
     httpOnly: true,
     secure: isProduction,
@@ -133,11 +134,19 @@ export const register = async (req, res) => {
   const { email, password, confirmPassword } = req.body;
   const { authToken, token1 } = req.cookies
 
-  console.log("Register called with body:", req.body);
-  console.log("Cookies:", req.cookies);
+  console.log("Register Request - Cookies received:", req.cookies);
+  console.log("Register Request - Body email:", email);
 
   // Step 1: Validate input
   if (!email || !password || !confirmPassword || !authToken || !token1) {
+    let missing = [];
+    if (!email) missing.push("email");
+    if (!password) missing.push("password");
+    if (!confirmPassword) missing.push("confirmPassword");
+    if (!authToken) missing.push("authToken cookie");
+    if (!token1) missing.push("token1 cookie");
+
+    console.log("Validation failed. Missing:", missing.join(", "));
     return res.status(400).json({ message: "You are not invited yet, so you cannot register." });
   }
 
@@ -155,7 +164,7 @@ export const register = async (req, res) => {
 
   // Step 3: Find the invitation using the token
   const invitation = await Invitation.findOne({ token: token1 });
-  if (!invitation || invitation.expiresAt < Date.now()) {
+  if (!invitation || invitation.expiredAt < Date.now()) {
     return res.status(400).json({ message: "Invitation has expired." });
   }
 
