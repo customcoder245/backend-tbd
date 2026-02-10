@@ -1,3 +1,5 @@
+
+
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 
@@ -39,8 +41,7 @@ const userSchema = new Schema(
 
     firstName: {
       type: String,
-      required: [true, "First name is required"]
-
+      required: false
     },
 
     middleInitial: {
@@ -50,14 +51,12 @@ const userSchema = new Schema(
 
     lastName: {
       type: String,
-      required: [true, "Last name is required"]
-
+      required: false
     },
 
     dob: {
       type: Date,
-      required: [true, "Date of birth is required"]
-
+      required: false
     },
 
     gender: {
@@ -67,8 +66,7 @@ const userSchema = new Schema(
 
     phoneNumber: {
       type: String,
-      required: [true, "Phone number is required"],
-
+      required: false,
       unique: true,
       sparse: true,
       trim: true
@@ -76,22 +74,19 @@ const userSchema = new Schema(
 
     country: {
       type: String,
-      required: [true, "Country is required"],
-
+      required: false,
       trim: true
     },
 
     state: {
       type: String,
-      required: [true, "State is required"],
-
+      required: false,
       trim: true
     },
 
     zipCode: {
       type: String,
-      required: [true, "Zip code is required"],
-
+      required: false,
       trim: true
     },
 
@@ -155,3 +150,4 @@ userSchema.methods.generateAccessToken = function () {
 };
 
 export default mongoose.model("User", userSchema);
+
