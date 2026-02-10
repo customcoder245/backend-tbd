@@ -5,10 +5,11 @@ const userSchema = new Schema(
   {
     email: {
       type: String,
-      required: true,
+      required: [true, "Email is required"],
       unique: true,
       lowercase: true,
       trim: true
+
     },
 
     password: {
@@ -38,7 +39,8 @@ const userSchema = new Schema(
 
     firstName: {
       type: String,
-      required: false
+      required: [true, "First name is required"]
+
     },
 
     middleInitial: {
@@ -48,12 +50,14 @@ const userSchema = new Schema(
 
     lastName: {
       type: String,
-      required: false
+      required: [true, "Last name is required"]
+
     },
 
     dob: {
       type: Date,
-      required: false,
+      required: [true, "Date of birth is required"]
+
     },
 
     gender: {
@@ -63,7 +67,8 @@ const userSchema = new Schema(
 
     phoneNumber: {
       type: String,
-      required: false,
+      required: [true, "Phone number is required"],
+
       unique: true,
       sparse: true,
       trim: true
@@ -71,19 +76,22 @@ const userSchema = new Schema(
 
     country: {
       type: String,
-      required: false,
+      required: [true, "Country is required"],
+
       trim: true
     },
 
     state: {
       type: String,
-      required: false,
+      required: [true, "State is required"],
+
       trim: true
     },
 
     zipCode: {
       type: String,
-      required: false,
+      required: [true, "Zip code is required"],
+
       trim: true
     },
 
