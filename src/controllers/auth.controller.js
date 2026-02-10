@@ -142,109 +142,117 @@ export const acceptInvitation = async (req, res) => {
   res.cookie("authToken", authToken, cookieOptions);
   res.cookie("token1", token, cookieOptions);
 
-  // FIX: Use invitation.role instead of just 'role'
+  // Append tokens to URL as fallback for cross-site cookie issues
+  let redirectUrl;
   if (invitation.role === "employee") {
-    return res.redirect(`${process.env.FRONTEND_URL}/start-assessment?token=${token}`);
+    redirectUrl = new URL(`${process.env.FRONTEND_URL}/start-assessment`);
+  } else {
+    redirectUrl = new URL(`${process.env.FRONTEND_URL}/register`);
   }
 
-  return res.redirect(`${process.env.FRONTEND_URL}/register`);
+  redirectUrl.searchParams.set("authToken", authToken);
+  redirectUrl.searchParams.set("token1", token);
+
+  return res.redirect(redirectUrl.toString());
 };
 
 // ================= REGISTER ================= 
 export const register = async (req, res) => {
-  const { email, password, confirmPassword } = req.body;
-  const authToken = req.cookies.authToken || req.headers["x-auth-token"];
-  const token1 = req.cookies.token1 || req.headers["x-invitation-token"];
-
-  console.log("Register Request - Tokens source check:");
-  console.log("authToken found in cookies:", !!req.cookies.authToken, "or headers:", !!req.headers["x-auth-token"]);
-  console.log("token1 found in cookies:", !!req.cookies.token1, "or headers:", !!req.headers["x-invitation-token"]);
-  console.log("Register Request - Body email:", email);
-
-  // Step 1: Validate input
-  if (!email || !password || !confirmPassword || !authToken || !token1) {
-    let missing = [];
-    if (!email) missing.push("email");
-    if (!password) missing.push("password");
-    if (!confirmPassword) missing.push("confirmPassword");
-    if (!authToken) missing.push("authToken token (cookie or header)");
-    if (!token1) missing.push("token1 token (cookie or header)");
-
-    console.log("Validation failed. Missing:", missing.join(", "));
-    return res.status(400).json({ message: "You are not invited yet, so you cannot register." });
-  }
-
-  if (password !== confirmPassword) {
-    return res.status(400).json({ message: "Passwords do not match." });
-  }
-
-  // Step 2: Verify the invitation token
-  let decoded;
   try {
-    decoded = jwt.verify(authToken, process.env.JWT_SECRET);
-  } catch (err) {
-    return res.status(400).json({ message: 'Invitation expired. Please request a new invitation' });
+    const { email, password, confirmPassword } = req.body;
+    const authToken = req.cookies.authToken || req.headers["x-auth-token"];
+    const token1 = req.cookies.token1 || req.headers["x-invitation-token"];
+
+    console.log("Register Request - Tokens source check:");
+    console.log("authToken found in cookies:", !!req.cookies.authToken, "or headers:", !!req.headers["x-auth-token"]);
+    console.log("token1 found in cookies:", !!req.cookies.token1, "or headers:", !!req.headers["x-invitation-token"]);
+    console.log("Register Request - Body email:", email);
+
+    // Step 1: Validate input
+    if (!email || !password || !confirmPassword || !authToken || !token1) {
+      let missing = [];
+      if (!email) missing.push("email");
+      if (!password) missing.push("password");
+      if (!confirmPassword) missing.push("confirmPassword");
+      if (!authToken) missing.push("authToken token (cookie or header)");
+      if (!token1) missing.push("token1 token (cookie or header)");
+
+      console.log("Validation failed. Missing:", missing.join(", "));
+      return res.status(400).json({ message: "You are not invited yet, so you cannot register." });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match." });
+    }
+
+    // Step 2: Verify the invitation token
+    let decoded;
+    try {
+      decoded = jwt.verify(authToken, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(400).json({ message: 'Invitation expired. Please request a new invitation' });
+    }
+
+    // Step 3: Find the invitation using the token
+    const invitation = await Invitation.findOne({ token: token1 });
+    if (!invitation || invitation.expiredAt < Date.now()) {
+      return res.status(400).json({ message: "Invitation has expired." });
+    }
+
+    if (invitation.used) {
+      return res.status(400).json({ message: "This invitation has already been used." });
+    }
+
+    // Step 4: Check if the email in the token matches the invitation email
+    if (decoded.email !== invitation.email) {
+      return res.status(400).json({ message: "Invalid invitation email." });
+    }
+
+    // Step 5: Check if the user already exists
+    const existingUser = await User.findOne({ email: decoded.email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email is already registered." });
+    }
+
+    // Step 6: Create the user
+    const user = new User({
+      email: decoded.email,
+      password, // ⚠️ Remember to hash the password before saving in production
+      orgName: decoded.orgName || invitation.orgName || "",
+      adminId: invitation.adminId || invitation.invitedBy,
+      invitedBy: invitation.invitedBy || invitation.adminId,
+      emailVerificationToken: jwt.sign({ email: decoded.email }, process.env.JWT_SECRET, { expiresIn: "1h" }), // Generate the email verification token
+      role: invitation.role,
+      emailVerificationExpires: Date.now() + 60 * 60 * 1000, // 1 hour expiration for the verification token
+      invitationToken: token1,
+      isEmailVerified: false,  // User must verify their email
+      profileCompleted: false,  // Profile not yet completed
+    });
+
+    await user.save();
+
+    // Step 7: Generate the email verification link
+    const verificationLink = `${process.env.BACKEND_URL}auth/verify-email/${user.emailVerificationToken}`;
+
+    // Send email verification
+    await sendVerificationEmail(user, verificationLink);
+
+    // Step 8: Marks the invitation as used (delayed to complete profile)
+    invitation.used = false;
+    await invitation.save();
+
+    // Step 9: Respond to the user
+    res.status(201).json({
+      message: "Registration successful. Please verify your email.",
+      user: {
+        id: user._id,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(400).json({ message: error.message || "Registration failed. Please try again." });
   }
-
-  // Step 3: Find the invitation using the token
-  const invitation = await Invitation.findOne({ token: token1 });
-  if (!invitation || invitation.expiredAt < Date.now()) {
-    return res.status(400).json({ message: "Invitation has expired." });
-  }
-
-  if (invitation.used) {
-    return res.status(400).json({ message: "This invitation has already been used." });
-  }
-
-  // Step 4: Check if the email in the token matches the invitation email
-  if (decoded.email !== invitation.email) {
-    return res.status(400).json({ message: "Invalid invitation email." });
-  }
-
-  // Step 5: Check if the user already exists
-  const existingUser = await User.findOne({ email: decoded.email });
-  if (existingUser) {
-    return res.status(400).json({ message: "Email is already registered." });
-  }
-
-  // Step 6: Create the user
-  const user = new User({
-    email: decoded.email,
-    password, // ⚠️ Remember to hash the password before saving in production
-    orgName: decoded.orgName || invitation.orgName || "",
-    adminId: invitation.adminId || invitation.invitedBy,
-    invitedBy: invitation.invitedBy || invitation.adminId,
-    emailVerificationToken: jwt.sign({ email: decoded.email }, process.env.JWT_SECRET, { expiresIn: "1h" }), // Generate the email verification token
-    role: invitation.role,
-    emailVerificationExpires: Date.now() + 60 * 60 * 1000, // 1 hour expiration for the verification token
-    invitationToken: token1,
-    isEmailVerified: false,  // User must verify their email
-    profileCompleted: false,  // Profile not yet completed
-  });
-  // console.log("Creating user with orgName:", invitation.orgName);
-
-  // console.log(`Creating ${invitation.role} for Org: ${invitation.orgName} linked to Admin: ${user.adminId}`);
-
-  await user.save();
-
-  // Step 7: Generate the email verification link
-  const verificationLink = `${process.env.BACKEND_URL}auth/verify-email/${user.emailVerificationToken}`;
-
-  // Send email verification
-  await sendVerificationEmail(user, verificationLink);
-
-  // Step 8: Marks the invitation as used only in the complete profile but good to keep it false here or remove
-  invitation.used = false;
-  await invitation.save();
-
-  // Step 9: Respond to the user
-  res.status(201).json({
-    message: "Registration successful. Please verify your email.",
-    user: {
-      id: user._id,
-      email: user.email,
-    },
-  });
 };
 
 // ==================== Verify Email ====================
