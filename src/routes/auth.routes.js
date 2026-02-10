@@ -18,6 +18,7 @@ import {
   updateProfile
 } from "../controllers/auth.controller.js";
 
+import { getNotifications, markAsRead, markAllAsRead, clearNotifications } from "../controllers/notification.controller.js";
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -49,4 +50,11 @@ router.get("/me", protect, getMe);
 router.get("/my-profile", protect, myProfile);
 router.patch("/update-profile", protect, upload.single("profileImage"), updateProfile);
 
+// Notifications routes
+router.get("/notifications", protect, getNotifications);
+router.patch("/notifications/:id/read", protect, markAsRead);
+router.patch("/notifications/read-all", protect, markAllAsRead);
+router.delete("/notifications/clear-all", protect, clearNotifications);
+
 export default router;
+

@@ -3,6 +3,7 @@ import User from "../models/user.model.js";
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Response from "../models/response.model.js";
 import mongoose from "mongoose";
+import { createNotification, notifySuperAdmins, notifyOrgAdmins } from "../utils/notification.utils.js";
 
 /**
  * START ASSESSMENT
@@ -107,6 +108,34 @@ export const submitAssessment = async (req, res) => {
       userDetails: cleanedUserDetails,
       responses: fullResponses,
       submittedAt: new Date()
+    });
+
+    // --- DYNAMIC NOTIFICATIONS ---
+    // 1. Notify the user
+    await createNotification({
+      recipient: userId,
+      title: "Assessment Submitted",
+      message: "Your assessment has been successfully submitted.",
+      type: "success"
+    });
+
+    // 2. Notify their Organization Admins
+    if (user.orgName) {
+      await notifyOrgAdmins({
+        orgName: user.orgName,
+        title: "Assessment Completed",
+        message: `${user.firstName} ${user.lastName} (${user.role}) has completed the assessment.`,
+        type: "success",
+        excludeUser: userId
+      });
+    }
+
+    // 3. Notify Super Admins
+    await notifySuperAdmins({
+      title: "New Assessment Activity",
+      message: `${user.firstName} ${user.lastName} from ${user.orgName || "Unknown Org"} has submitted an assessment.`,
+      type: "info",
+      excludeUser: userId
     });
 
     // 6️⃣ Return response

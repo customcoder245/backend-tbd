@@ -3,6 +3,7 @@ import Invitation from "../models/invitation.model.js"
 import { sendVerificationEmail, sendResetEmail, sendInvitationEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { createNotification, notifySuperAdmins } from "../utils/notification.utils.js";
 
 // ================= Send Invitation ================= 
 export const sendInvitation = async (req, res) => {
@@ -70,6 +71,20 @@ export const sendInvitation = async (req, res) => {
 
   const link = `${process.env.BACKEND_URL}auth/invite/${token}`;
   await sendInvitationEmail(email, link, role, organizationName);
+
+  // 5. Create notifications
+  await createNotification({
+    recipient: userId,
+    title: "Invitation Sent",
+    message: `You have successfully invited ${email} as ${role}.`,
+    type: "success"
+  });
+
+  await notifySuperAdmins({
+    title: "New Invitation Created",
+    message: `${firstName} ${lastName} (${inviter.role}) invited ${email} to join as ${role}.`,
+    excludeUser: userId
+  });
 
   res.status(200).json({ message: "Invitation sent successfully" });
 };
@@ -310,7 +325,22 @@ export const completeProfile = async (req, res) => {
     if (invitation) {
       invitation.used = true;
       await invitation.save();
+
+      // NOTIFICATION for Inviter
+      await createNotification({
+        recipient: invitation.invitedBy || invitation.adminId, // Notify inviter
+        title: "Team Member Joined",
+        message: `${user.firstName} ${user.lastName} has accepted your invitation for ${user.orgName} and joined the platform.`,
+        type: "success"
+      });
     }
+
+    // NOTIFICATION for SuperAdmins
+    await notifySuperAdmins({
+      title: "New User Registered",
+      message: `${user.firstName} ${user.lastName} has joined as ${user.role} for ${user.orgName}.`,
+      type: "info"
+    });
 
     const isProduction = process.env.NODE_ENV === "production";
     res.clearCookie("verifyToken", {
