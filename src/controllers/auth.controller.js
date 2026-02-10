@@ -645,6 +645,7 @@ export const getMe = async (req, res) => {
       _id: user._id,
       firstName: user.firstName || "",
       lastName: user.lastName || "",
+      middleInitial: user.middleInitial || "",
       role: user.role || "",
       orgName: user.orgName || "",
       profileImage: user.profileImage || "",
