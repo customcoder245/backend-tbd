@@ -719,7 +719,8 @@ export const myProfile = async (req, res) => {
       profileImage: user.profileImage || "",
 
       // Optional flags (helpful for frontend)
-      profileCompleted: user.profileCompleted
+      profileCompleted: user.profileCompleted,
+      notificationPreferences: user.notificationPreferences
     });
 
   } catch (error) {

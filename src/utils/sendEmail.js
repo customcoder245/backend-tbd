@@ -262,10 +262,10 @@ export const sendInvitationEmail = async (email, link, role) => {
   }
 
   const isEmployee = role === 'employee';
-  
+
   // Custom text based on role
   const title = isEmployee ? "Your Assessment Invitation" : "You are invited to join Talent By Design";
-  const bodyText = isEmployee 
+  const bodyText = isEmployee
     ? "You have been invited to complete an assessment on the Talent By Design platform. Click the button below to get started."
     : "You have been invited to join the Talent By Design platform as an administrative member. Please click the button below to complete your registration.";
   const buttonText = isEmployee ? "Start Assessment" : "Complete Registration";
@@ -425,4 +425,37 @@ export const sendResetEmail = async (to, link) => {
   };
 
   await sendEmail(mailOptions);
+};
+
+export const sendNotificationEmail = async (user, title, message) => {
+  if (!user?.email) return;
+
+  const mailOptions = {
+    from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
+    to: user.email,
+    subject: title,
+    html: `
+      <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
+        <div style="max-width:600px;margin:0 auto;background:#ffffff;
+                    border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+          <div style="background:#1976d2;padding:24px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:24px;">Talent By Design</h1>
+          </div>
+          <div style="padding:32px;color:#333333;">
+            <h2 style="margin-top:0;font-size:20px;">${title}</h2>
+            <p style="font-size:15px;line-height:1.6;">${message}</p>
+             <p style="font-size:14px;color:#555555;margin-top:20px;">
+              You received this email because you have enabled email notifications in your settings.
+            </p>
+          </div>
+        </div>
+      </div>
+    `
+  };
+
+  try {
+    await sendEmail(mailOptions);
+  } catch (error) {
+    console.error("Failed to send notification email", error);
+  }
 };

@@ -56,5 +56,10 @@ router.patch("/notifications/:id/read", protect, markAsRead);
 router.patch("/notifications/read-all", protect, markAllAsRead);
 router.delete("/notifications/clear-all", protect, clearNotifications);
 
+// Preferences
+import { updateNotificationPreferences } from "../controllers/preferences.controller.js";
+router.patch("/update-notifications", protect, updateNotificationPreferences);
+
+
 export default router;
 

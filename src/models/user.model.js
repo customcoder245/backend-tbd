@@ -130,7 +130,18 @@ const userSchema = new Schema(
     emailVerificationExpires: Date,
 
     resetPasswordToken: String,
-    resetPasswordExpires: Date
+    resetPasswordExpires: Date,
+
+    notificationPreferences: {
+      system: {
+        type: Boolean,
+        default: true
+      },
+      email: {
+        type: Boolean,
+        default: false
+      }
+    }
   },
   { timestamps: true }
 );
