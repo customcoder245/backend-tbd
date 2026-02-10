@@ -1,11 +1,15 @@
 import multer from "multer";
 
+import os from "os";
+
 const MIN_SIZE = 10 * 1024;       // 10 KB minimum
 const MAX_SIZE = 4 * 1024 * 1024; // 4 MB maximum
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "./public/temp");
+    // Use /tmp for Vercel (production) and OS temp dir for local
+    const tempDir = process.env.VERCEL ? "/tmp" : os.tmpdir();
+    cb(null, tempDir);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + "-" + file.originalname);
