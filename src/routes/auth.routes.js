@@ -15,7 +15,8 @@ import {
   deleteInvitation,
   getMe,
   myProfile,
-  updateProfile
+  updateProfile,
+  getOrgDetails
 } from "../controllers/auth.controller.js";
 
 import { getNotifications, markAsRead, markAllAsRead, clearNotifications } from "../controllers/notification.controller.js";
@@ -60,6 +61,8 @@ router.delete("/notifications/clear-all", protect, clearNotifications);
 import { updateNotificationPreferences } from "../controllers/preferences.controller.js";
 router.patch("/update-notifications", protect, updateNotificationPreferences);
 
+
+router.get("/organization/:orgName", protect, getOrgDetails);
 
 export default router;
 
