@@ -179,7 +179,7 @@ export const register = async (req, res) => {
       if (!token1) missing.push("token1 token (cookie or header)");
 
       console.log("Validation failed. Missing:", missing.join(", "));
-      return res.status(400).json({ message: "You are not invited yet, so you cannot register." });
+      return res.status(400).json({ message: "You are not invited yet so you cannot register." });
     }
 
     if (password !== confirmPassword) {
