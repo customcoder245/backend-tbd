@@ -100,10 +100,11 @@ export const submitEmployeeAssessment = async (req, res) => {
       firstName,
       lastName,
       email,
-      department
+      department,
+      orgName: assessment.orgName
     };
 
-    assessment.employeeDetails = employeeDetails;
+    assessment.userDetails = employeeDetails;
     assessment.isCompleted = true;
     assessment.submittedAt = new Date();
 
@@ -113,7 +114,7 @@ export const submitEmployeeAssessment = async (req, res) => {
     const submittedAssessment = await SubmittedAssessment.create({
       assessmentId: assessment._id,
       stakeholder: "employee",
-      employeeDetails,
+      userDetails: employeeDetails,
       responses,
       submittedAt: new Date()
     });

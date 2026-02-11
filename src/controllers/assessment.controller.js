@@ -4,6 +4,7 @@ import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Response from "../models/response.model.js";
 import mongoose from "mongoose";
 import { createNotification, notifySuperAdmins, notifyOrgAdmins } from "../utils/notification.utils.js";
+import Invitation from "../models/invitation.model.js";
 
 /**
  * START ASSESSMENT
@@ -12,22 +13,64 @@ import { createNotification, notifySuperAdmins, notifyOrgAdmins } from "../utils
 export const startAssessment = async (req, res) => {
   try {
     const { stakeholder } = req.body;
+    // Assuming protect middleware provides req.user
+    const { userId } = req.user;
 
     if (!stakeholder) {
       return res.status(400).json({ message: "Stakeholder is required" });
     }
 
-    const assessmentData = { stakeholder };
-
-    // For "leader" or "manager", add the userId (assessment token)
-    if (stakeholder === "leader" || stakeholder === "manager" || stakeholder === "admin") {
-      assessmentData.userId = req.user.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
     }
 
-    // No need to require any employee details for "employee"
-    if (stakeholder === "employee") {
-      // No employee details required 
+    // 1. Fetch User details
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
+
+    // 2. Fetch Invitation
+    // Logic: Find the invitation sent to this user's email.
+    // If multiple exist (e.g. different roles), we might need to be specific, but for now take the latest.
+    const invitation = await Invitation.findOne({ email: user.email }).sort({ createdAt: -1 });
+
+    if (!invitation) {
+      // Fallback: If no invitation exists (e.g. manually created Admin), but Assessment REQUIRES invitationId,
+      // we might face an issue. However, standard flow implies invitation.
+      // We will log this case.
+      console.warn(`User ${user.email} started assessment but has no invitation record.`);
+      return res.status(400).json({ message: "No invitation record found. Cannot start assessment." });
+    }
+
+    // 3. Check if assessment already exists for this invitation
+    const existingAssessment = await Assessment.findOne({ invitationId: invitation._id });
+    if (existingAssessment) {
+      return res.status(200).json({
+        message: "Assessment already started",
+        assessmentId: existingAssessment._id
+      });
+    }
+
+    // 4. Prepare Assessment Data
+    const assessmentData = {
+      stakeholder,
+      userId: user._id,
+      invitationId: invitation._id,
+      invitedBy: invitation.invitedBy || user.adminId, // Fallback to adminId if invitedBy is missing on invitation/user logic overlap
+      orgName: user.orgName || invitation.orgName,
+      employeeEmail: user.email,
+      // Initialize userDetails snapshot from profile
+      userDetails: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        department: user.department,
+        role: user.role,
+        orgName: user.orgName || invitation.orgName
+      }
+    };
 
     const assessment = await Assessment.create(assessmentData);
 
@@ -36,6 +79,7 @@ export const startAssessment = async (req, res) => {
       assessmentId: assessment._id
     });
   } catch (error) {
+    console.error("Error starting assessment:", error);
     res.status(500).json({
       message: "Error starting assessment",
       error: error.message
@@ -90,7 +134,8 @@ export const submitAssessment = async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       department: user.department,
-      role: user.role
+      role: user.role,
+      orgName: user.orgName
     };
 
     // 4️⃣ Mark assessment completed

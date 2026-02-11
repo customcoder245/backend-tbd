@@ -1,5 +1,6 @@
 import User from "../models/user.model.js";
-import Invitation from "../models/invitation.model.js"
+import Invitation from "../models/invitation.model.js";
+import Assessment from "../models/assessment.model.js";
 import { sendVerificationEmail, sendResetEmail, sendInvitationEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
@@ -616,6 +617,13 @@ export const getInvitations = async (req, res) => {
               name = `${registeredUser.firstName || ""} ${registeredUser.lastName || ""}`.trim();
             } else {
               name = "Registered (Pending Info)";
+            }
+          } else {
+            // Try to find if they completed an assessment (unregistered employee)
+            const assessment = await Assessment.findOne({ invitationId: inv._id });
+            if (assessment && assessment.userDetails) {
+              const details = assessment.userDetails;
+              name = `${details.firstName || ""} ${details.lastName || ""}`.trim() || "Completed (Anonymous)";
             }
           }
 

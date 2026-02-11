@@ -28,7 +28,7 @@ const invitationSchema = new Schema(
     },
     expiredAt: {
       type: Date,
-      required: true // Ensure this is always set in your controller
+      required: true 
     },
     used: {
       type: Boolean,
