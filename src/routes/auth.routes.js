@@ -16,7 +16,8 @@ import {
   getMe,
   myProfile,
   updateProfile,
-  getOrgDetails
+  getOrgDetails,
+  changePassword
 } from "../controllers/auth.controller.js";
 
 import { getNotifications, markAsRead, markAllAsRead, clearNotifications } from "../controllers/notification.controller.js";
@@ -36,6 +37,7 @@ router.post("/complete-profile", completeProfile);
 router.post("/forgot-password", forgotPassword);
 router.get("/reset-password/:token", resetPasswordRedirect);
 router.post("/reset-password", resetPassword);
+router.post("/change-password", protect, changePassword);
 
 router.post("/resend-verification-email", resendVerificationEmail);
 

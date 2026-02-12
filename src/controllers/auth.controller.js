@@ -70,7 +70,11 @@ export const sendInvitation = async (req, res) => {
 
   await invitation.save();
 
-  const link = `${process.env.BACKEND_URL}auth/invite/${token}`;
+  const baseUrl = process.env.BACKEND_URL.endsWith('/')
+    ? process.env.BACKEND_URL
+    : `${process.env.BACKEND_URL}/`;
+
+  const link = `${baseUrl}auth/invite/${token}`;
   await sendInvitationEmail(email, link, role, organizationName);
 
   // 5. Create notifications
@@ -233,7 +237,11 @@ export const register = async (req, res) => {
     await user.save();
 
     // Step 7: Generate the email verification link
-    const verificationLink = `${process.env.BACKEND_URL}auth/verify-email/${user.emailVerificationToken}`;
+    const baseUrl = process.env.BACKEND_URL.endsWith('/')
+      ? process.env.BACKEND_URL
+      : `${process.env.BACKEND_URL}/`;
+
+    const verificationLink = `${baseUrl}auth/verify-email/${user.emailVerificationToken}`;
 
     // Send email verification
     await sendVerificationEmail(user, verificationLink);
@@ -430,78 +438,139 @@ export const login = async (req, res) => {
 
 // ================= FORGOT PASSWORD ================= 
 export const forgotPassword = async (req, res) => {
-  const user = await User.findOne({ email: req.body.email });
+  try {
+    const user = await User.findOne({ email: req.body.email });
 
-  // 🔒 security: same response always
-  if (!user) {
-    return res.json({ message: "If exists, email sent" });
+    // 🔒 security: same response always
+    if (!user) {
+      return res.json({ message: "If exists, email sent" });
+    }
+
+    const token = Math.random().toString(36).substring(2, 15);
+
+    user.resetPasswordToken = token;
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+    await user.save();
+
+    // ✅ BACKEND link (same pattern as register)
+    const baseUrl = process.env.BACKEND_URL.endsWith('/')
+      ? process.env.BACKEND_URL
+      : `${process.env.BACKEND_URL}/`;
+
+    const link = `${baseUrl}auth/reset-password/${token}`;
+    await sendResetEmail(user.email, link);
+
+    res.json({ message: "If exists, email sent" });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Server error" });
   }
-
-  const token = Math.random().toString(36).substring(2, 15);
-
-  user.resetPasswordToken = token;
-  user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
-  await user.save();
-
-  // ✅ BACKEND link (same pattern as register)
-  const link = `${process.env.BACKEND_URL}auth/reset-password/${token}`;
-  await sendResetEmail(user.email, link);
-
-  res.json({ message: "If exists, email sent" });
 };
 
 // ================= RESET PASSWORD REDIRECT =================
 export const resetPasswordRedirect = async (req, res) => {
-  const { token } = req.params;
+  try {
+    const { token } = req.params;
 
-  const user = await User.findOne({
-    resetPasswordToken: token,
-    resetPasswordExpires: { $gt: Date.now() }
-  });
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
 
-  if (!user) {
-    return res.redirect(`${process.env.FRONTEND_URL}/login`);
+    if (!user) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login`);
+    }
+
+    // 🔑 REQUIRED ON VERCEL
+    res.setHeader("Cache-Control", "no-store");
+
+    const isProduction = process.env.NODE_ENV === "production";
+    res.cookie("resetToken", token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+      maxAge: 15 * 60 * 1000
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL.endsWith('/')
+      ? process.env.FRONTEND_URL.slice(0, -1)
+      : process.env.FRONTEND_URL;
+
+    res.redirect(`${frontendUrl}/new-password`);
+  } catch (error) {
+    console.error("Reset password redirect error:", error);
+    res.redirect(`${process.env.FRONTEND_URL}/login`);
   }
-
-  // 🔑 REQUIRED ON VERCEL
-  res.setHeader("Cache-Control", "no-store");
-
-  const isProduction = process.env.NODE_ENV === "production";
-  res.cookie("resetToken", token, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
-    maxAge: 15 * 60 * 1000
-  });
-
-  res.redirect(`${process.env.FRONTEND_URL}/new-password`);
 };
 
 //================= RESET PASSWORD ================= 
 export const resetPassword = async (req, res) => {
-  const token = req.cookies.resetToken;
-  const { password } = req.body;
+  try {
+    const token = req.cookies.resetToken;
+    const { password } = req.body;
 
-  if (!token) {
-    return res.status(400).json({ message: "Reset token expired" });
+    if (!token) {
+      return res.status(400).json({ message: "Reset token expired" });
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    res.clearCookie("resetToken");
+    res.json({ message: "Password reset successful" });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ message: "Server error" });
   }
+};
 
-  const user = await User.findOne({
-    resetPasswordToken: token,
-    resetPasswordExpires: { $gt: Date.now() }
-  });
+// ================= CHANGE PASSWORD =================
+export const changePassword = async (req, res) => {
+  try {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+    const userId = req.user.userId;
 
-  if (!user) {
-    return res.status(400).json({ message: "Invalid or expired token" });
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "New passwords do not match" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.password !== oldPassword) {
+      return res.status(400).json({ message: "Incorrect current password" });
+    }
+
+    // Checking if new password is same as old
+    if (user.password === newPassword) {
+      return res.status(400).json({ message: "New password cannot be the same as current password" });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Change password error:", error);
+    res.status(500).json({ message: "Server error" });
   }
-
-  user.password = password;
-  user.resetPasswordToken = null;
-  user.resetPasswordExpires = null;
-  await user.save();
-
-  res.clearCookie("resetToken");
-  res.json({ message: "Password reset successful" });
 };
 
 //================= LOGOUT ================= 
