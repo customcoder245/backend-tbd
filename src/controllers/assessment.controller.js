@@ -106,8 +106,6 @@ export const startAssessment = async (req, res) => {
   }
 };
 
-
-
 /**
  * SUBMIT ASSESSMENT (FINAL)
  */
@@ -216,8 +214,6 @@ export const submitAssessment = async (req, res) => {
   }
 };
 
-// controllers/assessment.controller.js
-
 export const getAssessmentStartData = async (req, res) => {
   return res.status(200).json({
     title: "POD-360™ | From Friction to Flow",
@@ -250,110 +246,71 @@ export const getMyAssessments = async (req, res) => {
   }
 };
 
+/**
+ * GET SUPER ADMIN STATS (Org Assessment Overview)
+ */
+export const getSuperAdminStats = async (req, res) => {
+  try {
+    // 1. Aggregate Assessments (Completed count per org)
+    const assessmentStats = await Assessment.aggregate([
+      { $match: { isCompleted: true } },
+      { $group: { _id: "$orgName", completedCount: { $sum: 1 } } }
+    ]);
 
+    // 2. Aggregate Invitations (Emails per org)
+    const inviteStats = await Invitation.aggregate([
+      { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
+    ]);
 
+    // 3. Aggregate Admins (Emails per org)
+    const adminStats = await User.aggregate([
+      { $match: { role: "admin", orgName: { $exists: true, $ne: null } } },
+      { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
+    ]);
 
+    // 4. Merge Data for Unique Participant Count
+    const statsMap = {};
 
+    const getOrg = (name) => {
+      if (!statsMap[name]) statsMap[name] = { orgName: name, emailSet: new Set(), completed: 0 };
+      return statsMap[name];
+    };
 
+    // Add Invites
+    inviteStats.forEach(i => {
+      if (!i._id) return;
+      const org = getOrg(i._id);
+      if (i.emails && Array.isArray(i.emails)) {
+        i.emails.forEach(e => e && org.emailSet.add(e.toLowerCase()));
+      }
+    });
 
-// export const submitAssessment = async (req, res) => {
-//   try {
-//     const { assessmentId } = req.params;
-//     const { employeeDetails } = req.body;  // Employee details (only for employee)
-//     const { userId } = req.user;  // This is necessary for leaders/managers
+    // Add Admins
+    adminStats.forEach(a => {
+      if (!a._id) return;
+      const org = getOrg(a._id);
+      if (a.emails && Array.isArray(a.emails)) {
+        a.emails.forEach(e => e && org.emailSet.add(e.toLowerCase()));
+      }
+    });
 
-//     const assessmentObjectId = new mongoose.Types.ObjectId(assessmentId);
+    // Add Assessments
+    assessmentStats.forEach(a => {
+      if (!a._id) return;
+      const org = getOrg(a._id);
+      org.completed = a.completedCount;
+    });
 
-//     // 1️⃣ Fetch assessment
-//     const assessment = await Assessment.findById(assessmentObjectId);
-//     if (!assessment) {
-//       return res.status(404).json({ message: "Assessment not found" });
-//     }
+    // Transform to final array
+    const result = Object.values(statsMap).map(org => ({
+      orgName: org.orgName,
+      users: org.emailSet.size, // Unique count
+      completed: org.completed
+    })).sort((a, b) => b.completed - a.completed);
 
-//     if (assessment.isCompleted) {
-//       return res.status(400).json({ message: "Assessment already submitted" });
-//     }
-
-//     // 2️⃣ Fetch responses (JOIN)
-//     const responses = await Response.find({ assessmentId: assessmentObjectId });
-
-//     if (!responses || responses.length === 0) {
-//       return res.status(400).json({ message: "No responses provided" });
-//     }
-
-//     const fullResponses = responses.map(r => {
-//       const obj = r.toObject();
-//       delete obj.__v;
-//       return obj;
-//     });
-
-//     let finalUserDetails = null;
-//     let finalEmployeeDetails = null;
-
-//     // ✅ EMPLOYEE LOGIC: Collect employee details at the time of submission
-//     if (assessment.stakeholder === "employee") {
-//       if (
-//         !employeeDetails?.firstName ||
-//         !employeeDetails?.lastName ||
-//         !employeeDetails?.email ||
-//         !employeeDetails?.department
-//       ) {
-//         return res.status(400).json({ message: "Employee details are required" });
-//       }
-
-//       finalEmployeeDetails = employeeDetails;  // Store employee details
-//     }
-
-//     // ✅ LEADER/MANAGER LOGIC: Use user details from the logged-in user
-//     if (assessment.stakeholder !== "employee") {
-//       if (!userId) {
-//         return res.status(401).json({ message: "Unauthorized: User not authenticated" });
-//       }
-
-//       const user = await User.findById(userId).lean();
-//       if (!user) {
-//         return res.status(404).json({ message: "User not found" });
-//       }
-
-//       finalUserDetails = {
-//         _id: user._id,
-//         firstName: user.firstName,
-//         lastName: user.lastName,
-//         email: user.email,
-//         department: user.department,
-//         role: user.role
-//       };
-//     }
-
-//     // 3️⃣ Mark assessment as completed
-//     assessment.isCompleted = true;
-//     assessment.submittedAt = new Date();
-//     if (assessment.stakeholder === "employee") {
-//       assessment.employeeDetails = finalEmployeeDetails;  // Save employee details
-//     }
-//     assessment.userDetails = finalUserDetails;
-//     await assessment.save();
-
-//     // 4️⃣ Save snapshot (SubmittedAssessment)
-//     const submittedAssessment = await SubmittedAssessment.create({
-//       assessmentId: assessment._id,
-//       stakeholder: assessment.stakeholder,
-//       userId: userId || null,  // Save userId for leaders/managers, null for employees
-//       userDetails: finalUserDetails,
-//       employeeDetails: finalEmployeeDetails,  // Save employee details here as well
-//       responses: fullResponses,
-//       submittedAt: new Date()
-//     });
-
-//     // 5️⃣ Return response
-//     return res.status(200).json({
-//       message: "Assessment submitted successfully",
-//       submittedAssessment
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       message: "Error submitting assessment",
-//       error: error.message
-//     });
-//   }
-// };
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Super Admin Stats Error:", error);
+    res.status(500).json({ message: "Error fetching stats" });
+  }
+};

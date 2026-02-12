@@ -168,10 +168,10 @@ export const register = async (req, res) => {
     const authToken = req.cookies.authToken || req.headers["x-auth-token"];
     const token1 = req.cookies.token1 || req.headers["x-invitation-token"];
 
-    console.log("Register Request - Tokens source check:");
-    console.log("authToken found in cookies:", !!req.cookies.authToken, "or headers:", !!req.headers["x-auth-token"]);
-    console.log("token1 found in cookies:", !!req.cookies.token1, "or headers:", !!req.headers["x-invitation-token"]);
-    console.log("Register Request - Body email:", email);
+    // console.log("Register Request - Tokens source check:");
+    // console.log("authToken found in cookies:", !!req.cookies.authToken, "or headers:", !!req.headers["x-auth-token"]);
+    // console.log("token1 found in cookies:", !!req.cookies.token1, "or headers:", !!req.headers["x-invitation-token"]);
+    // console.log("Register Request - Body email:", email);
 
     // Step 1: Validate input
     if (!email || !password || !confirmPassword || !authToken || !token1) {
@@ -182,7 +182,7 @@ export const register = async (req, res) => {
       if (!authToken) missing.push("authToken token (cookie or header)");
       if (!token1) missing.push("token1 token (cookie or header)");
 
-      console.log("Validation failed. Missing:", missing.join(", "));
+      // console.log("Validation failed. Missing:", missing.join(", "));
       return res.status(400).json({ message: "You are not invited yet so you cannot register." });
     }
 
@@ -224,8 +224,8 @@ export const register = async (req, res) => {
       email: decoded.email,
       password, // ⚠️ Remember to hash the password before saving in production
       orgName: decoded.orgName || invitation.orgName || "",
-      adminId: invitation.adminId || invitation.invitedBy,
-      invitedBy: invitation.invitedBy || invitation.adminId,
+      adminId: invitation.adminId || invitation.iinvitedBy,
+      invitedBy: invitation.invitedBy || invitaton.adminId,
       emailVerificationToken: jwt.sign({ email: decoded.email }, process.env.JWT_SECRET, { expiresIn: "1h" }), // Generate the email verification token
       role: invitation.role,
       emailVerificationExpires: Date.now() + 60 * 60 * 1000, // 1 hour expiration for the verification token
@@ -749,6 +749,7 @@ export const getOrgDetails = async (req, res) => {
       invitations.map(async (inv) => {
         let name = "—";
         let currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
+        let assessmentStatus = "Not Started";
 
         // Try to find the registered user by token or email
         const registeredUser = await User.findOne({
@@ -765,16 +766,40 @@ export const getOrgDetails = async (req, res) => {
           } else {
             name = "Registered (Pending Info)";
           }
+
+          // Check Assessment for Registered User
+          const userAssessment = await Assessment.findOne({ userId: registeredUser._id, isCompleted: true }).sort({ submittedAt: -1 });
+          if (userAssessment) {
+            assessmentStatus = "Completed";
+            // Check if expired/due (>3 months)
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+            if (userAssessment.submittedAt < threeMonthsAgo) {
+              assessmentStatus = "Due"; // Expired/Recurring Due
+            }
+          } else {
+            const incomplete = await Assessment.findOne({ userId: registeredUser._id, isCompleted: false });
+            if (incomplete) assessmentStatus = "In Progress";
+          }
+
         } else {
           // If no user found, check for assessment data (for employees who might have taken it without full account yet)
           try {
             const assessment = await Assessment.findOne({ invitationId: inv._id });
-            if (assessment && assessment.userDetails) {
-              const details = assessment.userDetails;
-              name = `${details.firstName || ""} ${details.lastName || ""}`.trim() || "Completed (Anonymous)";
+            if (assessment) {
+              if (assessment.userDetails) {
+                const details = assessment.userDetails;
+                name = `${details.firstName || ""} ${details.lastName || ""}`.trim() || "Completed (Anonymous)";
+              }
+
+              if (assessment.isCompleted) {
+                assessmentStatus = "Completed";
+              } else {
+                assessmentStatus = "In Progress";
+              }
             }
           } catch (e) {
-            // Assessment check failed or model not available
+            // Assessment check failed
           }
         }
 
@@ -786,13 +811,49 @@ export const getOrgDetails = async (req, res) => {
           email: inv.email,
           role: inv.role,
           createdAt: inv.createdAt,
-          status: currentStatus
+          status: currentStatus,
+          assessmentStatus // Added field
         };
       })
     );
 
     // Stats
     const adminUser = await User.findOne({ orgName, role: "admin" });
+
+    if (adminUser) {
+      // Ensure Admin isn't already in the list via invitation
+      const isAdminListed = formattedMembers.some(m => m.email === adminUser.email);
+
+      if (!isAdminListed) {
+        let adminAssessmentStatus = "Not Started";
+        const adminAssessment = await Assessment.findOne({ userId: adminUser._id, isCompleted: true }).sort({ submittedAt: -1 });
+
+        if (adminAssessment) {
+          adminAssessmentStatus = "Completed";
+          const threeMonthsAgo = new Date();
+          threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+          if (adminAssessment.submittedAt < threeMonthsAgo) {
+            adminAssessmentStatus = "Due";
+          }
+        } else {
+          const incomplete = await Assessment.findOne({ userId: adminUser._id, isCompleted: false });
+          if (incomplete) adminAssessmentStatus = "In Progress";
+        }
+
+        formattedMembers.unshift({
+          _id: adminUser._id,
+          firstName: adminUser.firstName || "Admin",
+          lastName: adminUser.lastName || "",
+          name: `${adminUser.firstName || ""} ${adminUser.lastName || ""}`.trim(),
+          email: adminUser.email,
+          role: "admin",
+          createdAt: adminUser.createdAt,
+          status: "Accept", // Admin is active
+          assessmentStatus: adminAssessmentStatus
+        });
+      }
+    }
+
     const totalMembers = formattedMembers.length;
 
     // Status can be derived from the admin account status or existence
@@ -808,6 +869,7 @@ export const getOrgDetails = async (req, res) => {
       members: formattedMembers
     });
   } catch (error) {
+    console.error("getOrgDetails error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
