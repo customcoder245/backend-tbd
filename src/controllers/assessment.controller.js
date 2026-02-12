@@ -30,35 +30,54 @@ export const startAssessment = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 2. Fetch Invitation
-    // Logic: Find the invitation sent to this user's email.
-    // If multiple exist (e.g. different roles), we might need to be specific, but for now take the latest.
-    const invitation = await Invitation.findOne({ email: user.email }).sort({ createdAt: -1 });
+    // Check for existing INCOMPLETE assessment (Resume logic)
+    const incompleteAssessment = await Assessment.findOne({
+      userId,
+      isCompleted: false
+    }).sort({ createdAt: -1 });
 
-    if (!invitation) {
-      // Fallback: If no invitation exists (e.g. manually created Admin), but Assessment REQUIRES invitationId,
-      // we might face an issue. However, standard flow implies invitation.
-      // We will log this case.
-      console.warn(`User ${user.email} started assessment but has no invitation record.`);
-      return res.status(400).json({ message: "No invitation record found. Cannot start assessment." });
-    }
-
-    // 3. Check if assessment already exists for this invitation
-    const existingAssessment = await Assessment.findOne({ invitationId: invitation._id });
-    if (existingAssessment) {
+    if (incompleteAssessment) {
       return res.status(200).json({
-        message: "Assessment already started",
-        assessmentId: existingAssessment._id
+        message: "Resuming existing assessment",
+        assessmentId: incompleteAssessment._id
       });
     }
 
-    // 4. Prepare Assessment Data
+    // Check for latest COMPLETED assessment (Recurring logic)
+    const latestCompletedAssessment = await Assessment.findOne({
+      userId,
+      isCompleted: true
+    }).sort({ submittedAt: -1 });
+
+    if (latestCompletedAssessment) {
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+      if (latestCompletedAssessment.submittedAt > threeMonthsAgo) {
+        // Calculate days remaining
+        const nextDate = new Date(latestCompletedAssessment.submittedAt);
+        nextDate.setMonth(nextDate.getMonth() + 3);
+        const diffTime = Math.abs(nextDate - new Date());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        return res.status(403).json({
+          message: `You have already completed an assessment recently. Next assessment available in ${diffDays} days.`
+        });
+      }
+    }
+
+    // 2. Fetch Invitation (Optional now)
+    // Logic: Find the invitation sent to this user's email.
+    const invitation = await Invitation.findOne({ email: user.email }).sort({ createdAt: -1 });
+
+    // 3. Prepare Assessment Data
     const assessmentData = {
       stakeholder,
       userId: user._id,
-      invitationId: invitation._id,
-      invitedBy: invitation.invitedBy || user.adminId, // Fallback to adminId if invitedBy is missing on invitation/user logic overlap
-      orgName: user.orgName || invitation.orgName,
+      // If invitation exists, use it. If not, null (allowed now).
+      invitationId: invitation ? invitation._id : null,
+      invitedBy: invitation?.invitedBy || user.adminId, // Fallback to adminId
+      orgName: user.orgName || invitation?.orgName,
       employeeEmail: user.email,
       // Initialize userDetails snapshot from profile
       userDetails: {
@@ -68,14 +87,14 @@ export const startAssessment = async (req, res) => {
         email: user.email,
         department: user.department,
         role: user.role,
-        orgName: user.orgName || invitation.orgName
+        orgName: user.orgName || invitation?.orgName
       }
     };
 
     const assessment = await Assessment.create(assessmentData);
 
     return res.status(201).json({
-      message: "Assessment started",
+      message: "New assessment started",
       assessmentId: assessment._id
     });
   } catch (error) {
@@ -209,6 +228,28 @@ export const getAssessmentStartData = async (req, res) => {
     duration_minutes: 40
   });
 };
+
+/**
+ * GET MY ASSESSMENTS (History)
+ */
+export const getMyAssessments = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const assessments = await Assessment.find({ userId })
+      .select("-responses -userDetails -employeeDetails") // Exclude heavy detail fields
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(assessments);
+  } catch (error) {
+    console.error("Error fetching my assessments:", error);
+    res.status(500).json({ message: "Error fetching assessments" });
+  }
+};
+
 
 
 

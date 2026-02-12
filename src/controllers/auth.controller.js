@@ -426,8 +426,31 @@ export const login = async (req, res) => {
 
   const token = user.generateAccessToken();
 
+  let assessmentStatus = "NOT_REQUIRED";
+  if (["admin", "leader", "manager"].includes(user.role)) {
+    const incomplete = await Assessment.findOne({ userId: user._id, isCompleted: false });
+    if (incomplete) {
+      assessmentStatus = "PENDING";
+    } else {
+      const complete = await Assessment.findOne({ userId: user._id, isCompleted: true }).sort({ submittedAt: -1 });
+      if (!complete) {
+        assessmentStatus = "DUE";
+      } else {
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        if (complete.submittedAt < threeMonthsAgo) {
+          assessmentStatus = "DUE";
+        } else {
+          assessmentStatus = "COMPLETED";
+        }
+      }
+    }
+  }
+
   res.json({
     accessToken: token,
+    assessmentStatus,
+
     user: {
       id: user._id,
       role: user.role,
@@ -832,6 +855,28 @@ export const getMe = async (req, res) => {
 
     // console.log("DEBUG: getMe finding user:", user._id, "Image:", user.profileImage);
 
+    let assessmentStatus = "NOT_REQUIRED";
+    const userRole = user.role;
+    if (["admin", "leader", "manager"].includes(userRole)) {
+      const incomplete = await Assessment.findOne({ userId: user._id, isCompleted: false });
+      if (incomplete) {
+        assessmentStatus = "PENDING";
+      } else {
+        const complete = await Assessment.findOne({ userId: user._id, isCompleted: true }).sort({ submittedAt: -1 });
+        if (!complete) {
+          assessmentStatus = "DUE";
+        } else {
+          const threeMonthsAgo = new Date();
+          threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+          if (complete.submittedAt < threeMonthsAgo) {
+            assessmentStatus = "DUE";
+          } else {
+            assessmentStatus = "COMPLETED";
+          }
+        }
+      }
+    }
+
     res.status(200).json({
       _id: user._id,
       firstName: user.firstName || "",
@@ -840,7 +885,8 @@ export const getMe = async (req, res) => {
       role: user.role || "",
       orgName: user.orgName || "",
       profileImage: user.profileImage || "",
-      debug: "v2"
+      debug: "v2",
+      assessmentStatus
     });
   } catch (error) {
     console.error("getMe error:", error);
