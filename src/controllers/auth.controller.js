@@ -5,6 +5,8 @@ import { sendVerificationEmail, sendResetEmail, sendInvitationEmail } from "../u
 import jwt from "jsonwebtoken";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { createNotification, notifySuperAdmins } from "../utils/notification.utils.js";
+import fs from "fs";
+import csv from "csv-parser";
 
 // ================= Send Invitation ================= 
 export const sendInvitation = async (req, res) => {
@@ -1087,6 +1089,172 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({
       message: "Internal server error",
       error: error.message
+    });
+  }
+};
+
+
+
+
+
+
+
+
+
+const createAndSendInvite = async (email, role, inviter) => {
+  const existingUser = await User.findOne({ email });
+  if (existingUser) throw new Error("USER_EXISTS");
+
+  const existingInvite = await Invitation.findOne({ email, used: false });
+  if (existingInvite) throw new Error("ALREADY_INVITED");
+
+  const token = jwt.sign(
+    {
+      email,
+      role,
+      invitedId: inviter._id,
+      orgName: inviter.orgName
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+
+  const invitation = new Invitation({
+    email,
+    role,
+    token,
+    token1: token,
+    adminId: inviter._id,
+    invitedBy: inviter._id,
+    orgName: inviter.orgName,
+    expiredAt: Date.now() + 60 * 60 * 1000,
+  });
+
+  await invitation.save();
+
+  const baseUrl = process.env.BACKEND_URL.endsWith("/")
+    ? process.env.BACKEND_URL
+    : `${process.env.BACKEND_URL}/`;
+
+  const link = `${baseUrl}auth/invite/${token}`;
+
+  await sendInvitationEmail(email, link, role, inviter.orgName);
+};
+
+
+
+
+export const sendBulkInvitations = async (req, res) => {
+  try {
+    const { userId, role: inviterRole } = req.user;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "CSV file is required" });
+    }
+
+    console.log("📤 Bulk invite started by:", userId, "Role:", inviterRole);
+    console.log("📄 File received:", req.file.originalname, "Size:", req.file.size);
+
+    const inviter = await User.findById(userId);
+    if (!inviter) {
+      return res.status(404).json({ message: "Inviter not found" });
+    }
+
+    const invitations = [];
+    const failed = [];
+    let success = 0;
+
+    // Define allowed roles based on inviter's role
+    const allowedRoles = inviterRole.toLowerCase() === "superadmin"
+      ? ["admin"]
+      : ["leader", "manager", "employee"];
+
+    console.log("✅ Allowed roles:", allowedRoles);
+
+    fs.createReadStream(req.file.path)
+      .pipe(csv())
+      .on("data", row => {
+        const email = row.email?.trim().toLowerCase();
+        const role = row.role?.trim().toLowerCase();
+
+        if (email && role) {
+          invitations.push({ email, role });
+        } else if (email || role) {
+          // Partial data - log warning
+          failed.push({
+            email: email || "missing",
+            reason: `Missing ${!email ? 'email' : 'role'}`
+          });
+        }
+      })
+      .on("end", async () => {
+        console.log(`📊 CSV parsed: ${invitations.length} valid rows, ${failed.length} invalid rows`);
+
+        if (invitations.length === 0) {
+          fs.unlinkSync(req.file.path);
+          return res.status(400).json({
+            message: "No valid invitations found in CSV. Please check the format.",
+            success: 0,
+            failedCount: failed.length,
+            failed
+          });
+        }
+
+        for (const { email, role } of invitations) {
+          try {
+            // Validate role
+            if (!allowedRoles.includes(role)) {
+              failed.push({
+                email,
+                reason: `Invalid role: '${role}'. Allowed: ${allowedRoles.join(", ")}`
+              });
+              continue;
+            }
+
+            await createAndSendInvite(email, role, inviter);
+            success++;
+            console.log(`✅ Invited: ${email} as ${role}`);
+          } catch (err) {
+            console.error(`❌ Failed to invite ${email}:`, err.message);
+            if (err.message === "USER_EXISTS") {
+              failed.push({ email, reason: "Already registered" });
+            } else if (err.message === "ALREADY_INVITED") {
+              failed.push({ email, reason: "Already invited" });
+            } else {
+              failed.push({ email, reason: err.message || "Failed to send invitation" });
+            }
+          }
+        }
+
+        fs.unlinkSync(req.file.path);
+
+        console.log(`📊 Bulk invite completed: ${success} success, ${failed.length} failed`);
+
+        res.json({
+          success,
+          failedCount: failed.length,
+          failed
+        });
+      })
+      .on("error", (error) => {
+        console.error("❌ CSV parsing error:", error);
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+        res.status(400).json({
+          message: "Failed to parse CSV file. Please check the format.",
+          error: error.message
+        });
+      });
+
+  } catch (err) {
+    console.error("❌ Bulk invite error:", err);
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({
+      message: "Bulk invite failed. Please try again.",
+      error: err.message
     });
   }
 };

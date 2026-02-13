@@ -17,13 +17,15 @@ import {
   myProfile,
   updateProfile,
   getOrgDetails,
-  changePassword
+  changePassword,
+  sendBulkInvitations
 } from "../controllers/auth.controller.js";
 
 import { getNotifications, markAsRead, markAllAsRead, clearNotifications } from "../controllers/notification.controller.js";
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
+import { uploadCSV } from "../middlewares/csvUpload.middleware.js";
 
 const router = express.Router();
 
@@ -65,6 +67,14 @@ router.patch("/update-notifications", protect, updateNotificationPreferences);
 
 
 router.get("/organization/:orgName", protect, getOrgDetails);
+
+router.post(
+  "/send-bulk-invitation",
+  protect,
+  uploadCSV,
+  sendBulkInvitations
+);
+
 
 export default router;
 

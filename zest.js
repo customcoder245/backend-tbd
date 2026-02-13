@@ -1,1 +1,0 @@
-const shouldNotifySystem = (user) => user.notificationPreferences?.system !== false
