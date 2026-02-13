@@ -1,248 +1,48 @@
-// import nodemailer from "nodemailer";
-
-// const transporter = nodemailer.createTransport({
-//   service: "gmail",
-//   auth: {
-//     user: process.env.EMAIL_USER,
-//     pass: process.env.EMAIL_APP_PASSWORD
-//   }
-// });
-
-
-
-// export const sendInvitationEmail = async (email, link) => {
-//   await transporter.sendMail({
-//     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
-//     to: email,
-//     subject: "You are invited to join Talent By Design",
-//     html: `
-//       <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
-//         <div style="max-width:600px;margin:0 auto;background:#ffffff;
-//                     border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-
-//           <!-- Header -->
-//           <div style="background:#1976d2;padding:24px;text-align:center;">
-//             <h1 style="color:#ffffff;margin:0;font-size:24px;">
-//               Talent By Design
-//             </h1>
-//           </div>
-
-//           <!-- Body -->
-//           <div style="padding:32px;color:#333333;">
-//             <h2 style="margin-top:0;font-size:20px;">
-//               You are invited to join Talent By Design 🚀
-//             </h2>
-
-//             <p style="font-size:15px;line-height:1.6;">
-//               You have been invited to join the Talent By Design platform.
-//               Please click the button below to complete your registration and get started.
-//             </p>
-
-//             <p style="font-size:15px;line-height:1.6;">
-//               You will be assigned a role as per the invitation details, and you’ll be able to start using your account immediately after completing your registration.
-//             </p>
-
-//             <!-- CTA Button -->
-//             <div style="text-align:center;margin:32px 0;">
-//               <a href="${link}"
-//                  style="
-//                    display:inline-block;
-//                    padding:14px 32px;
-//                    background:#1976d2;
-//                    color:#ffffff;
-//                    text-decoration:none;
-//                    border-radius:6px;
-//                    font-size:15px;
-//                    font-weight:bold;
-//                  ">
-//                 Complete Registration
-//               </a>
-//             </div>
-
-//             <p style="font-size:14px;color:#555555;">
-//               This invitation link will expire in <strong>1 hour</strong>.
-//               If it expires, you can request a new one by contacting the person who invited you.
-//             </p>
-
-//             <p style="font-size:14px;margin-top:32px;">
-//               We’re excited to have you join us!  
-//               <br />
-//               <strong>The Talent By Design Team</strong>
-//             </p>
-//           </div>
-
-//           <!-- Footer -->
-//           <div style="background:#f0f2f5;padding:16px;text-align:center;font-size:12px;color:#777;">
-//             <p style="margin:0;">
-//               If you didn’t receive this invitation, or if you believe this was sent by mistake, you can ignore this email.
-//             </p>
-//           </div>
-
-//         </div>
-//       </div>
-//     `,
-//   });
-// };
-
-// export const sendVerificationEmail = async (user, link) => {
-//   await transporter.sendMail({
-//     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
-//     to: user.email,
-//     subject: "Verify your email to get started with Talent By Design",
-//     html: `
-//       <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
-//         <div style="max-width:600px;margin:0 auto;background:#ffffff;
-//                     border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-
-//           <!-- Header -->
-//           <div style="background:#1976d2;padding:24px;text-align:center;">
-//             <h1 style="color:#ffffff;margin:0;font-size:24px;">
-//               Talent By Design
-//             </h1>
-//           </div>
-
-//           <!-- Body -->
-//           <div style="padding:32px;color:#333333;">
-//             <h2 style="margin-top:0;font-size:20px;">
-//               Welcome 👋
-//             </h2>
-
-//             <p style="font-size:15px;line-height:1.6;">
-//               Thanks for joining <strong>Talent By Design</strong>.
-//               To complete your registration and access your profile,
-//               please verify your email address.
-//             </p>
-
-//             <!-- CTA Button -->
-//             <div style="text-align:center;margin:32px 0;">
-//               <a href="${link}"
-//                  style="
-//                    display:inline-block;
-//                    padding:14px 32px;
-//                    background:#1976d2;
-//                    color:#ffffff;
-//                    text-decoration:none;
-//                    border-radius:6px;
-//                    font-size:15px;
-//                    font-weight:bold;
-//                  ">
-//                 Verify Email
-//               </a>
-//             </div>
-
-//             <p style="font-size:14px;color:#555555;">
-//               This verification link will expire in <strong>15 minutes</strong>.
-//               If it expires, you can request a new one from the login page.
-//             </p>
-
-//             <p style="font-size:14px;margin-top:32px;">
-//               We’re excited to have you onboard 🚀  
-//               <br />
-//               <strong>The Talent By Design Team</strong>
-//             </p>
-//           </div>
-
-//           <!-- Footer -->
-//           <div style="background:#f0f2f5;padding:16px;text-align:center;font-size:12px;color:#777;">
-//             <p style="margin:0;">
-//               If you didn’t create an account with Talent By Design,
-//               you can safely ignore this email.
-//             </p>
-//           </div>
-
-//         </div>
-//       </div>
-//     `
-//   });
-// };
-
-
-// export const sendResetEmail = async (to, link) => {
-//   await transporter.sendMail({
-//     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
-//     to,
-//     subject: "Reset your Talent By Design password",
-//     html: `
-//       <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
-//         <div style="max-width:600px;margin:0 auto;background:#ffffff;
-//                     border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-
-//           <!-- Header -->
-//           <div style="background:#1976d2;padding:24px;text-align:center;">
-//             <h1 style="color:#ffffff;margin:0;font-size:24px;">
-//               Talent By Design
-//             </h1>
-//           </div>
-
-//           <!-- Body -->
-//           <div style="padding:32px;color:#333333;">
-//             <h2 style="margin-top:0;font-size:20px;">
-//               Reset your password
-//             </h2>
-
-//             <p style="font-size:15px;line-height:1.6;">
-//               We received a request to reset the password for your
-//               <strong>Talent By Design</strong> account.
-//             </p>
-
-//             <p style="font-size:15px;line-height:1.6;">
-//               Click the button below to set a new password. If you did not
-//               request a password reset, you can safely ignore this email.
-//             </p>
-
-//             <!-- CTA Button -->
-//             <div style="text-align:center;margin:32px 0;">
-//               <a href="${link}"
-//                  style="
-//                    display:inline-block;
-//                    padding:14px 32px;
-//                    background:#1976d2;
-//                    color:#ffffff;
-//                    text-decoration:none;
-//                    border-radius:6px;
-//                    font-size:15px;
-//                    font-weight:bold;
-//                  ">
-//                 Reset Password
-//               </a>
-//             </div>
-
-//             <p style="font-size:14px;color:#555555;">
-//               This password reset link will expire in <strong>15 minutes</strong>.
-//               If it expires, you can request a new one from the login page.
-//             </p>
-
-//             <p style="font-size:14px;margin-top:32px;">
-//               <strong>The Talent By Design Team</strong>
-//             </p>
-//           </div>
-
-//           <!-- Footer -->
-//           <div style="background:#f0f2f5;padding:16px;text-align:center;font-size:12px;color:#777;">
-//             <p style="margin:0;">
-//               If you didn’t request a password reset, no further action is required.
-//             </p>
-//           </div>
-
-//         </div>
-//       </div>
-//     `
-//   });
-// };
-
-
-
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER, // Your Gmail address
-    pass: process.env.EMAIL_APP_PASSWORD, // Your Gmail app password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_APP_PASSWORD,
   }
 });
 
-// Helper function to send emails and handle errors
+/**
+ * Base Email Wrapper for a professional look
+ */
+const getEmailWrapper = (title, content) => `
+  <div style="background-color: #f8fafc; padding: 40px 20px; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0;">
+      <!-- Header with Gradient-like blue -->
+      <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); background-color: #1e40af; padding: 32px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.025em;">
+          Talent By Design
+        </h1>
+      </div>
+      
+      <!-- Main Content -->
+      <div style="padding: 40px 32px;">
+        <h2 style="margin-top: 0; color: #0f172a; font-size: 22px; font-weight: 700; margin-bottom: 20px;">
+          ${title}
+        </h2>
+        ${content}
+        
+        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9; color: #64748b; font-size: 14px;">
+          Best regards,<br />
+          <strong style="color: #1e40af;">The Talent By Design Team</strong>
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <div style="background-color: #f1f5f9; padding: 24px; text-align: center; font-size: 12px; color: #94a3b8;">
+        <p style="margin: 0 0 8px 0;">&copy; ${new Date().getFullYear()} Talent By Design. All rights reserved.</p>
+        <p style="margin: 0;">You received this email because it's required for your account or activity on our platform.</p>
+      </div>
+    </div>
+  </div>
+`;
+
 const sendEmail = async (mailOptions) => {
   try {
     const info = await transporter.sendMail(mailOptions);
@@ -253,209 +53,120 @@ const sendEmail = async (mailOptions) => {
   }
 };
 
-// Function to send invitation email
-// Function to send invitation email with dynamic content based on role
-export const sendInvitationEmail = async (email, link, role) => {
-  if (!email || !link) {
-    console.error("Error: Missing email or invitation link.");
-    return;
-  }
+export const sendInvitationEmail = async (email, link, role, orgName) => {
+  if (!email || !link) return;
 
   const isEmployee = role === 'employee';
-
-  // Custom text based on role
-  const title = isEmployee ? "Your Assessment Invitation" : "You are invited to join Talent By Design";
-  const bodyText = isEmployee
-    ? "You have been invited to complete an assessment on the Talent By Design platform. Click the button below to get started."
-    : "You have been invited to join the Talent By Design platform as an administrative member. Please click the button below to complete your registration.";
+  const title = isEmployee ? "Your Assessment Invitation" : "You're Invited to Join";
   const buttonText = isEmployee ? "Start Assessment" : "Complete Registration";
 
-  const mailOptions = {
+  const content = `
+    <p style="font-size: 16px; margin-bottom: 24px;">
+      Hello,
+    </p>
+    <p style="font-size: 16px; margin-bottom: 16px;">
+      You have been invited to join <strong>${orgName || 'the platform'}</strong> on Talent By Design. 
+      ${isEmployee
+      ? "We're excited to have you complete your confidential professional assessment."
+      : "You have been assigned administrative access to help manage your organization's talent growth."}
+    </p>
+    <div style="text-align: center; margin: 40px 0;">
+      <a href="${link}" style="display: inline-block; padding: 16px 36px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 12px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);">
+        ${buttonText}
+      </a>
+    </div>
+    <p style="font-size: 14px; color: #64748b; font-style: italic;">
+      Note: This invitation link is personal to you and will expire in 1 hour.
+    </p>
+  `;
+
+  await sendEmail({
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: title,
-    html: `
-      <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
-        <div style="max-width:600px;margin:0 auto;background:#ffffff; border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-          <div style="background:#1976d2;padding:24px;text-align:center;">
-            <h1 style="color:#ffffff;margin:0;font-size:24px;">Talent By Design</h1>
-          </div>
-          <div style="padding:32px;color:#333333;">
-            <h2 style="margin-top:0;font-size:20px;">${title} 🚀</h2>
-            <p style="font-size:15px;line-height:1.6;">${bodyText}</p>
-            <div style="text-align:center;margin:32px 0;">
-              <a href="${link}"
-                 style="display:inline-block;padding:14px 32px;background:#1976d2;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:bold;">
-                ${buttonText}
-              </a>
-            </div>
-            <p style="font-size:14px;color:#555555;">
-              This link will expire in <strong>1 hour</strong>.
-            </p>
-            <p style="font-size:14px;margin-top:32px;">
-              Best regards,<br />
-              <strong>The Talent By Design Team</strong>
-            </p>
-          </div>
-        </div>
-      </div>
-    `
-  };
-
-  await sendEmail(mailOptions);
+    html: getEmailWrapper(title + " 🚀", content)
+  });
 };
 
-// Function to send verification email
 export const sendVerificationEmail = async (user, link) => {
-  if (!user?.email || !link) {
-    console.error("Error: Missing email or verification link.");
-    return;
-  }
+  if (!user?.email || !link) return;
 
-  console.log("Sending verification email to:", user.email);
+  const title = "Welcome to Talent By Design";
+  const content = `
+    <p style="font-size: 16px; margin-bottom: 24px;">
+      Welcome aboard!
+    </p>
+    <p style="font-size: 16px; margin-bottom: 16px;">
+      We're thrilled to have you join our community. To finalize your account setup and ensure the security of your information, please verify your email address by clicking the button below:
+    </p>
+    <div style="text-align: center; margin: 40px 0;">
+      <a href="${link}" style="display: inline-block; padding: 16px 36px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 12px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);">
+        Verify Email Address
+      </a>
+    </div>
+    <p style="font-size: 14px; color: #64748b;">
+      This link will remain active for 15 minutes. If you didn't create an account, you can safely ignore this email.
+    </p>
+  `;
 
-  const mailOptions = {
+  await sendEmail({
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
-    to: user.email, // Ensure 'email' is valid and not undefined or empty
-    subject: "Verify your email to get started with Talent By Design",
-    html: `
-      <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
-        <div style="max-width:600px;margin:0 auto;background:#ffffff;
-                    border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-          <div style="background:#1976d2;padding:24px;text-align:center;">
-            <h1 style="color:#ffffff;margin:0;font-size:24px;">
-              Talent By Design
-            </h1>
-          </div>
-          <div style="padding:32px;color:#333333;">
-            <h2 style="margin-top:0;font-size:20px;">
-              Welcome 👋
-            </h2>
-            <p style="font-size:15px;line-height:1.6;">
-              Thanks for joining <strong>Talent By Design</strong>.
-              To complete your registration and access your profile,
-              please verify your email address.
-            </p>
-            <div style="text-align:center;margin:32px 0;">
-              <a href="${link}"
-                 style="display:inline-block;padding:14px 32px;background:#1976d2;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:bold;">
-                Verify Email
-              </a>
-            </div>
-            <p style="font-size:14px;color:#555555;">
-              This verification link will expire in <strong>15 minutes</strong>.
-              If it expires, you can request a new one from the login page.
-            </p>
-            <p style="font-size:14px;margin-top:32px;">
-              We’re excited to have you onboard 🚀  
-              <br />
-              <strong>The Talent By Design Team</strong>
-            </p>
-          </div>
-          <div style="background:#f0f2f5;padding:16px;text-align:center;font-size:12px;color:#777;">
-            <p style="margin:0;">
-              If you didn’t create an account with Talent By Design,
-              you can safely ignore this email.
-            </p>
-          </div>
-        </div>
-      </div>
-    `
-  };
-
-  await sendEmail(mailOptions);
+    to: user.email,
+    subject: "Verify your email address",
+    html: getEmailWrapper("Let's get started 👋", content)
+  });
 };
 
-// Function to send password reset email
 export const sendResetEmail = async (to, link) => {
-  if (!to || !link) {
-    console.error("Error: Missing recipient email or reset link.");
-    return;
-  }
+  if (!to || !link) return;
 
-  console.log("Sending reset password email to:", to);
+  const title = "Reset Your Password";
+  const content = `
+    <p style="font-size: 16px; margin-bottom: 24px;">
+      Hello,
+    </p>
+    <p style="font-size: 16px; margin-bottom: 16px;">
+      We received a request to reset the password for your Talent By Design account. No changes have been made yet. You can reset your password by clicking the link below:
+    </p>
+    <div style="text-align: center; margin: 40px 0;">
+      <a href="${link}" style="display: inline-block; padding: 16px 36px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 12px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);">
+        Reset Password
+      </a>
+    </div>
+    <p style="font-size: 14px; color: #64748b;">
+      For security reasons, this link will expire in 15 minutes. If you did not request this, please ignore this email or contact support if you have concerns.
+    </p>
+  `;
 
-  const mailOptions = {
+  await sendEmail({
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
-    to, // Ensure 'to' is valid and not undefined or empty
-    subject: "Reset your Talent By Design password",
-    html: `
-      <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
-        <div style="max-width:600px;margin:0 auto;background:#ffffff;
-                    border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-          <div style="background:#1976d2;padding:24px;text-align:center;">
-            <h1 style="color:#ffffff;margin:0;font-size:24px;">
-              Talent By Design
-            </h1>
-          </div>
-          <div style="padding:32px;color:#333333;">
-            <h2 style="margin-top:0;font-size:20px;">
-              Reset your password
-            </h2>
-            <p style="font-size:15px;line-height:1.6;">
-              We received a request to reset the password for your
-              <strong>Talent By Design</strong> account.
-            </p>
-            <p style="font-size:15px;line-height:1.6;">
-              Click the button below to set a new password. If you did not
-              request a password reset, you can safely ignore this email.
-            </p>
-            <div style="text-align:center;margin:32px 0;">
-              <a href="${link}"
-                 style="display:inline-block;padding:14px 32px;background:#1976d2;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:bold;">
-                Reset Password
-              </a>
-            </div>
-            <p style="font-size:14px;color:#555555;">
-              This password reset link will expire in <strong>15 minutes</strong>.
-              If it expires, you can request a new one from the login page.
-            </p>
-            <p style="font-size:14px;margin-top:32px;">
-              <strong>The Talent By Design Team</strong>
-            </p>
-          </div>
-          <div style="background:#f0f2f5;padding:16px;text-align:center;font-size:12px;color:#777;">
-            <p style="margin:0;">
-              If you didn’t request a password reset, no further action is required.
-            </p>
-          </div>
-        </div>
-      </div>
-    `
-  };
-
-  await sendEmail(mailOptions);
+    to,
+    subject: title,
+    html: getEmailWrapper(title, content)
+  });
 };
 
 export const sendNotificationEmail = async (user, title, message) => {
   if (!user?.email) return;
 
-  const mailOptions = {
+  const content = `
+    <p style="font-size: 16px; margin-bottom: 24px;">
+      ${message}
+    </p>
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${process.env.FRONTEND_URL}/dashboard" style="display: inline-block; padding: 12px 28px; background-color: #f1f5f9; color: #1e40af; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600; border: 1px solid #e2e8f0;">
+        Go to Dashboard
+      </a>
+    </div>
+    <p style="font-size: 13px; color: #94a3b8; font-style: italic;">
+      You received this because you have email notifications enabled in your profile settings.
+    </p>
+  `;
+
+  await sendEmail({
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to: user.email,
     subject: title,
-    html: `
-      <div style="background:#f4f6f8;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
-        <div style="max-width:600px;margin:0 auto;background:#ffffff;
-                    border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-          <div style="background:#1976d2;padding:24px;text-align:center;">
-            <h1 style="color:#ffffff;margin:0;font-size:24px;">Talent By Design</h1>
-          </div>
-          <div style="padding:32px;color:#333333;">
-            <h2 style="margin-top:0;font-size:20px;">${title}</h2>
-            <p style="font-size:15px;line-height:1.6;">${message}</p>
-             <p style="font-size:14px;color:#555555;margin-top:20px;">
-              You received this email because you have enabled email notifications in your settings.
-            </p>
-          </div>
-        </div>
-      </div>
-    `
-  };
-
-  try {
-    await sendEmail(mailOptions);
-  } catch (error) {
-    console.error("Failed to send notification email", error);
-  }
+    html: getEmailWrapper(title, content)
+  });
 };
