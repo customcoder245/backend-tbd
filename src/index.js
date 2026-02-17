@@ -1,31 +1,3 @@
-// import dotenv from 'dotenv';
-// import connectDB from './db/index.js';
-// import { app } from './app.js';  // Import your Express app
-
-// dotenv.config({
-//   path: './env',  // Path to the .env file
-//   quiet: true      // Suppresses warning messages
-// });
-
-// // Connect to MongoDB
-// connectDB()
-//   .then(() => {
-//     console.log("MongoDB connected successfully.");
-//   })
-//   .catch((err) => {
-//     console.error("MongoDB connection failed:", err);
-//   });
-
-// // Export the serverless function for Vercel
-// export default (req, res) => {
-//   app(req, res);  // Pass the request and response to the Express app
-// };
-
-
-
-
-// import mongoose from 'mongoose';
-
 import dotenv from 'dotenv';
 import connectDB from "./db/index.js";
 import { app } from './app.js';  // Import your Express app
@@ -63,13 +35,3 @@ connectDB()
 });
 
 
-
-// Add this in your index.js or server.js file
-// mongoose.connection.once("open", async () => {
-//   try {
-//     await mongoose.connection.db.collection("users").dropIndex("orgName_1");
-//     console.log("✅ Successfully dropped the unique orgName index.");
-//   } catch (error) {
-//     console.log("ℹ️ Index orgName_1 not found or already deleted.");
-//   }
-// });
