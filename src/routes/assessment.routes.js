@@ -4,7 +4,8 @@ import {
   submitAssessment,
   getAssessmentStartData,
   getMyAssessments,
-  getSuperAdminStats
+  getSuperAdminStats,
+  getSuperAdminIntelligence
 } from "../controllers/assessment.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 
@@ -31,5 +32,6 @@ router.get("/history", protect, getMyAssessments);
  * Super Admin Stats
  */
 router.get("/super-admin/stats", protect, getSuperAdminStats);
+router.get("/super-admin/intelligence", protect, getSuperAdminIntelligence);
 
 export default router;

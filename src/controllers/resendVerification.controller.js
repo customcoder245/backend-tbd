@@ -31,8 +31,12 @@ export const resendVerificationEmail = async (req, res) => {
       await user.save();  // Save the updated user object
 
       // Step 5: Send the new verification email with the new token
-      const verifyLink = `${process.env.BACKEND_URL}auth/verify-email/${newToken}`;
-      await sendVerificationEmail(user, verifyLink);
+      const baseUrl = process.env.BACKEND_URL.endsWith("/")
+        ? process.env.BACKEND_URL
+        : `${process.env.BACKEND_URL}/`;
+
+      const verifyLink = `${baseUrl}auth/verify-email/${newToken}`;
+      await sendVerificationEmail({ email: user.email }, verifyLink);
 
       return res.status(200).json({
         message: "Your verification token expired. A new verification email has been sent."

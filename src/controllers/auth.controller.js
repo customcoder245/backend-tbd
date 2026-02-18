@@ -16,7 +16,8 @@ export const register = async (req, res) => {
 
     const invitationTokenFromUrl = req.query.token;
     const invitationTokenFromCookie = req.cookies.invitationToken;
-    const invitationToken = invitationTokenFromUrl || invitationTokenFromCookie;
+    const invitationTokenFromHeader = req.headers["x-invitation-token"] || req.headers["x-auth-token"];
+    const invitationToken = invitationTokenFromUrl || invitationTokenFromCookie || invitationTokenFromHeader;
 
     const query = invitationToken
       ? { $or: [{ token: invitationToken }, { token1: invitationToken }] }
@@ -26,6 +27,11 @@ export const register = async (req, res) => {
 
     if (!invitation) {
       return res.status(400).json({ message: "You are not invited yet, so you cannot register." });
+    }
+
+    // Security check: Match email if invitation is type-specific
+    if (invitation.email.toLowerCase() !== email.toLowerCase()) {
+      return res.status(400).json({ message: "Registration email does not match invitation." });
     }
 
     if (invitation.used) {
@@ -103,7 +109,7 @@ export const verifyEmail = async (req, res) => {
       ? process.env.FRONTEND_URL.slice(0, -1)
       : process.env.FRONTEND_URL;
 
-    res.redirect(`${frontendUrl}/after-register?verifyToken=${token}`);
+    res.redirect(`${frontendUrl}/profile-info?verifyToken=${token}`);
   } catch (error) {
     console.error("Email verification error:", error);
     res.redirect(`${process.env.FRONTEND_URL}/login`);
@@ -261,6 +267,7 @@ export const login = async (req, res) => {
         role: user.role,
         orgName: user.orgName,
         profileCompleted: user.profileCompleted,
+        emailVerificationToken: user.emailVerificationToken, // Needed for redirect to profile-info
       },
       accessToken,
     });

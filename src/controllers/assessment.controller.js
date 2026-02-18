@@ -314,3 +314,136 @@ export const getSuperAdminStats = async (req, res) => {
     res.status(500).json({ message: "Error fetching stats" });
   }
 };
+
+/**
+ * GET SUPER ADMIN INTELLIGENCE (Advanced Dashboard Data)
+ */
+export const getSuperAdminIntelligence = async (req, res) => {
+  try {
+    const { quarter, year: queryYear } = req.query;
+    const now = new Date();
+    const selectedYear = queryYear ? parseInt(queryYear) : now.getFullYear();
+    const selectedQuarter = quarter ? parseInt(quarter) : Math.floor(now.getMonth() / 3) + 1;
+
+    const cycleMap = {
+      1: { start: new Date(selectedYear, 0, 1), end: new Date(selectedYear, 2, 31, 23, 59, 59), label: "Q1" },
+      2: { start: new Date(selectedYear, 3, 1), end: new Date(selectedYear, 5, 30, 23, 59, 59), label: "Q2" },
+      3: { start: new Date(selectedYear, 6, 1), end: new Date(selectedYear, 8, 30, 23, 59, 59), label: "Q3" },
+      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59), label: "Q4" },
+    };
+
+    const period = cycleMap[selectedQuarter];
+    const dateFilter = { createdAt: { $gte: period.start, $lte: period.end } };
+    const assessmentDateFilter = { submittedAt: { $gte: period.start, $lte: period.end } };
+
+    // 1. Unified Organization Counting
+    const orgsFromInvites = await Invitation.distinct("orgName", dateFilter);
+    const orgsFromAdmins = await User.distinct("orgName", { role: "admin", ...dateFilter });
+    const orgsFromAssessments = await Assessment.distinct("orgName", assessmentDateFilter);
+
+    const allOrgNames = new Set([
+      ...orgsFromInvites,
+      ...orgsFromAdmins,
+      ...orgsFromAssessments
+    ].filter(name => name && typeof name === "string"));
+
+    const totalOrgs = allOrgNames.size;
+
+    // Organization Health: Orgs with at least one completed assessment
+    const activeOrgCount = await Assessment.distinct("orgName", { isCompleted: true, ...assessmentDateFilter });
+    const healthRate = totalOrgs > 0 ? Math.round((activeOrgCount.length / totalOrgs) * 100) : 0;
+
+    // 2. User Breakdown by Role (EXCLUDING superAdmin)
+    const usersByRole = await User.aggregate([
+      { $match: { ...dateFilter, role: { $ne: "superAdmin" } } },
+      { $group: { _id: "$role", count: { $sum: 1 } } }
+    ]);
+
+    const employeeEmails = new Set();
+    const employeeInvites = await Invitation.find({ role: "employee", ...dateFilter }, "email").lean();
+    const employeeAssessments = await Assessment.find({
+      "userDetails.role": { $regex: /employee/i },
+      ...assessmentDateFilter
+    }, "userDetails.email").lean();
+
+    employeeInvites.forEach(i => i.email && employeeEmails.add(i.email.toLowerCase()));
+    employeeAssessments.forEach(a => a.userDetails?.email && employeeEmails.add(a.userDetails.email.toLowerCase()));
+
+    const roleStats = {
+      admin: usersByRole.find(r => r._id === "admin")?.count || 0,
+      manager: usersByRole.find(r => r._id === "manager")?.count || 0,
+      leader: usersByRole.find(r => r._id === "leader")?.count || 0,
+      employee: employeeEmails.size > 0 ? employeeEmails.size : (usersByRole.find(r => r._id === "employee")?.count || 0),
+    };
+    const totalUsers = Object.values(roleStats).reduce((a, b) => a + b, 0);
+
+    // 3. Absolute Participation Totals (EXCLUDING superAdmin)
+    // SuperAdmins don't take assessments, so we don't count them in totalAssigned
+    const totalAssigned = await Invitation.countDocuments(dateFilter) + await User.countDocuments({ role: "admin", ...dateFilter });
+    const totalCompleted = await Assessment.countDocuments({ isCompleted: true, ...assessmentDateFilter });
+    const totalPending = totalAssigned > totalCompleted ? totalAssigned - totalCompleted : 0;
+
+    // 4. Completion status by role
+    const completionByRole = await Assessment.aggregate([
+      { $match: { isCompleted: true, ...assessmentDateFilter } },
+      { $group: { _id: "$userDetails.role", count: { $sum: 1 } } }
+    ]);
+
+    const roleCompletionRates = {
+      admin: roleStats.admin > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "admin")?.count || 0) / roleStats.admin) * 100) : 0,
+      manager: roleStats.manager > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "manager")?.count || 0) / roleStats.manager) * 100) : 0,
+      leader: roleStats.leader > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "leader")?.count || 0) / roleStats.leader) * 100) : 0,
+      employee: roleStats.employee > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "employee")?.count || 0) / roleStats.employee) * 100) : 0,
+    };
+
+    // 5. Recent Activity
+    const activity = [
+      ...(await Assessment.find({ isCompleted: true, ...assessmentDateFilter }).sort({ submittedAt: -1 }).limit(3).lean()).map(a => ({
+        id: a._id,
+        org: a.orgName || "Direct User",
+        action: "Assessment Completed",
+        time: a.submittedAt,
+        type: "submission",
+        status: "Success"
+      })),
+      ...(await Invitation.find(dateFilter).sort({ createdAt: -1 }).limit(3).lean()).map(i => ({
+        id: i._id,
+        org: i.orgName || "External",
+        action: `Invite Sent to ${i.name || i.email}`,
+        time: i.createdAt,
+        type: "invitation",
+        status: "Success"
+      }))
+    ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5);
+
+    // 6. Current Cycle Info
+    const currentCycle = {
+      label: `${period.label} ${selectedYear} Growth Cycle`,
+      period: `${period.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${period.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+      daysLeft: Math.max(0, Math.ceil((period.end - now) / (1000 * 60 * 60 * 24))),
+      healthRate
+    };
+
+    res.status(200).json({
+      stats: [
+        { label: "Onboarded Organizations", value: totalOrgs, icon: "solar:buildings-2-bold-duotone", color: "#448CD2", growth: "+4%", path: "/dashboard/org-assessments" },
+        { label: "Client Base Users", value: totalUsers, icon: "solar:users-group-rounded-bold-duotone", color: "#8E54E9", growth: "+12%", path: "/dashboard/users" },
+        { label: "Verified Assessments", value: totalCompleted, icon: "solar:checklist-minimalistic-bold-duotone", color: "#4776E6", growth: "+18%", path: "/dashboard/assessment-history" },
+        { label: "Onboarding Health", value: `${healthRate}%`, icon: "solar:shield-check-bold-duotone", color: "#10b981", growth: "Stable", path: "/dashboard/org-assessments" },
+      ],
+      userBreakdown: roleStats,
+      participation: {
+        assigned: totalAssigned,
+        completed: totalCompleted,
+        pending: totalPending,
+        rate: totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0
+      },
+      completionByRole: roleCompletionRates,
+      recentActivities: activity,
+      currentCycle
+    });
+  } catch (error) {
+    console.error("Super Admin Intelligence Error:", error);
+    res.status(500).json({ message: "Error fetching intelligence data" });
+  }
+};
