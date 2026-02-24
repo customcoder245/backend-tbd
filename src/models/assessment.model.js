@@ -27,8 +27,7 @@ const assessmentSchema = new Schema({
   invitationId: {
     type: Schema.Types.ObjectId,
     ref: "Invitation",
-    required: false,
-    sparse: true
+    required: false
   },
 
   // person snapshot
@@ -57,6 +56,6 @@ const assessmentSchema = new Schema({
       comment: String
     }
   ]
-});
+}, { timestamps: true });
 
 export default mongoose.model("Assessment", assessmentSchema);

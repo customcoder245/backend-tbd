@@ -1,62 +1,4 @@
-// import jwt from "jsonwebtoken";
-// import mongoose from "mongoose";
-// import Invitation from "../models/invitation.model.js";
-
-// export const employeeAccess = async (req, res, next) => {
-//   const token =
-//     req.headers["x-invite-token"] ||
-//     req.params.token ||
-//     req.query.token;
-
-//   if (!token) {
-//     return res.status(401).json({ message: "Invitation token required" });
-//   }
-
-//   try {
-//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-//     console.log("Decoded token:", decoded);
-
-//     const invitation = await Invitation.findById(
-//       new mongoose.Types.ObjectId(decoded.invitedId)
-//     );
-
-//     if (!invitation) {
-//       return res.status(401).json({ message: "Invalid invitation" });
-//     }
-
-//     if (invitation.email !== decoded.email) {
-//       return res.status(401).json({ message: "Invitation email mismatch" });
-//     }
-
-//     if (invitation.used === true) {
-//       return res.status(400).json({ message: "Invitation already used" });
-//     }
-
-//     if (
-//       !invitation.expiredAt ||
-//       new Date(invitation.expiredAt).getTime() < Date.now()
-//     ) {
-//       return res.status(400).json({ message: "Invitation expired" });
-//     }
-
-//     req.employee = {
-//       email: decoded.email,
-//       invitedBy: invitation.invitedBy,
-//       orgName: invitation.orgName,
-//       invitationId: invitation._id
-//     };
-
-//     next();
-//   } catch (err) {
-//     console.error("employeeAccess middleware error:", err);
-//     return res.status(401).json({ message: "Invalid or expired token" });
-//   }
-// };
-
-
-
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import Invitation from "../models/invitation.model.js";
 
 export const employeeAccess = async (req, res, next) => {
@@ -70,33 +12,30 @@ export const employeeAccess = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Decoded token:", decoded);
+    // 1️⃣ Verify the JWT is valid (checks signature + expiry)
+    jwt.verify(token, process.env.JWT_SECRET);
 
-    // 🔥 FIX: invitedId === adminId (NOT invitation _id)
+    // 2️⃣ Look up invitation directly by the stored token in DB
+    //    This is the source of truth — more reliable than decoded fields
     const invitation = await Invitation.findOne({
-      adminId: new mongoose.Types.ObjectId(decoded.invitedId),
-      email: decoded.email,
-      role: "employee"
+      $or: [{ token: token }, { token1: token }]
     });
 
     if (!invitation) {
-      return res.status(401).json({ message: "Invalid invitation" });
+      return res.status(401).json({ message: "Invitation not found. It may have been deleted or is invalid." });
     }
 
     if (invitation.used === true) {
-      return res.status(400).json({ message: "Invitation already used" });
+      return res.status(400).json({ message: "This invitation has already been used." });
     }
 
-    if (
-      !invitation.expiredAt ||
-      new Date(invitation.expiredAt).getTime() < Date.now()
-    ) {
-      return res.status(400).json({ message: "Invitation expired" });
+    if (!invitation.expiredAt || new Date(invitation.expiredAt).getTime() < Date.now()) {
+      return res.status(400).json({ message: "Invitation link has expired. Please ask your admin to resend." });
     }
 
+    // 3️⃣ Attach employee info to the request
     req.employee = {
-      email: decoded.email,
+      email: invitation.email,
       invitedBy: invitation.invitedBy,
       orgName: invitation.orgName,
       invitationId: invitation._id
@@ -104,7 +43,10 @@ export const employeeAccess = async (req, res, next) => {
 
     next();
   } catch (err) {
-    console.error("employeeAccess middleware error:", err);
-    return res.status(401).json({ message: "Invalid or expired token" });
+    console.error("employeeAccess middleware error:", err.message);
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Invitation token expired. Please ask your admin to resend the invite." });
+    }
+    return res.status(401).json({ message: "Invalid invitation token." });
   }
 };

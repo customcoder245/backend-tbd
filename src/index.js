@@ -4,6 +4,7 @@ import connectDB from "./db/index.js";
 import { app } from './app.js';
 import cron from 'node-cron';
 import User from './models/user.model.js';
+import mongoose from 'mongoose';
 
 dotenv.config({
     path: './.env',
@@ -16,7 +17,23 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 connectDB()
-    .then(() => {
+    .then(async () => {
+        // --- ⚙️ DATABASE CLEANUP (FIXES 500 ERROR) ---
+        // This drops the 'invitationId' unique index that prevents recurring assessments
+        try {
+            const db = mongoose.connection.db;
+            const collection = db.collection('assessments');
+            const indexes = await collection.indexes();
+            const hasInvitationIndex = indexes.some(idx => idx.name === 'invitationId_1');
+
+            if (hasInvitationIndex) {
+                await collection.dropIndex('invitationId_1');
+                console.log("✅ Fixed: Removed unique constraint from invitationId.");
+            }
+        } catch (err) {
+            console.log("⚠️ Index cleanup status:", err.message);
+        }
+
         app.listen(process.env.PORT || 3000, () => {
             console.log(`Server is running at port : ${process.env.PORT}`);
         });

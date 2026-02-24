@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
 import Assessment from "../models/assessment.model.js";
+import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 
 // ==================== GET Organization Details ====================
 export const getOrgDetails = async (req, res) => {
@@ -38,9 +39,8 @@ export const getOrgDetails = async (req, res) => {
                     if (userAssessment) {
                         assessmentStatus = "Completed";
                         // Check if expired/due (>3 months)
-                        const threeMonthsAgo = new Date();
-                        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-                        if (userAssessment.submittedAt < threeMonthsAgo) {
+                        const cycleStart = getAssessmentCycleStartDate();
+                        if (userAssessment.submittedAt < cycleStart) {
                             assessmentStatus = "Due"; // Expired/Recurring Due
                         }
                     } else {

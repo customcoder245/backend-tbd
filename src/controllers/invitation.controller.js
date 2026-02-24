@@ -32,10 +32,18 @@ export const sendInvitation = async (req, res) => {
             return res.status(400).json({ message: "User has already been invited" });
         }
 
+        // Employees get 7 days (they take the assessment directly, no registration needed)
+        // Admins/Leaders/Managers get 1 hour (they register quickly)
+        const isEmployee = role === "employee";
+        const tokenExpiry = isEmployee ? "7d" : "1h";
+        const dbExpiry = isEmployee
+            ? Date.now() + 7 * 24 * 60 * 60 * 1000
+            : Date.now() + 60 * 60 * 1000;
+
         const token = jwt.sign(
             { email, role, invitedId: inviterId, orgName: inviter.orgName },
             process.env.JWT_SECRET,
-            { expiresIn: "1h" }
+            { expiresIn: tokenExpiry }
         );
 
         const invitation = new Invitation({
@@ -46,7 +54,7 @@ export const sendInvitation = async (req, res) => {
             invitedBy: inviterId,
             adminId: inviterId,
             orgName: inviter.orgName,
-            expiredAt: Date.now() + 60 * 60 * 1000,
+            expiredAt: dbExpiry,
         });
         await invitation.save();
 
@@ -86,6 +94,16 @@ export const acceptInvitation = async (req, res) => {
             return res.redirect(`${process.env.FRONTEND_URL}/login?error=expired_token`);
         }
 
+        const frontendUrl = process.env.FRONTEND_URL.endsWith("/")
+            ? process.env.FRONTEND_URL.slice(0, -1)
+            : process.env.FRONTEND_URL;
+
+        // ✅ EMPLOYEE: Skip registration, go straight to assessment
+        if (invitation.role === "employee") {
+            return res.redirect(`${frontendUrl}/start-assessment?token=${token}`);
+        }
+
+        // ✅ ADMIN / LEADER / MANAGER: Normal registration flow
         const isProduction = process.env.NODE_ENV === "production";
         res.cookie("invitationToken", token, {
             httpOnly: true,
@@ -93,10 +111,6 @@ export const acceptInvitation = async (req, res) => {
             sameSite: isProduction ? "none" : "lax",
             maxAge: 60 * 60 * 1000,
         });
-
-        const frontendUrl = process.env.FRONTEND_URL.endsWith("/")
-            ? process.env.FRONTEND_URL.slice(0, -1)
-            : process.env.FRONTEND_URL;
 
         res.redirect(`${frontendUrl}/register?token=${token}`);
     } catch (error) {

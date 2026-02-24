@@ -4,6 +4,7 @@ import Assessment from "../models/assessment.model.js";
 import { sendVerificationEmail, sendResetEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
 import { createNotification, notifySuperAdmins } from "../utils/notification.utils.js";
+import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 
 // ================= REGISTER =================
 export const register = async (req, res) => {
@@ -259,6 +260,29 @@ export const login = async (req, res) => {
 
     res.cookie("accessToken", accessToken, cookieOptions);
 
+    // --- ASSESSMENT STATUS CHECK ---
+    // For employee/admin/leader/manager roles, check if they have a pending assessment
+    let assessmentStatus = "NONE";
+    const rolesWithAssessment = ["employee", "admin", "leader", "manager"];
+    if (rolesWithAssessment.includes(user.role?.toLowerCase())) {
+      const completedAssessment = await Assessment.findOne({
+        userId: user._id,
+        isCompleted: true
+      }).sort({ submittedAt: -1 });
+
+      if (!completedAssessment) {
+        assessmentStatus = "PENDING";
+      } else {
+        // Check if it's due again using central config
+        const cycleStart = getAssessmentCycleStartDate();
+        if (completedAssessment.submittedAt < cycleStart) {
+          assessmentStatus = "DUE";
+        } else {
+          assessmentStatus = "COMPLETED";
+        }
+      }
+    }
+
     res.status(200).json({
       message: "Login successful",
       user: {
@@ -267,9 +291,10 @@ export const login = async (req, res) => {
         role: user.role,
         orgName: user.orgName,
         profileCompleted: user.profileCompleted,
-        emailVerificationToken: user.emailVerificationToken, // Needed for redirect to profile-info
+        emailVerificationToken: user.emailVerificationToken,
       },
       accessToken,
+      assessmentStatus,
     });
   } catch (error) {
     console.error("Login error:", error);

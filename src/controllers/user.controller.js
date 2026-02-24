@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Assessment from "../models/assessment.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 
 // ==================== GET Current Authenticated User (auth/me) ====================
 export const getMe = async (req, res) => {
@@ -19,9 +20,8 @@ export const getMe = async (req, res) => {
                 if (!complete) {
                     assessmentStatus = "DUE";
                 } else {
-                    const threeMonthsAgo = new Date();
-                    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-                    if (complete.submittedAt < threeMonthsAgo) {
+                    const cycleStart = getAssessmentCycleStartDate();
+                    if (complete.submittedAt < cycleStart) {
                         assessmentStatus = "DUE";
                     } else {
                         assessmentStatus = "COMPLETED";

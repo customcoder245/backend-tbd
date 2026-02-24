@@ -5,6 +5,7 @@ import Response from "../models/response.model.js";
 import mongoose from "mongoose";
 import { createNotification, notifySuperAdmins, notifyOrgAdmins } from "../utils/notification.utils.js";
 import Invitation from "../models/invitation.model.js";
+import { ASSESSMENT_CYCLE_MONTHS, getAssessmentCycleStartDate } from "../config/assessment.config.js";
 
 /**
  * START ASSESSMENT
@@ -13,8 +14,7 @@ import Invitation from "../models/invitation.model.js";
 export const startAssessment = async (req, res) => {
   try {
     const { stakeholder } = req.body;
-    // Assuming protect middleware provides req.user
-    const { userId } = req.user;
+    const userId = req.user?.userId;
 
     if (!stakeholder) {
       return res.status(400).json({ message: "Stakeholder is required" });
@@ -30,56 +30,65 @@ export const startAssessment = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Check for existing INCOMPLETE assessment (Resume logic)
+    // 2. Check the latest COMPLETED assessment first (determines the cycle)
+    const latestCompletedAssessment = await Assessment.findOne({
+      userId,
+      isCompleted: true
+    }).sort({ submittedAt: -1 });
+
+    const cycleStart = getAssessmentCycleStartDate();
+    const cycleIsActive = latestCompletedAssessment &&
+      latestCompletedAssessment.submittedAt &&
+      new Date(latestCompletedAssessment.submittedAt).getTime() > cycleStart.getTime();
+
+    // 3. If cycle is still active (not yet due), block the user
+    if (cycleIsActive) {
+      const subAt = new Date(latestCompletedAssessment.submittedAt);
+      const monthsToAdd = Number(ASSESSMENT_CYCLE_MONTHS) || 3;
+      const nextDate = new Date(subAt);
+      nextDate.setMonth(nextDate.getMonth() + monthsToAdd);
+
+      const diffTime = Math.max(0, nextDate.getTime() - Date.now());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      return res.status(403).json({
+        message: `Assessment not due yet. Next available in ${diffDays} day(s).`
+      });
+    }
+
+    // 4. Cycle is due (or never completed). Check for an in-progress assessment.
     const incompleteAssessment = await Assessment.findOne({
       userId,
       isCompleted: false
     }).sort({ createdAt: -1 });
 
     if (incompleteAssessment) {
-      return res.status(200).json({
-        message: "Resuming existing assessment",
-        assessmentId: incompleteAssessment._id
-      });
-    }
+      const latestSubAt = latestCompletedAssessment?.submittedAt ? new Date(latestCompletedAssessment.submittedAt).getTime() : 0;
+      const incompleteCreatedDate = incompleteAssessment.createdAt ? new Date(incompleteAssessment.createdAt).getTime() : 0;
 
-    // Check for latest COMPLETED assessment (Recurring logic)
-    const latestCompletedAssessment = await Assessment.findOne({
-      userId,
-      isCompleted: true
-    }).sort({ submittedAt: -1 });
+      const isFromCurrentCycle = incompleteCreatedDate > latestSubAt;
 
-    if (latestCompletedAssessment) {
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-
-      if (latestCompletedAssessment.submittedAt > threeMonthsAgo) {
-        // Calculate days remaining
-        const nextDate = new Date(latestCompletedAssessment.submittedAt);
-        nextDate.setMonth(nextDate.getMonth() + 3);
-        const diffTime = Math.abs(nextDate - new Date());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        return res.status(403).json({
-          message: `You have already completed an assessment recently. Next assessment available in ${diffDays} days.`
+      if (isFromCurrentCycle) {
+        return res.status(200).json({
+          message: "Resuming existing assessment",
+          assessmentId: incompleteAssessment._id
         });
+      } else {
+        // Stale leftover — delete it so we can start fresh
+        await Assessment.deleteOne({ _id: incompleteAssessment._id });
       }
     }
 
-    // 2. Fetch Invitation (Optional now)
-    // Logic: Find the invitation sent to this user's email.
+    // 5. Create a fresh assessment
     const invitation = await Invitation.findOne({ email: user.email }).sort({ createdAt: -1 });
 
-    // 3. Prepare Assessment Data
     const assessmentData = {
       stakeholder,
       userId: user._id,
-      // If invitation exists, use it. If not, null (allowed now).
       invitationId: invitation ? invitation._id : null,
-      invitedBy: invitation?.invitedBy || user.adminId, // Fallback to adminId
+      invitedBy: invitation?.invitedBy || user.adminId,
       orgName: user.orgName || invitation?.orgName,
       employeeEmail: user.email,
-      // Initialize userDetails snapshot from profile
       userDetails: {
         _id: user._id,
         firstName: user.firstName,
@@ -98,10 +107,11 @@ export const startAssessment = async (req, res) => {
       assessmentId: assessment._id
     });
   } catch (error) {
-    console.error("Error starting assessment:", error);
+    console.error("DEBUG: Error starting assessment:", error);
     res.status(500).json({
       message: "Error starting assessment",
-      error: error.message
+      error: error.message,
+      stack: error.stack
     });
   }
 };
@@ -445,5 +455,145 @@ export const getSuperAdminIntelligence = async (req, res) => {
   } catch (error) {
     console.error("Super Admin Intelligence Error:", error);
     res.status(500).json({ message: "Error fetching intelligence data" });
+  }
+};
+
+/**
+ * GET ADMIN INTELLIGENCE (Organization Dashboard Data)
+ */
+export const getAdminIntelligence = async (req, res) => {
+  try {
+    const { orgName } = req.user;
+    if (!orgName) {
+      return res.status(400).json({ message: "Admin organization not found" });
+    }
+
+    const { range } = req.query;
+
+    // --- DATE FILTERING LOGIC ---
+    let dateFilter = {};
+    const now = new Date();
+    if (range === "This Week") {
+      const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+      startOfWeek.setHours(0, 0, 0, 0);
+      dateFilter = { createdAt: { $gte: startOfWeek } };
+    } else if (range === "This Month") {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      dateFilter = { createdAt: { $gte: startOfMonth } };
+    } else if (range === "Quarterly") {
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      const startOfQuarter = new Date(now.getFullYear(), currentQuarter * 3, 1);
+      dateFilter = { createdAt: { $gte: startOfQuarter } };
+    }
+
+    const teamFilter = { orgName, role: { $ne: "admin" } };
+    // Apply date filter to assessments
+    const assessmentFilter = { orgName, ...dateFilter };
+
+    // 1. Get all assessments for this org
+    const assessments = await Assessment.find(assessmentFilter).lean();
+
+    // 2. Get registered users
+    const registeredUsers = await User.find(teamFilter).lean();
+
+    // 3. Unique People Discovery
+    const peopleMap = new Map();
+
+    registeredUsers.forEach(u => {
+      const email = u.email.toLowerCase();
+      peopleMap.set(email, {
+        email,
+        name: u.firstName !== "-" ? `${u.firstName} ${u.lastName}` : u.email,
+        role: u.role,
+        status: "Registered",
+        assessmentStatus: "Not Started"
+      });
+    });
+
+    assessments.forEach(a => {
+      const email = a.employeeEmail?.toLowerCase() || a.userDetails?.email?.toLowerCase();
+      if (!email) return;
+
+      const existing = peopleMap.get(email);
+      const name = a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : (existing?.name || email);
+
+      peopleMap.set(email, {
+        email,
+        name,
+        role: a.userDetails?.role || existing?.role || "Employee",
+        status: a.isCompleted ? "Completed" : "Active",
+        assessmentStatus: a.isCompleted ? "Completed" : "In Progress",
+        lastActivity: a.submittedAt || a.updatedAt || a.createdAt
+      });
+    });
+
+    const uniquePeople = Array.from(peopleMap.values());
+    const completedCount = uniquePeople.filter(p => p.assessmentStatus === "Completed").length;
+    const inProgressCount = uniquePeople.filter(p => p.assessmentStatus === "In Progress").length;
+    const notStartedCount = uniquePeople.filter(p => p.assessmentStatus === "Not Started").length;
+
+    const participationRate = uniquePeople.length > 0 ? Math.round((completedCount / uniquePeople.length) * 100) : 0;
+
+    const stats = {
+      totalMembers: uniquePeople.length,
+      activeInvites: await Invitation.countDocuments({ ...teamFilter, status: "Pending" }),
+      completedAssessments: completedCount,
+      inProgressAssessments: inProgressCount,
+      notStartedAssessments: notStartedCount,
+      participationRate: participationRate,
+      completionRate: participationRate // Alias for frontend compatibility
+    };
+
+    // 4. Role Breakdown
+    const roleStats = {
+      manager: uniquePeople.filter(p => p.role?.toLowerCase() === "manager").length,
+      leader: uniquePeople.filter(p => p.role?.toLowerCase() === "leader").length,
+      employee: uniquePeople.filter(p => p.role?.toLowerCase() === "employee").length,
+    };
+
+    // 5. Activity Stream (Assessments + Invitations) - Weighted by Time Range
+    const recentInvites = await Invitation.find({ ...teamFilter, ...dateFilter })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    const activityStream = [
+      ...assessments.map(a => ({
+        id: a._id,
+        user: a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : a.employeeEmail,
+        action: a.isCompleted ? "Completed assessment" : "Started assessment",
+        time: a.submittedAt || a.createdAt,
+        type: a.isCompleted ? "completion" : "start",
+        role: a.userDetails?.role || "Participant"
+      })),
+      ...recentInvites.map(i => ({
+        id: i._id,
+        user: i.name || i.email,
+        action: "Invitation sent",
+        time: i.createdAt,
+        type: "invitation",
+        role: i.role
+      }))
+    ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5);
+
+    // 6. Strategic Insight Logic
+    let insight = "Assessment phase initiated. Encourage team members to participate for better organizational clarity.";
+    if (participationRate > 75) {
+      insight = "Excellent engagement! Your team shows strong 'Strategic Alignment'. Results indicate high readiness for growth.";
+    } else if (participationRate > 40) {
+      insight = "Steady progress. Early data suggests strength in 'Operational Flow'. Focus on remaining participants to reach critical mass.";
+    }
+
+    res.status(200).json({
+      stats,
+      roleBreakdown: roleStats,
+      activityStream,
+      orgName,
+      people: uniquePeople,
+      strategicInsight: insight
+    });
+  } catch (error) {
+    console.error("Admin Intelligence Error:", error);
+    res.status(500).json({ message: "Error fetching admin intelligence data" });
   }
 };
