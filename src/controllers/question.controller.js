@@ -190,10 +190,35 @@ export const createMultipleQuestions = async (req, res) => {
       });
     }
 
-    // Array to store created questions
+    // List of created questions
     const createdQuestions = [];
 
-    // Track counts for the current batch to handle multiple questions with the same attributes
+    // 1. Pre-calculate the base max numbers from DB for all prefixes in this batch
+    const prefixBaseMax = {};
+    for (const key in questions) {
+      const q = questions[key];
+      const dAbbr = domainAbbr[q.domain] || getAbbreviation(q.domain);
+      const sAbbr = getAbbreviation(q.subdomain);
+      const rolePref = stakeholderPrefix[q.stakeholder.toLowerCase()] || (q.stakeholder ? q.stakeholder[0].toUpperCase() : "X");
+      const tSuff = typeSuffix[q.questionType] || "";
+      const prefix = `${dAbbr}-${sAbbr}-${rolePref}${tSuff}`;
+
+      if (prefixBaseMax[prefix] === undefined) {
+        const regex = new RegExp(`^${prefix}(\\d+)$`);
+        const existingDocs = await Question.find({ questionCode: regex }, { questionCode: 1 }).lean();
+        let maxOfPrefix = 0;
+        existingDocs.forEach(doc => {
+          const match = doc.questionCode.match(regex);
+          if (match) {
+            const num = parseInt(match[1]);
+            if (num > maxOfPrefix) maxOfPrefix = num;
+          }
+        });
+        prefixBaseMax[prefix] = maxOfPrefix;
+      }
+    }
+
+    // 2. Track counts for the current batch
     const batchPrefixCounts = {};
 
     // Iterate over the object of questions
@@ -256,12 +281,12 @@ export const createMultipleQuestions = async (req, res) => {
         const tSuff = typeSuffix[questionType] || "";
         const prefix = `${dAbbr}-${sAbbr}-${rolePref}${tSuff}`;
 
-        // Use an offset based on how many questions with this prefix we've handled in this batch
-        const offset = batchPrefixCounts[prefix] || 0;
-        batchPrefixCounts[prefix] = offset + 1;
+        // Use count in batch to calculate unique code
+        const countInBatch = batchPrefixCounts[prefix] || 0;
+        batchPrefixCounts[prefix] = countInBatch + 1;
 
-        // Auto-generate Question Code with offset
-        const generatedCode = await generateQuestionCode(stakeholder, domain, subdomain, questionType, offset);
+        // Final Code = Base found in DB at start + Count in current batch + 1
+        const generatedCode = `${prefix}${prefixBaseMax[prefix] + countInBatch + 1}`;
 
         // Prevent duplicate questionCode (double check)
         const existingCode = await Question.findOne({ questionCode: generatedCode });
