@@ -29,7 +29,7 @@ const getAbbreviation = (text) => {
     .join("");
 };
 
-const generateQuestionCode = async (stakeholder, domain, subdomain, questionType) => {
+const generateQuestionCode = async (stakeholder, domain, subdomain, questionType, offset = 0) => {
   const dAbbr = domainAbbr[domain] || getAbbreviation(domain);
   const sAbbr = getAbbreviation(subdomain);
   const rolePref = stakeholderPrefix[stakeholder.toLowerCase()] || (stakeholder ? stakeholder[0].toUpperCase() : "X");
@@ -50,7 +50,7 @@ const generateQuestionCode = async (stakeholder, domain, subdomain, questionType
     }
   });
 
-  return `${prefix}${maxNum + 1}`;
+  return `${prefix}${maxNum + 1 + offset}`;
 };
 
 /**
@@ -193,6 +193,9 @@ export const createMultipleQuestions = async (req, res) => {
     // Array to store created questions
     const createdQuestions = [];
 
+    // Track counts for the current batch to handle multiple questions with the same attributes
+    const batchPrefixCounts = {};
+
     // Iterate over the object of questions
     for (const key in questions) {
       if (questions.hasOwnProperty(key)) {
@@ -246,30 +249,27 @@ export const createMultipleQuestions = async (req, res) => {
           }
         }
 
-        // Prevent duplicate questionCode
-        const existingCode = await Question.findOne({ questionCode });
+        // Auto-generate unique Prefix for tracking in this batch
+        const dAbbr = domainAbbr[domain] || getAbbreviation(domain);
+        const sAbbr = getAbbreviation(subdomain);
+        const rolePref = stakeholderPrefix[stakeholder.toLowerCase()] || (stakeholder ? stakeholder[0].toUpperCase() : "X");
+        const tSuff = typeSuffix[questionType] || "";
+        const prefix = `${dAbbr}-${sAbbr}-${rolePref}${tSuff}`;
+
+        // Use an offset based on how many questions with this prefix we've handled in this batch
+        const offset = batchPrefixCounts[prefix] || 0;
+        batchPrefixCounts[prefix] = offset + 1;
+
+        // Auto-generate Question Code with offset
+        const generatedCode = await generateQuestionCode(stakeholder, domain, subdomain, questionType, offset);
+
+        // Prevent duplicate questionCode (double check)
+        const existingCode = await Question.findOne({ questionCode: generatedCode });
         if (existingCode) {
           return res.status(409).json({
-            message: "Question with this questionCode already exists"
+            message: `Question with code ${generatedCode} already exists`
           });
         }
-
-        // Calculate subdomainWeight based on the domain
-        let subdomainWeight = 0;
-
-        const subdomainWeights = {
-          "People Potential": 0.35,
-          "Operational Steadiness": 0.25,
-          "Digital Fluency": 0.20
-        };
-
-        // Assign the weight based on domain
-        if (subdomainWeights[domain]) {
-          subdomainWeight = subdomainWeights[domain];
-        }
-
-        // Auto-generate Question Code
-        const generatedCode = await generateQuestionCode(stakeholder, domain, subdomain, questionType);
 
         // Create the new question with the calculated subdomainWeight
         const question = new Question({
@@ -282,7 +282,7 @@ export const createMultipleQuestions = async (req, res) => {
           scale,
           insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
           forcedChoice: scale === "FORCED_CHOICE" ? forcedChoice : null,
-          subdomainWeight // Set the calculated subdomainWeight
+          subdomainWeight: (domain === "People Potential" ? 0.35 : (domain === "Operational Steadiness" ? 0.25 : 0.20))
         });
 
         // Save the question to the database
