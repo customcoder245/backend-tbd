@@ -1,5 +1,58 @@
 import Question from "../models/question.model.js";
 
+const domainAbbr = {
+  "People Potential": "PP",
+  "Operational Steadiness": "OS",
+  "Digital Fluency": "DF"
+};
+
+const stakeholderPrefix = {
+  "admin": "A",
+  "leader": "L",
+  "manager": "M",
+  "employee": "E"
+};
+
+const typeSuffix = {
+  "Calibration": "CAL",
+  "Behavioural": "B",
+  "Forced-Choice": "FC",
+  "Self-Rating": ""
+};
+
+const getAbbreviation = (text) => {
+  if (!text) return "";
+  return text
+    .split(/[\s&/-]+/)
+    .filter(word => word.length > 0 && !["and", "the", "with", "or"].includes(word.toLowerCase()))
+    .map(word => word[0].toUpperCase())
+    .join("");
+};
+
+const generateQuestionCode = async (stakeholder, domain, subdomain, questionType) => {
+  const dAbbr = domainAbbr[domain] || getAbbreviation(domain);
+  const sAbbr = getAbbreviation(subdomain);
+  const rolePref = stakeholderPrefix[stakeholder.toLowerCase()] || (stakeholder ? stakeholder[0].toUpperCase() : "X");
+  const tSuff = typeSuffix[questionType] || "";
+
+  const prefix = `${dAbbr}-${sAbbr}-${rolePref}${tSuff}`;
+
+  // Find questions with this prefix to get the next number
+  const regex = new RegExp(`^${prefix}(\\d+)$`);
+  const questions = await Question.find({ questionCode: regex }, { questionCode: 1 }).lean();
+
+  let maxNum = 0;
+  questions.forEach(q => {
+    const match = q.questionCode.match(regex);
+    if (match) {
+      const num = parseInt(match[1]);
+      if (num > maxNum) maxNum = num;
+    }
+  });
+
+  return `${prefix}${maxNum + 1}`;
+};
+
 /**
  * CREATE QUESTION (Admin)
  */
@@ -215,13 +268,16 @@ export const createMultipleQuestions = async (req, res) => {
           subdomainWeight = subdomainWeights[domain];
         }
 
+        // Auto-generate Question Code
+        const generatedCode = await generateQuestionCode(stakeholder, domain, subdomain, questionType);
+
         // Create the new question with the calculated subdomainWeight
         const question = new Question({
           stakeholder,
           domain,
           subdomain,
           questionType,
-          questionCode,
+          questionCode: generatedCode,
           questionStem,
           scale,
           insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
@@ -292,12 +348,29 @@ export const updateQuestion = async (req, res) => {
       }
     }
 
+    const oldQuestion = await Question.findById(id);
+    if (!oldQuestion) {
+      return res.status(404).json({ message: "Question not found" });
+    }
+
+    // Re-generate questionCode if questionType changes
+    let generatedCode = oldQuestion.questionCode;
+    if (questionType && questionType !== oldQuestion.questionType) {
+      generatedCode = await generateQuestionCode(
+        oldQuestion.stakeholder,
+        oldQuestion.domain,
+        oldQuestion.subdomain,
+        questionType
+      );
+    }
+
     const updatedQuestion = await Question.findByIdAndUpdate(
       id,
       {
         questionType,
         questionStem,
         scale,
+        questionCode: generatedCode,
         insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
         forcedChoice: scale === "FORCED_CHOICE" ? forcedChoice : null
       },
@@ -391,15 +464,15 @@ export const getAllQuestions = async (req, res) => {
 
     // Build filter object
     const filter = { isDeleted: false };
-    
+
     if (stakeholder) {
       filter.stakeholder = stakeholder;
     }
-    
+
     if (domain) {
       filter.domain = domain;
     }
-    
+
     if (subdomain) {
       filter.subdomain = subdomain;
     }

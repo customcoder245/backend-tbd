@@ -3,84 +3,84 @@
 export const ROLE_DOMAIN_SUBDOMAINS = {
   admin: {
     "People Potential": [
-      "Psychological Safety Leadership",
-      "Talent, Learning & Workforce Strategy",
-      "Engagement & Culture Stewardship",
-      "Leadership Communication & Visibility"
+      "Mindset & Adaptability",
+      "Psychological Health & Safety",
+      "Relational & Emotional Intelligence Adaptability"
     ],
     "Operational Steadiness": [
-      "Operating Model Clarity",
-      "Cross-Functional Governance",
-      "Decision Rights & Accountability",
-      "Risk, Resilience & Change Readiness"
+      "Prioritization",
+      "Workflow Clarity",
+      "Effective Resource Management"
     ],
     "Digital Fluency": [
-      "Digital Modernization Leadership",
-      "Strategic Collaboration Architecture",
-      "Operational Governance & Risk",
-      "AI Strategy & Data Fluency"
+      "Data",
+      "AI & Automation Readiness",
+      "Digital Communication & Collaboration",
+      "Mindset",
+      "Confidence and Change Readiness",
+      "Tool & System Proficiency"
     ]
   },
   leader: {
     "People Potential": [
-      "Psychological Safety Leadership",
-      "Talent, Learning & Workforce Strategy",
-      "Engagement & Culture Stewardship",
-      "Leadership Communication & Visibility"
+      "Mindset & Adaptability",
+      "Psychological Health & Safety",
+      "Relational & Emotional Intelligence Adaptability"
     ],
     "Operational Steadiness": [
-      "Operating Model Clarity",
-      "Cross-Functional Governance",
-      "Decision Rights & Accountability",
-      "Risk, Resilience & Change Readiness"
+      "Prioritization",
+      "Workflow Clarity",
+      "Effective Resource Management"
     ],
     "Digital Fluency": [
-      "Digital Modernization Leadership",
-      "Strategic Collaboration Architecture",
-      "Operational Governance & Risk",
-      "AI Strategy & Data Fluency"
+      "Data",
+      "AI & Automation Readiness",
+      "Digital Communication & Collaboration",
+      "Mindset",
+      "Confidence and Change Readiness",
+      "Tool & System Proficiency"
     ]
   },
 
   manager: {
     "People Potential": [
-      "Psychological Safety Enablement",
-      "Coaching & Development Support",
-      "Fairness, Inclusion & Trust",
-      "Managerial Communication Quality"
+      "Mindset & Adaptability",
+      "Psychological Health & Safety",
+      "Relational & Emotional Intelligence Adaptability"
     ],
     "Operational Steadiness": [
-      "Workflow Oversight & Issue Resolution",
-      "Consistency & Reinforcement",
-      "Prioritization & Capacity Management",
-      "Escalation & Risk Awareness"
+      "Prioritization",
+      "Workflow Clarity",
+      "Effective Resource Management"
     ],
     "Digital Fluency": [
-      "Team Digital Enablement",
-      "Communication & Coordination Oversight",
-      "Workflow Governance & Efficiency",
-      "Digital Tool Adoption"
+      "Data",
+      "AI & Automation Readiness",
+      "Digital Communication & Collaboration",
+      "Mindset",
+      "Confidence and Change Readiness",
+      "Tool & System Proficiency"
     ]
   },
 
   employee: {
     "People Potential": [
-      "Psychological Safety",
-      "Trust & Communication",
-      "Learning Agility",
-      "Leadership Support"
+      "Mindset & Adaptability",
+      "Psychological Health & Safety",
+      "Relational & Emotional Intelligence Adaptability"
     ],
     "Operational Steadiness": [
-      "Clarity of Roles & Expectations",
-      "Consistency of Processes",
-      "Decision-Making Flow",
-      "Workload & Capacity"
+      "Prioritization",
+      "Workflow Clarity",
+      "Effective Resource Management"
     ],
     "Digital Fluency": [
-      "Tool & System Proficiency",
-      "Collaboration & Coordination",
-      "Workflow Efficiency",
-      "AI Readiness"
+      "Data",
+      "AI & Automation Readiness",
+      "Digital Communication & Collaboration",
+      "Mindset",
+      "Confidence and Change Readiness",
+      "Tool & System Proficiency"
     ]
   }
 };
