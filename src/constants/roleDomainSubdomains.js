@@ -5,40 +5,48 @@ export const ROLE_DOMAIN_SUBDOMAINS = {
     "People Potential": [
       "Mindset & Adaptability",
       "Psychological Health & Safety",
-      "Relational & Emotional Intelligence Adaptability"
+      "Relational & Emotional Intelligence",
+      "Engagement & Culture Stewardship",
+      "Psychological Safety Leadership"
     ],
     "Operational Steadiness": [
       "Prioritization",
       "Workflow Clarity",
-      "Effective Resource Management"
+      "Effective Resource Management",
+      "Risk, Resilience & Change Readiness",
+      "Operating Model Clarity"
     ],
     "Digital Fluency": [
-      "Data",
-      "AI & Automation Readiness",
+      "Data, AI & Automation Readiness",
       "Digital Communication & Collaboration",
-      "Mindset",
-      "Confidence and Change Readiness",
-      "Tool & System Proficiency"
+      "Mindset, Confidence and Change Readiness",
+      "Tool & System Proficiency",
+      "AI Strategy & Data Fluency",
+      "Digital Modernization Leadership"
     ]
   },
   leader: {
     "People Potential": [
       "Mindset & Adaptability",
       "Psychological Health & Safety",
-      "Relational & Emotional Intelligence Adaptability"
+      "Relational & Emotional Intelligence",
+      "Engagement & Culture Stewardship",
+      "Psychological Safety Leadership"
     ],
     "Operational Steadiness": [
       "Prioritization",
       "Workflow Clarity",
-      "Effective Resource Management"
+      "Effective Resource Management",
+      "Risk, Resilience & Change Readiness",
+      "Operating Model Clarity"
     ],
     "Digital Fluency": [
-      "Data",
-      "AI & Automation Readiness",
+      "Data, AI & Automation Readiness",
       "Digital Communication & Collaboration",
-      "Mindset",
-      "Confidence and Change Readiness",
-      "Tool & System Proficiency"
+      "Mindset, Confidence and Change Readiness",
+      "Tool & System Proficiency",
+      "AI Strategy & Data Fluency",
+      "Digital Modernization Leadership"
     ]
   },
 
@@ -46,7 +54,7 @@ export const ROLE_DOMAIN_SUBDOMAINS = {
     "People Potential": [
       "Mindset & Adaptability",
       "Psychological Health & Safety",
-      "Relational & Emotional Intelligence Adaptability"
+      "Relational & Emotional Intelligence"
     ],
     "Operational Steadiness": [
       "Prioritization",
@@ -54,11 +62,9 @@ export const ROLE_DOMAIN_SUBDOMAINS = {
       "Effective Resource Management"
     ],
     "Digital Fluency": [
-      "Data",
-      "AI & Automation Readiness",
+      "Data, AI & Automation Readiness",
       "Digital Communication & Collaboration",
-      "Mindset",
-      "Confidence and Change Readiness",
+      "Mindset, Confidence and Change Readiness",
       "Tool & System Proficiency"
     ]
   },
@@ -67,7 +73,7 @@ export const ROLE_DOMAIN_SUBDOMAINS = {
     "People Potential": [
       "Mindset & Adaptability",
       "Psychological Health & Safety",
-      "Relational & Emotional Intelligence Adaptability"
+      "Relational & Emotional Intelligence"
     ],
     "Operational Steadiness": [
       "Prioritization",
@@ -75,11 +81,9 @@ export const ROLE_DOMAIN_SUBDOMAINS = {
       "Effective Resource Management"
     ],
     "Digital Fluency": [
-      "Data",
-      "AI & Automation Readiness",
+      "Data, AI & Automation Readiness",
       "Digital Communication & Collaboration",
-      "Mindset",
-      "Confidence and Change Readiness",
+      "Mindset, Confidence and Change Readiness",
       "Tool & System Proficiency"
     ]
   }

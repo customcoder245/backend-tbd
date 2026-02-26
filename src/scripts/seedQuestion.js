@@ -6,461 +6,66 @@ dotenv.config();
 
 const questions = [
   {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you remove a structural barrier slowing learning/adoption?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-AB1"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you re-prioritize to focus on highest-value outcomes?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-AB2"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you sponsor capability-building (training/coaching)?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-AB3"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Calibration",
-    "questionStem": "I can be candid about our organization\u2019s ability to learn and adapt at pace.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-ACAL1"
-  },
-  {
-    "stakeholder": "admin",
+    "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Self-Rating",
-    "questionStem": "We invest in the skills and learning required for our future strategy (not just today\u2019s needs).",
+    "questionCode": "PP-LA-E1",
+    "questionStem": "I’m open to changing how I work when priorities or information change.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-A1"
+    "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
+    "subdomainWeight": 0.35
   },
   {
-    "stakeholder": "admin",
+    "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Self-Rating",
-    "questionStem": "We adapt strategy and priorities quickly when conditions change.",
+    "questionCode": "PP-LA-E2",
+    "questionStem": "I can learn new skills or processes quickly enough to keep up with change.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-A2"
+    "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
+    "subdomainWeight": 0.35
   },
   {
-    "stakeholder": "admin",
+    "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Self-Rating",
-    "questionStem": "We remove barriers so teams can experiment, learn, and improve ways of working.",
+    "questionCode": "PP-LA-E3",
+    "questionStem": "Even when change is uncomfortable, I stay solution-focused and resilient.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-A3"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "We reinforce change with follow-through (practice, measurement, recognition).",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-A4"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you address a behaviour/practice that reduced psychological safety?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-AB1"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you sponsor actions to reduce workload/stress hotspots?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-AB2"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you seek unfiltered feedback from frontline teams?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-AB3"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "I model behaviours that make it safe to raise risks, concerns, and mistakes.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-A1"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "I hold others accountable for behaviours that undermine respect, inclusion, or safety.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-A2"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "Psychological safety and wellbeing are embedded in leadership expectations and performance.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-A3"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "We allocate time/resources to reduce workload pressure and burnout risk.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-A4"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you intervene to remove cross-team friction?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-AB1"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you recognize behaviours that strengthen collaboration and trust?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-AB2"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you address misalignment between leaders/teams?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-AB3"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you communicate a decision with clear rationale and impacts?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-AB4"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you engage directly with frontline teams to listen/respond?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-AB5"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you correct mixed messages or misalignment between leaders?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-AB6"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Forced-Choice",
-    "questionStem": "Which statement about collaboration seems most accurate to you?",
-    "scale": "FORCED_CHOICE",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "forcedChoice": {
-      "optionA": {
-        "label": "Collaboration is the norm and supported by leadership.",
-        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?"
-      },
-      "optionB": {
-        "label": "Collaboration is difficult due to silos/politics/unclear expectations.",
-        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?"
-      },
-      "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-AFC1"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Forced-Choice",
-    "questionStem": "Which statement about working execution seems most accurate to you?",
-    "scale": "FORCED_CHOICE",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "forcedChoice": {
-      "optionA": {
-        "label": "People feel valued and connected to the mission.",
-        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?"
-      },
-      "optionB": {
-        "label": "People feel like execution matters more than people.",
-        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?"
-      },
-      "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-AFC2"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Forced-Choice",
-    "questionStem": "Which statement about leadership communication seems most accurate to you?",
-    "scale": "FORCED_CHOICE",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "forcedChoice": {
-      "optionA": {
-        "label": "People experience leadership communication as consistent and credible.",
-        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
-      },
-      "optionB": {
-        "label": "People experience leadership communication as mixed or conflicting.",
-        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
-      },
-      "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-AFC3"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Forced-Choice",
-    "questionStem": "Which statement about leadership listening and feedback seems most accurate to you?",
-    "scale": "FORCED_CHOICE",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "forcedChoice": {
-      "optionA": {
-        "label": "Leaders routinely listen and act on what they hear.",
-        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
-      },
-      "optionB": {
-        "label": "Listening happens, but follow-through is inconsistent.",
-        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
-      },
-      "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-AFC4"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "We build trust through consistent leadership behaviour and follow-through.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-A1"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "Cross-team collaboration is expected and actively enabled by leaders and managers.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-A2"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "We address politics, misalignment, and conflict quickly and constructively.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-A3"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "People feel recognized and connected to purpose, not just tasks.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-A4"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "Leadership communication is clear, consistent, and aligned across leaders.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-A5"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "We explain \u201cwhy\u201d behind decisions and the implications for teams.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-A6"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "Leaders are visible and accessible enough to maintain trust and reduce uncertainty.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-A7"
-  },
-  {
-    "stakeholder": "admin",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "Communication is delivered with empathy and acknowledges real constraints on teams.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-A8"
+    "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Behavioural",
+    "questionCode": "PP-LA-EB1",
     "questionStem": "In the past 30 days, how often did you try a new approach to improve your work?",
     "scale": "NEVER_ALWAYS",
     "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-EB1"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Behavioural",
+    "questionCode": "PP-LA-EB2",
     "questionStem": "In the past 30 days, how often did change or uncertainty reduce your confidence or motivation?",
     "scale": "NEVER_ALWAYS",
     "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-EB2"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Calibration",
-    "questionStem": "I can answer honestly about my comfort with change and learning.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-ECAL1"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Calibration",
-    "questionStem": "I am happy with the pace of change in my workplace and supports in place to support me in the transitions.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-ECAL2"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Forced-Choice",
+    "questionCode": "PP-LA-EFC1",
     "questionStem": "Which statement fits your experience with change?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
@@ -471,18 +76,18 @@ const questions = [
         "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?"
       },
       "optionB": {
-        "label": "I\u2019m unsure what to do and feel left to figure it out on my own.",
+        "label": "I’m unsure what to do and feel left to figure it out on my own.",
         "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-MA-EFC1"
+    }
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Forced-Choice",
+    "questionCode": "PP-LA-EFC2",
     "questionStem": "Which statement fits your mindset about change?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
@@ -497,80 +102,91 @@ const questions = [
         "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-MA-EFC2"
+    }
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "I\u2019m open to changing how I work when priorities or information change.",
+    "questionType": "Calibration",
+    "questionCode": "PP-LA-ECAL",
+    "questionStem": "I can answer honestly about my comfort with change and learning.",
     "scale": "SCALE_1_5",
     "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-E1"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "I can learn new skills or processes quickly enough to keep up with change.",
+    "questionType": "Calibration",
+    "questionCode": "PP-LA-ECAL2",
+    "questionStem": "I am happy with the pace of change in my workplace and supports in place to support me in the transitions.",
     "scale": "SCALE_1_5",
     "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-E2"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
+    "subdomain": "Psychological Health & Safety",
     "questionType": "Self-Rating",
-    "questionStem": "Even when change is uncomfortable, I stay solution-focused and resilient.",
+    "questionCode": "PP-PS-E1",
+    "questionStem": "I feel safe speaking up with questions, concerns, or sharing mistakes at work.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-E3"
+    "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-PS-E2",
+    "questionStem": "When I raise an issue, it is handled respectfully and fairly.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-PS-E3",
+    "questionStem": "I have the support I need to protect my wellbeing and manage stress at work.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
     "questionType": "Behavioural",
+    "questionCode": "PP-PS-EB1",
     "questionStem": "In the past 30 days, how often did you speak up about a concern or risk?",
     "scale": "NEVER_ALWAYS",
     "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-EB1"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
     "questionType": "Behavioural",
+    "questionCode": "PP-PS-EB2",
     "questionStem": "In the past 30 days, how often did you feel overwhelmed or at risk of burnout?",
     "scale": "NEVER_ALWAYS",
     "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-EB2"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Calibration",
-    "questionStem": "I feel safe answering this assessment honestly without fear of consequences.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-ECAL1"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
     "questionType": "Forced-Choice",
+    "questionCode": "PP-PS-EFC2",
     "questionStem": "Which statement is closer to your experience when workload is high?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?",
@@ -581,118 +197,85 @@ const questions = [
         "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?"
       },
       "optionB": {
-        "label": "I\u2019m expected to cope without changes or support.",
+        "label": "I’m expected to cope without changes or support.",
         "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-PHS-EFC1"
+    }
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "I feel safe speaking up with questions, concerns, or sharing mistakes at work.",
+    "questionType": "Calibration",
+    "questionCode": "PP-PS-ECAL",
+    "questionStem": "I feel safe answering this assessment honestly without fear of consequences.",
     "scale": "SCALE_1_5",
     "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-E1"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Self-Rating",
-    "questionStem": "When I raise an issue, it is handled respectfully and fairly.",
+    "questionCode": "PP-TC-E1",
+    "questionStem": "People on my team communicate openly and listen to understand.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-E2"
+    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Self-Rating",
-    "questionStem": "I have the support I need to protect my wellbeing and manage stress at work.",
+    "questionCode": "PP-TC-E2",
+    "questionStem": "I can raise concerns directly with colleagues without conflict escalating.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-E3"
+    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-TC-E3",
+    "questionStem": "I feel trusted and included by the people I work with.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Behavioural",
+    "questionCode": "PP-TC-EB1",
     "questionStem": "In the past 30 days, how often did you receive clear, helpful communication from your team?",
     "scale": "NEVER_ALWAYS",
     "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-EB1"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Behavioural",
+    "questionCode": "PP-TC-EB2",
     "questionStem": "In the past 30 days, how often were disagreements handled respectfully and constructively?",
     "scale": "NEVER_ALWAYS",
     "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-EB2"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did your manager/leader check in on workload or wellbeing?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-EB3"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you receive coaching, guidance, or feedback that helped you improve?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-EB4"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Calibration",
-    "questionStem": "I can be candid about team dynamics and relationships without worry.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-ECAL1"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Calibration",
-    "questionStem": "I can be honest about leadership support without worry.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-ECAL2"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Forced-Choice",
-    "questionStem": "Which statement is closer to your team\u2019s reality?",
+    "questionCode": "PP-TC-EFC1",
+    "questionStem": "Which statement is closer to your team’s reality?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
     "subdomainWeight": 0.35,
@@ -706,14 +289,14 @@ const questions = [
         "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-EFC1"
+    }
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Forced-Choice",
+    "questionCode": "PP-TC-EFC2",
     "questionStem": "Which statement is closer to your feedback experience?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
@@ -728,14 +311,80 @@ const questions = [
         "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-EFC2"
+    }
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Calibration",
+    "questionCode": "PP-TC-ECAL",
+    "questionStem": "I can be candid about team dynamics and relationships without worry.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-LS-E1",
+    "questionStem": "My manager/leader shows genuine care for people, not just results.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-LS-E2",
+    "questionStem": "My manager/leader is approachable and responds constructively when concerns are raised.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-LS-E3",
+    "questionStem": "I receive recognition and support that helps me stay engaged and motivated to perform well.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "PP-LS-EB1",
+    "questionStem": "In the past 30 days, how often did your manager/leader check in on workload or wellbeing?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "PP-LS-EB2",
+    "questionStem": "In the past 30 days, how often did you receive coaching, guidance, or feedback that helped you improve?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Forced-Choice",
+    "questionCode": "PP-LS-EFC1",
     "questionStem": "Which statement best matches your experience with leadership support?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
@@ -746,18 +395,18 @@ const questions = [
         "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?"
       },
       "optionB": {
-        "label": "Barriers remain and I\u2019m expected to manage them on my own.",
+        "label": "Barriers remain and I’m expected to manage them on my own.",
         "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-EFC3"
+    }
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Forced-Choice",
+    "questionCode": "PP-LS-EFC2",
     "questionStem": "Which statement best matches your experience of recognition and respect?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
@@ -772,652 +421,751 @@ const questions = [
         "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-EFC4"
+    }
   },
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "People on my team communicate openly and listen to understand.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-E1"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "I can raise concerns directly with colleagues without conflict escalating.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-E2"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "I feel trusted and included by the people I work with.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-E3"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "My manager/leader shows genuine care for people, not just results.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-E4"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "My manager/leader is approachable and responds constructively when concerns are raised.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-E5"
-  },
-  {
-    "stakeholder": "employee",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "I receive recognition and support that helps me stay engaged and motivated to perform well.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-E6"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you remove a structural barrier slowing learning/adoption?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-LB1"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you re-prioritize to focus on highest-value outcomes?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-LB2"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you sponsor capability-building (training/coaching)?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-LB3"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Calibration",
-    "questionStem": "I can be candid about our organization\u2019s ability to learn and adapt at pace.",
+    "questionCode": "PP-LS-ECAL",
+    "questionStem": "I can be honest about leadership support without worry.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-LCAL1"
+    "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?",
+    "subdomainWeight": 0.35
   },
   {
-    "stakeholder": "leader",
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-PR-E1",
+    "questionStem": "I understand the top priorities for my team.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-PR-E2",
+    "questionStem": "I understand how my work connects to broader organizational goals.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Behavioural",
+    "questionCode": "OS-PR-EB1",
+    "questionStem": "In the past 30 days, how often did shifting priorities disrupt your work?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Behavioural",
+    "questionCode": "OS-PR-EB2",
+    "questionStem": "In the past 30 days, how often were priorities clearly reinforced by your manager?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-PR-EFC1",
+    "questionStem": "Which statement best reflects your experience of priorities?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Priorities are clear and manageable.",
+        "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?"
+      },
+      "optionB": {
+        "label": "Priorities change frequently and feel overwhelming.",
+        "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-PR-EFC2",
+    "questionStem": "Which statement best reflects workload expectations?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Work expectations match available time.",
+        "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?"
+      },
+      "optionB": {
+        "label": "Work expectations often exceed capacity.",
+        "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-WC-E1",
+    "questionStem": "I understand my responsibilities and decision boundaries.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-WC-E2",
+    "questionStem": "Handoffs between team members are clear and efficient.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Behavioural",
+    "questionCode": "OS-WC-EB1",
+    "questionStem": "In the past 30 days, how often did unclear instructions cause rework?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Behavioural",
+    "questionCode": "OS-WC-EB2",
+    "questionStem": "In the past 30 days, how often did you need clarification before completing tasks?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-WC-EFC1",
+    "questionStem": "Which statement best reflects operational flow?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Work processes are clear and predictable.",
+        "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?"
+      },
+      "optionB": {
+        "label": "Processes frequently require clarification.",
+        "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-WC-EFC2",
+    "questionStem": "Which statement best reflects communication clarity?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Expectations are clearly communicated.",
+        "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?"
+      },
+      "optionB": {
+        "label": "Expectations are often unclear or assumed.",
+        "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-ERM-E1",
+    "questionStem": "I have the tools and resources needed to do my job effectively.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-ERM-E2",
+    "questionStem": "My workload feels sustainable over time.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Behavioural",
+    "questionCode": "OS-ERM-EB1",
+    "questionStem": "In the past 30 days, how often did workload exceed your capacity?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Behavioural",
+    "questionCode": "OS-ERM-EB2",
+    "questionStem": "In the past 30 days, how often did resource gaps delay your work?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-ERM-EFC1",
+    "questionStem": "Which statement best reflects resource support?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "I receive timely support when issues arise.",
+        "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?"
+      },
+      "optionB": {
+        "label": "Support is slow or difficult to access.",
+        "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-ERM-EFC2",
+    "questionStem": "Which statement best reflects workload management?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Work is adjusted when capacity is strained.",
+        "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?"
+      },
+      "optionB": {
+        "label": "Work continues regardless of strain.",
+        "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-DA-E1",
+    "questionStem": "I have access to the data I need to do my job well.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-DA-E2",
+    "questionStem": "Data available to me is accurate and reliable.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Behavioural",
+    "questionCode": "DF-DA-EB1",
+    "questionStem": "In the past 30 days, how often did you use data to improve your work?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-DA-EFC1",
+    "questionStem": "Which statement best reflects data usage?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Data helps me make informed decisions.",
+        "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?"
+      },
+      "optionB": {
+        "label": "I rely mostly on experience or guesswork.",
+        "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-DA-EFC2",
+    "questionStem": "Which statement best reflects automation support?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Tools reduce manual effort where possible.",
+        "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?"
+      },
+      "optionB": {
+        "label": "Much work is still manual and repetitive.",
+        "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-DCC-E1",
+    "questionStem": "Digital platforms make collaboration easier.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-DCC-E2",
+    "questionStem": "Information is easy to find in shared systems.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Behavioural",
+    "questionCode": "DF-DCC-EB1",
+    "questionStem": "In the past 30 days, how often did digital tools reduce confusion?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-DCC-EFC1",
+    "questionStem": "Which statement best reflects collaboration tools?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Shared tools improve coordination.",
+        "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?"
+      },
+      "optionB": {
+        "label": "Coordination depends mostly on email or chats.",
+        "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-DCC-EFC2",
+    "questionStem": "Which statement best reflects communication clarity?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Updates are transparent and accessible.",
+        "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?"
+      },
+      "optionB": {
+        "label": "Information is scattered or siloed.",
+        "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-MCR-E1",
+    "questionStem": "I feel confident using new digital tools.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-MCR-E2",
+    "questionStem": "I feel supported when learning new systems.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Behavioural",
+    "questionCode": "DF-MCR-EB1",
+    "questionStem": "In the past 30 days, how often did you try a new digital feature or tool?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-MCR-EFC1",
+    "questionStem": "Which statement best reflects your mindset toward digital change?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "I am open and willing to adapt.",
+        "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?"
+      },
+      "optionB": {
+        "label": "I prefer sticking with familiar methods.",
+        "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-MCR-EFC2",
+    "questionStem": "Which statement best reflects learning support?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Training and help are available when needed.",
+        "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?"
+      },
+      "optionB": {
+        "label": "Support is limited or inconsistent.",
+        "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-TSP-E1",
+    "questionStem": "I know how to use core systems effectively.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-TSP-E2",
+    "questionStem": "Systems are intuitive and easy to navigate.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Behavioural",
+    "questionCode": "DF-TSP-EB1",
+    "questionStem": "In the past 30 days, how often did system issues slow your work?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-TSP-EFC1",
+    "questionStem": "Which statement best reflects system usability?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Systems support efficient work.",
+        "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?"
+      },
+      "optionB": {
+        "label": "Systems require frequent workarounds.",
+        "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "employee",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-TSP-EFC2",
+    "questionStem": "Which statement best reflects training effectiveness?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Training prepares me well to use systems.",
+        "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?"
+      },
+      "optionB": {
+        "label": "I mostly learn systems on my own.",
+        "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Self-Rating",
-    "questionStem": "We invest in the skills and learning required for our future strategy (not just today\u2019s needs).",
+    "questionCode": "PP-CDS-M1",
+    "questionStem": "I coach my team through change by focusing on learning, experimentation, and progress.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-L1"
+    "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
+    "subdomainWeight": 0.35
   },
   {
-    "stakeholder": "leader",
+    "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Self-Rating",
-    "questionStem": "We adapt strategy and priorities quickly when conditions change.",
+    "questionCode": "PP-CDS-M2",
+    "questionStem": "I help team members build confidence when new expectations, tools, or processes are introduced.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-L2"
+    "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
+    "subdomainWeight": 0.35
   },
   {
-    "stakeholder": "leader",
+    "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Self-Rating",
-    "questionStem": "We remove barriers so teams can experiment, learn, and improve ways of working.",
+    "questionCode": "PP-CDS-M3",
+    "questionStem": "I model adaptability by adjusting plans and behaviours when conditions change.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-L3"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "We reinforce change with follow-through (practice, measurement, recognition).",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-L4"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you address a behaviour/practice that reduced psychological safety?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-LB1"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you sponsor actions to reduce workload/stress hotspots?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-LB2"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you seek unfiltered feedback from frontline teams?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-LB3"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "I model behaviours that make it safe to raise risks, concerns, and mistakes.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-L1"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "I hold others accountable for behaviours that undermine respect, inclusion, or safety.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-L2"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "Psychological safety and wellbeing are embedded in leadership expectations and performance.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-L3"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "We allocate time/resources to reduce workload pressure and burnout risk.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-L4"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you intervene to remove cross-team friction?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-LB1"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you recognize behaviours that strengthen collaboration and trust?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-LB2"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you address misalignment between leaders/teams?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-LB3"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you communicate a decision with clear rationale and impacts?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-LB4"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you engage directly with frontline teams to listen/respond?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-LB5"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you correct mixed messages or misalignment between leaders?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-LB6"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Forced-Choice",
-    "questionStem": "Which statement about collaboration seems most accurate to you?",
-    "scale": "FORCED_CHOICE",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "forcedChoice": {
-      "optionA": {
-        "label": "Collaboration is the norm and supported by leadership.",
-        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?"
-      },
-      "optionB": {
-        "label": "Collaboration is difficult due to silos/politics/unclear expectations.",
-        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?"
-      },
-      "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-LFC1"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Forced-Choice",
-    "questionStem": "Which statement about working execution seems most accurate to you?",
-    "scale": "FORCED_CHOICE",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "forcedChoice": {
-      "optionA": {
-        "label": "People feel valued and connected to the mission.",
-        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?"
-      },
-      "optionB": {
-        "label": "People feel like execution matters more than people.",
-        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?"
-      },
-      "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-LFC2"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Forced-Choice",
-    "questionStem": "Which statement about leadership communication seems most accurate to you?",
-    "scale": "FORCED_CHOICE",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "forcedChoice": {
-      "optionA": {
-        "label": "People experience leadership communication as consistent and credible.",
-        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
-      },
-      "optionB": {
-        "label": "People experience leadership communication as mixed or conflicting.",
-        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
-      },
-      "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-LFC3"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Forced-Choice",
-    "questionStem": "Which statement about leadership listening and feedback seems most accurate to you?",
-    "scale": "FORCED_CHOICE",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "forcedChoice": {
-      "optionA": {
-        "label": "Leaders routinely listen and act on what they hear.",
-        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
-      },
-      "optionB": {
-        "label": "Listening happens, but follow-through is inconsistent.",
-        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
-      },
-      "higherValueOption": "A"
-    },
-    "questionCode": "PP-REI-LFC4"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "We build trust through consistent leadership behaviour and follow-through.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-L1"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "Cross-team collaboration is expected and actively enabled by leaders and managers.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-L2"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "We address politics, misalignment, and conflict quickly and constructively.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-L3"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "People feel recognized and connected to purpose, not just tasks.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak\u2014and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-L4"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "Leadership communication is clear, consistent, and aligned across leaders.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-L5"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "We explain \u201cwhy\u201d behind decisions and the implications for teams.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-L6"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "Leaders are visible and accessible enough to maintain trust and reduce uncertainty.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-L7"
-  },
-  {
-    "stakeholder": "leader",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
-    "questionStem": "Communication is delivered with empathy and acknowledges real constraints on teams.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-L8"
+    "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Behavioural",
+    "questionCode": "PP-CDS-MB1",
     "questionStem": "In the past 30 days, how often did you provide coaching or practice opportunities to build new skills?",
     "scale": "NEVER_ALWAYS",
-    "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-MB1"
+    "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Behavioural",
+    "questionCode": "PP-CDS-MB2",
     "questionStem": "In the past 30 days, how often did you remove barriers so the team could adopt a new way of working?",
     "scale": "NEVER_ALWAYS",
-    "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-MB2"
+    "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Forced-Choice",
+    "questionCode": "PP-CDS-MFC1",
     "questionStem": "Which best reflects how change is introduced on your team?",
     "scale": "FORCED_CHOICE",
-    "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
+    "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
     "subdomainWeight": 0.35,
     "forcedChoice": {
       "optionA": {
         "label": "With support, practice, and follow-up.",
-        "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?"
+        "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?"
       },
       "optionB": {
         "label": "Announced and we move on without support.",
-        "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?"
+        "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-MA-MFC1"
+    }
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Mindset & Adaptability",
     "questionType": "Forced-Choice",
+    "questionCode": "PP-CDS-MFC2",
     "questionStem": "Which best reflects how setbacks are treated?",
     "scale": "FORCED_CHOICE",
-    "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
+    "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
     "subdomainWeight": 0.35,
     "forcedChoice": {
       "optionA": {
         "label": "As learning opportunities.",
-        "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?"
+        "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?"
       },
       "optionB": {
         "label": "As failures to avoid.",
-        "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?"
+        "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-MA-MFC2"
+    }
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
+    "subdomain": "Psychological Health & Safety",
     "questionType": "Self-Rating",
-    "questionStem": "I coach my team through change by focusing on learning, experimentation, and progress.",
+    "questionCode": "PP-PSE-M1",
+    "questionStem": "I actively create an environment where team members can speak up without fear.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-M1"
+    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
+    "subdomain": "Psychological Health & Safety",
     "questionType": "Self-Rating",
-    "questionStem": "I help team members build confidence when new expectations, tools, or processes are introduced.",
+    "questionCode": "PP-PSE-M2",
+    "questionStem": "I address behaviours that undermine respect, inclusion, or psychological safety.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-M2"
+    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Mindset & Adaptability",
+    "subdomain": "Psychological Health & Safety",
     "questionType": "Self-Rating",
-    "questionStem": "I model adaptability by adjusting plans and behaviours when conditions change.",
+    "questionCode": "PP-PSE-M3",
+    "questionStem": "I monitor workload and stress signals and intervene before burnout escalates.",
     "scale": "SCALE_1_5",
-    "insightPrompt": "What\u2019s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-MA-M3"
+    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
     "questionType": "Behavioural",
+    "questionCode": "PP-PSE-MB1",
     "questionStem": "In the past 30 days, how often did you invite dissenting views or bad news in team discussions?",
     "scale": "NEVER_ALWAYS",
     "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-MB1"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
     "questionType": "Behavioural",
+    "questionCode": "PP-PSE-MB2",
     "questionStem": "In the past 30 days, how often did you adjust priorities/capacity to protect wellbeing?",
     "scale": "NEVER_ALWAYS",
     "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-MB2"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you address a fairness or inclusion issue directly?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-MB3"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you ensure quieter voices were included in decisions?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-MB4"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Calibration",
-    "questionStem": "I can be honest about psychological safety on my team without fear of repercussions.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-MCAL1"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Calibration",
-    "questionStem": "I feel confident in my ability to foster psychological safety and trust on my team.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-MCAL2"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
     "questionType": "Forced-Choice",
+    "questionCode": "PP-PSE-MFC1",
     "questionStem": "Which statement best matches your typical response to concerns?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
@@ -1432,15 +1180,15 @@ const questions = [
         "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-PHS-MFC1"
+    }
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
     "questionType": "Forced-Choice",
-    "questionStem": "Which statement best matches your team\u2019s experience with mistakes?",
+    "questionCode": "PP-PSE-MFC2",
+    "questionStem": "Which statement best matches your team’s experience with mistakes?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
     "subdomainWeight": 0.35,
@@ -1454,15 +1202,81 @@ const questions = [
         "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-PHS-MFC2"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Calibration",
+    "questionCode": "PP-PSE-MCAL",
+    "questionStem": "I can be honest about psychological safety on my team without fear of repercussions.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-FIT-M1",
+    "questionStem": "People on my team are treated fairly and respectfully, regardless of role or background.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-FIT-M2",
+    "questionStem": "I act quickly when I see exclusion, favoritism, or disrespect.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-FIT-M3",
+    "questionStem": "People feel safe raising concerns about fairness or inclusion.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Behavioural",
+    "questionCode": "PP-FIT-MB1",
+    "questionStem": "In the past 30 days, how often did you address a fairness or inclusion issue directly?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Behavioural",
+    "questionCode": "PP-FIT-MB2",
+    "questionStem": "In the past 30 days, how often did you ensure quieter voices were included in decisions?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
     "questionType": "Forced-Choice",
-    "questionStem": "Which best reflects your team\u2019s experience?",
+    "questionCode": "PP-FIT-MFC1",
+    "questionStem": "Which best reflects your team’s experience?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
     "subdomainWeight": 0.35,
@@ -1476,14 +1290,14 @@ const questions = [
         "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-PHS-MFC3"
+    }
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
     "questionType": "Forced-Choice",
+    "questionCode": "PP-FIT-MFC2",
     "questionStem": "Which best reflects how inclusion is experienced?",
     "scale": "FORCED_CHOICE",
     "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
@@ -1498,151 +1312,2097 @@ const questions = [
         "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?"
       },
       "higherValueOption": "A"
-    },
-    "questionCode": "PP-PHS-MFC4"
+    }
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
     "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "I actively create an environment where team members can speak up without fear.",
+    "questionType": "Calibration",
+    "questionCode": "PP-FIT-MCAL",
+    "questionStem": "I feel confident in my ability to foster psychological safety and trust on my team.",
     "scale": "SCALE_1_5",
     "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-M1"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Self-Rating",
-    "questionStem": "I address behaviours that undermine respect, inclusion, or psychological safety.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-M2"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "I monitor workload and stress signals and intervene before burnout escalates.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-M3"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "People on my team are treated fairly and respectfully, regardless of role or background.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-M4"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "I act quickly when I see exclusion, favoritism, or disrespect.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-M5"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Psychological Health & Safety",
-    "questionType": "Self-Rating",
-    "questionStem": "People feel safe raising concerns about fairness or inclusion.",
-    "scale": "SCALE_1_5",
-    "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-PHS-M6"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you give timely, specific feedback that improved performance?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-MB1"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Behavioural",
-    "questionStem": "In the past 30 days, how often did you resolve a tension before it affected outcomes?",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-MB2"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Forced-Choice",
-    "questionStem": "I ensure that team understands the \u201cwhy\u201d behind decisions.",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-MFC1"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Forced-Choice",
-    "questionStem": "I address performance issues directly and respectfully.",
-    "scale": "NEVER_ALWAYS",
-    "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-MFC2"
-  },
-  {
-    "stakeholder": "manager",
-    "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
-    "questionType": "Self-Rating",
+    "questionCode": "PP-MCQ-M1",
     "questionStem": "I handle conflict and difficult conversations calmly and constructively.",
     "scale": "SCALE_1_5",
     "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-M1"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Self-Rating",
+    "questionCode": "PP-MCQ-M2",
     "questionStem": "I build trust by following through consistently and listening with empathy.",
     "scale": "SCALE_1_5",
     "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
-    "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-M2"
+    "subdomainWeight": 0.35
   },
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence Adaptability",
+    "subdomain": "Relational & Emotional Intelligence",
     "questionType": "Self-Rating",
+    "questionCode": "PP-MCQ-M3",
     "questionStem": "I encourage open dialogue and honest feedback across my team.",
     "scale": "SCALE_1_5",
     "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "PP-MCQ-MB1",
+    "questionStem": "In the past 30 days, how often did you give timely, specific feedback that improved performance?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "PP-MCQ-MB2",
+    "questionStem": "In the past 30 days, how often did you resolve a tension before it affected outcomes?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Forced-Choice",
+    "questionCode": "PP-MCQ-MFC1",
+    "questionStem": "I ensure that team understands the “why” behind decisions.",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Forced-Choice",
+    "questionCode": "PP-MCQ-MFC2",
+    "questionStem": "I address performance issues directly and respectfully.",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where does communication from you or within your team break down or create confusion?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-PR-M1",
+    "questionStem": "My team understands the top priorities and how they connect to organizational goals.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-PR-M2",
+    "questionStem": "I make clear trade-offs when new work emerges (what we will stop, defer, or de-scope).",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Behavioural",
+    "questionCode": "OS-PR-MB1",
+    "questionStem": "In the past 30 days, how often did you re-prioritize work to protect focus on the highest-impact outcomes?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Behavioural",
+    "questionCode": "OS-PR-MB2",
+    "questionStem": "In the past 30 days, how often did urgent requests disrupt planned priorities for your team?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-PR-MFC1",
+    "questionStem": "Which statement best reflects your team’s prioritization discipline?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We regularly review priorities and remove lower-value work.",
+        "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?"
+      },
+      "optionB": {
+        "label": "Work accumulates and we try to do everything.",
+        "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-PR-MFC2",
+    "questionStem": "Which statement best reflects how priorities are communicated?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Priorities are simple, visible, and consistently reinforced.",
+        "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?"
+      },
+      "optionB": {
+        "label": "Priorities change often or are interpreted differently across people.",
+        "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-WC-M1",
+    "questionStem": "Roles, responsibilities, and decision ownership are clear within my team.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-WC-M2",
+    "questionStem": "Workflows and handoffs with other teams are clear enough to prevent avoidable delays or rework.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Behavioural",
+    "questionCode": "OS-WC-MB1",
+    "questionStem": "In the past 30 days, how often did unclear ownership or handoffs delay delivery?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Behavioural",
+    "questionCode": "OS-WC-MB2",
+    "questionStem": "In the past 30 days, how often did decisions get stuck waiting for approvals or escalation?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-WC-MFC1",
+    "questionStem": "Which statement best reflects day-to-day operational flow?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Work moves smoothly with predictable handoffs and clear accountability.",
+        "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?"
+      },
+      "optionB": {
+        "label": "Work often stalls due to unclear ownership, approvals, or rework.",
+        "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-WC-MFC2",
+    "questionStem": "Which statement best reflects decision-making on your work?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Decision rights are clear and teams can act without unnecessary escalation.",
+        "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?"
+      },
+      "optionB": {
+        "label": "Decisions are unclear and frequently require escalation to move forward.",
+        "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-ERM-M1",
+    "questionStem": "My team has sufficient capacity (time/people) to meet current expectations without sustained overload.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-ERM-M2",
+    "questionStem": "I plan and allocate resources proactively to match peaks in demand and key deliverables.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Behavioural",
+    "questionCode": "OS-ERM-MB1",
+    "questionStem": "In the past 30 days, how often did capacity constraints require you to delay, de-scope, or re-sequence commitments?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Behavioural",
+    "questionCode": "OS-ERM-MB2",
+    "questionStem": "In the past 30 days, how often did you escalate resource gaps (skills/tools/budget) before they impacted outcomes?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-ERM-MFC1",
+    "questionStem": "Which statement best reflects how your team manages capacity?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We regularly assess capacity and adjust commitments before issues escalate.",
+        "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?"
+      },
+      "optionB": {
+        "label": "We absorb extra work until stress or quality issues force changes.",
+        "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-ERM-MFC2",
+    "questionStem": "Which statement best reflects resource allocation decisions?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Resources are aligned to priorities and shifted when needed.",
+        "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?"
+      },
+      "optionB": {
+        "label": "Resources are fixed, and priorities compete without reallocation.",
+        "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-DA-M1",
+    "questionStem": "I use relevant data/metrics to guide team decisions and performance discussions.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-DA-M2",
+    "questionStem": "Our team has access to reliable data (timely, accurate, trusted) to do our work effectively.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Behavioural",
+    "questionCode": "DF-DA-MB1",
+    "questionStem": "In the past 30 days, how often did you use data to challenge assumptions or adjust a decision?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-DA-MFC1",
+    "questionStem": "Which statement best reflects how data is used in your area?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Data is accessible and influences decisions and priorities.",
+        "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?"
+      },
+      "optionB": {
+        "label": "Data is hard to access, inconsistent, or rarely used in decisions.",
+        "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-DA-MFC2",
+    "questionStem": "Which statement best reflects automation/AI readiness?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We have identified repeatable work that could be automated and are testing improvements.",
+        "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?"
+      },
+      "optionB": {
+        "label": "Automation/AI is discussed, but we haven’t translated it into practical pilots.",
+        "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-DCC-M1",
+    "questionStem": "Our team uses digital collaboration tools to share work status, decisions, and documentation transparently.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-DCC-M2",
+    "questionStem": "Cross-team collaboration is effective because information is easy to find and up to date.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Behavioural",
+    "questionCode": "DF-DCC-MB1",
+    "questionStem": "In the past 30 days, how often did digital tools reduce the need for meetings or follow-up emails?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-DCC-MFC1",
+    "questionStem": "Which statement best reflects communication efficiency?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Information is centralized and easy to locate; updates are visible to those who need them.",
+        "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?"
+      },
+      "optionB": {
+        "label": "Information is scattered across emails/chats/files; people often ask for the latest version.",
+        "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-DCC-MFC2",
+    "questionStem": "Which statement best reflects cross-team coordination?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Shared tools and practices make coordination smooth and predictable.",
+        "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?"
+      },
+      "optionB": {
+        "label": "Coordination relies on manual follow-ups and individual effort.",
+        "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-MCR-M1",
+    "questionStem": "I feel confident leading digital change within my team (new tools, processes, or ways of working).",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-MCR-M2",
+    "questionStem": "My team generally approaches new digital ways of working with openness rather than resistance.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Behavioural",
+    "questionCode": "DF-MCR-MB1",
+    "questionStem": "In the past 30 days, how often did you visibly champion or model adoption of a new digital practice?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-MCR-MFC1",
+    "questionStem": "Which statement best reflects your team’s approach to digital change?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We experiment, learn quickly, and improve as we go.",
+        "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?"
+      },
+      "optionB": {
+        "label": "We delay adoption until solutions feel fully proven and low-risk.",
+        "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-MCR-MFC2",
+    "questionStem": "Which statement best reflects the support environment for change?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "People have time, guidance, and reinforcement to build confidence with new tools.",
+        "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?"
+      },
+      "optionB": {
+        "label": "People are expected to adapt quickly with limited time or support.",
+        "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-TSP-M1",
+    "questionStem": "My team understands how to use core tools/systems effectively to complete work with minimal friction.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-TSP-M2",
+    "questionStem": "Our tools and systems are integrated enough to avoid frequent manual workarounds or duplicate entry.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Behavioural",
+    "questionCode": "DF-TSP-MB1",
+    "questionStem": "In the past 30 days, how often did tool/system limitations require manual workarounds or rework?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-TSP-MFC1",
+    "questionStem": "Which statement best reflects system usability?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Core systems are intuitive and support efficient work.",
+        "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?"
+      },
+      "optionB": {
+        "label": "Core systems are confusing or slow, so people avoid them when possible.",
+        "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "manager",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-TSP-MFC2",
+    "questionStem": "Which statement best reflects capability building?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We have effective onboarding/training and quick support when issues arise.",
+        "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?"
+      },
+      "optionB": {
+        "label": "Training/support is inconsistent; people mostly learn by trial and error.",
+        "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-PSL-L1",
+    "questionStem": "I model behaviours that make it safe to raise risks, concerns, and mistakes.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-PSL-L2",
+    "questionStem": "I hold others accountable for behaviours that undermine respect, inclusion, or safety.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-PSL-L3",
+    "questionStem": "Psychological safety and wellbeing are embedded in leadership expectations and performance.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-PSL-L4",
+    "questionStem": "We allocate time/resources to reduce workload pressure and burnout risk.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Behavioural",
+    "questionCode": "PP-PSL-LB1",
+    "questionStem": "In the past 30 days, how often did you address a behaviour/practice that reduced psychological safety?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Behavioural",
+    "questionCode": "PP-PSL-LB2",
+    "questionStem": "In the past 30 days, how often did you sponsor actions to reduce workload/stress hotspots?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Behavioural",
+    "questionCode": "PP-PSL-LB3",
+    "questionStem": "In the past 30 days, how often did you seek unfiltered feedback from frontline teams?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-TLW-L1",
+    "questionStem": "We invest in the skills and learning required for our future strategy (not just today’s needs).",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-TLW-L2",
+    "questionStem": "We adapt strategy and priorities quickly when conditions change.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-TLW-L3",
+    "questionStem": "We remove barriers so teams can experiment, learn, and improve ways of working.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-TLW-L4",
+    "questionStem": "We reinforce change with follow-through (practice, measurement, recognition).",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Behavioural",
+    "questionCode": "PP-TLW-LB1",
+    "questionStem": "In the past 30 days, how often did you remove a structural barrier slowing learning/adoption?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Behavioural",
+    "questionCode": "PP-TLW-LB2",
+    "questionStem": "In the past 30 days, how often did you re-prioritize to focus on highest-value outcomes?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Behavioural",
+    "questionCode": "PP-TLW-LB3",
+    "questionStem": "In the past 30 days, how often did you sponsor capability-building (training/coaching)?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Calibration",
+    "questionCode": "PP-TLW-LCAL",
+    "questionStem": "I can be candid about our organization’s ability to learn and adapt at pace.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-ECS-L1",
+    "questionStem": "We build trust through consistent leadership behaviour and follow-through.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-ECS-L2",
+    "questionStem": "Cross-team collaboration is expected and actively enabled by leaders and managers.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-ECS-L3",
+    "questionStem": "We address politics, misalignment, and conflict quickly and constructively.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-ECS-L4",
+    "questionStem": "People feel recognized and connected to purpose, not just tasks.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "PP-ECS-LB1",
+    "questionStem": "In the past 30 days, how often did you intervene to remove cross-team friction?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "PP-ECS-LB2",
+    "questionStem": "In the past 30 days, how often did you recognize behaviours that strengthen collaboration and trust?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "PP-ECS-LB3",
+    "questionStem": "In the past 30 days, how often did you address misalignment between leaders/teams?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Forced-Choice",
+    "questionCode": "PP-ECS-LFC1",
+    "questionStem": "Which statement about collaboration seems most accurate to you?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
     "subdomainWeight": 0.35,
-    "questionCode": "PP-REI-M3"
+    "forcedChoice": {
+      "optionA": {
+        "label": "Collaboration is the norm and supported by leadership.",
+        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
+      },
+      "optionB": {
+        "label": "Collaboration is difficult due to silos/politics/unclear expectations.",
+        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Forced-Choice",
+    "questionCode": "PP-ECS-LFC2",
+    "questionStem": "Which statement about working execution seems most accurate to you?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35,
+    "forcedChoice": {
+      "optionA": {
+        "label": "People feel valued and connected to the mission.",
+        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
+      },
+      "optionB": {
+        "label": "People feel like execution matters more than people.",
+        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-LCV-L1",
+    "questionStem": "Leadership communication is clear, consistent, and aligned across leaders.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-LCV-L2",
+    "questionStem": "We explain “why” behind decisions and the implications for teams.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-LCV-L3",
+    "questionStem": "Leaders are visible and accessible enough to maintain trust and reduce uncertainty.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "PP-LCV-L4",
+    "questionStem": "Communication is delivered with empathy and acknowledges real constraints on teams.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "PP-LCV-LB1",
+    "questionStem": "In the past 30 days, how often did you communicate a decision with clear rationale and impacts?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "PP-LCV-LB2",
+    "questionStem": "In the past 30 days, how often did you engage directly with frontline teams to listen/respond?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "PP-LCV-LB3",
+    "questionStem": "In the past 30 days, how often did you correct mixed messages or misalignment between leaders?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Forced-Choice",
+    "questionCode": "PP-LCV-LFC1",
+    "questionStem": "Which statement about leadership communication seems most accurate to you?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35,
+    "forcedChoice": {
+      "optionA": {
+        "label": "People experience leadership communication as consistent and credible.",
+        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
+      },
+      "optionB": {
+        "label": "People experience leadership communication as mixed or conflicting.",
+        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Forced-Choice",
+    "questionCode": "PP-LCV-LFC2",
+    "questionStem": "Which statement about leadership listening and feedback seems most accurate to you?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Leaders routinely listen and act on what they hear.",
+        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
+      },
+      "optionB": {
+        "label": "Listening happens, but follow-through is inconsistent.",
+        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-PSL-L1-PP",
+    "questionStem": "I model behaviours that make it safe to raise risks, concerns, and mistakes.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-PSL-L2-PP",
+    "questionStem": "I hold others accountable for behaviours that undermine respect, inclusion, or safety.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-PSL-L3-PP",
+    "questionStem": "Psychological safety and wellbeing are embedded in leadership expectations and performance.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-PSL-L4-PP",
+    "questionStem": "We allocate time/resources to reduce workload pressure and burnout risk.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-PSL-LB1-PP",
+    "questionStem": "In the past 30 days, how often did you address a behaviour/practice that reduced psychological safety?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-PSL-LB2-PP",
+    "questionStem": "In the past 30 days, how often did you sponsor actions to reduce workload/stress hotspots?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Psychological Health & Safety",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-PSL-LB3-PP",
+    "questionStem": "In the past 30 days, how often did you seek unfiltered feedback from frontline teams?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where in the organization is psychological safety weakest or most inconsistent, and what leadership behaviours influence this?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-TLW-L1-PM",
+    "questionStem": "We invest in the skills and learning required for our future strategy (not just today’s needs).",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-TLW-L2-PM",
+    "questionStem": "We adapt strategy and priorities quickly when conditions change.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-TLW-L3-PM",
+    "questionStem": "We remove barriers so teams can experiment, learn, and improve ways of working.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-TLW-L4-PM",
+    "questionStem": "We reinforce change with follow-through (practice, measurement, recognition).",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-TLW-LB1-PM",
+    "questionStem": "In the past 30 days, how often did you remove a structural barrier slowing learning/adoption?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-TLW-LB2-PM",
+    "questionStem": "In the past 30 days, how often did you re-prioritize to focus on highest-value outcomes?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-TLW-LB3-PM",
+    "questionStem": "In the past 30 days, how often did you sponsor capability-building (training/coaching)?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Mindset & Adaptability",
+    "questionType": "Calibration",
+    "questionCode": "ADMIN-PP-TLW-LCAL-PM",
+    "questionStem": "I can be candid about our organization’s ability to learn and adapt at pace.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "What limits adaptability (capability, clarity, capacity, incentives, reinforcement) and where should we focus first?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-ECS-L1-PR",
+    "questionStem": "We build trust through consistent leadership behaviour and follow-through.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-ECS-L2-PR",
+    "questionStem": "Cross-team collaboration is expected and actively enabled by leaders and managers.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-ECS-L3-PR",
+    "questionStem": "We address politics, misalignment, and conflict quickly and constructively.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-ECS-L4-PR",
+    "questionStem": "People feel recognized and connected to purpose, not just tasks.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-ECS-LB1-PR",
+    "questionStem": "In the past 30 days, how often did you intervene to remove cross-team friction?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-ECS-LB2-PR",
+    "questionStem": "In the past 30 days, how often did you recognize behaviours that strengthen collaboration and trust?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-ECS-LB3-PR",
+    "questionStem": "In the past 30 days, how often did you address misalignment between leaders/teams?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-PP-ECS-LFC1-PR",
+    "questionStem": "Which statement about collaboration seems most accurate to you?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Collaboration is the norm and supported by leadership.",
+        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
+      },
+      "optionB": {
+        "label": "Collaboration is difficult due to silos/politics/unclear expectations.",
+        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-PP-ECS-LFC2-PR",
+    "questionStem": "Which statement about working execution seems most accurate to you?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?",
+    "subdomainWeight": 0.35,
+    "forcedChoice": {
+      "optionA": {
+        "label": "People feel valued and connected to the mission.",
+        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
+      },
+      "optionB": {
+        "label": "People feel like execution matters more than people.",
+        "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-LCV-L1-PR",
+    "questionStem": "Leadership communication is clear, consistent, and aligned across leaders.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-LCV-L2-PR",
+    "questionStem": "We explain “why” behind decisions and the implications for teams.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-LCV-L3-PR",
+    "questionStem": "Leaders are visible and accessible enough to maintain trust and reduce uncertainty.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-PP-LCV-L4-PR",
+    "questionStem": "Communication is delivered with empathy and acknowledges real constraints on teams.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-LCV-LB1-PR",
+    "questionStem": "In the past 30 days, how often did you communicate a decision with clear rationale and impacts?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-LCV-LB2-PR",
+    "questionStem": "In the past 30 days, how often did you engage directly with frontline teams to listen/respond?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-PP-LCV-LB3-PR",
+    "questionStem": "In the past 30 days, how often did you correct mixed messages or misalignment between leaders?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-PP-LCV-LFC1-PR",
+    "questionStem": "Which statement about leadership communication seems most accurate to you?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35,
+    "forcedChoice": {
+      "optionA": {
+        "label": "People experience leadership communication as consistent and credible.",
+        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
+      },
+      "optionB": {
+        "label": "People experience leadership communication as mixed or conflicting.",
+        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "People Potential",
+    "subdomain": "Relational & Emotional Intelligence",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-PP-LCV-LFC2-PR",
+    "questionStem": "Which statement about leadership listening and feedback seems most accurate to you?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?",
+    "subdomainWeight": 0.35,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Leaders routinely listen and act on what they hear.",
+        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
+      },
+      "optionB": {
+        "label": "Listening happens, but follow-through is inconsistent.",
+        "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-PR-L1",
+    "questionStem": "Our strategic priorities are clearly defined and consistently reinforced across leadership.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do competing priorities create friction or confusion at the senior level?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Behavioural",
+    "questionCode": "OS-PR-LB1",
+    "questionStem": "In the past 30 days, how often did you realign priorities to focus on highest-impact outcomes?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "How frequently are leaders adjusting focus to reduce operational drag?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-PR-LFC1",
+    "questionStem": "Which statement best reflects current prioritization discipline?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Is priority overload driving operational instability?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We stop lower-value work to protect critical priorities.",
+        "insightPrompt": "Is priority overload driving operational instability?"
+      },
+      "optionB": {
+        "label": "We add new priorities without removing existing ones.",
+        "insightPrompt": "Is priority overload driving operational instability?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-WC-L1",
+    "questionStem": "Decision rights and accountability are clearly defined across teams.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are decision bottlenecks or role ambiguities slowing execution?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Behavioural",
+    "questionCode": "OS-WC-LB1",
+    "questionStem": "In the past 30 days, how often did workflow confusion escalate to leadership level?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "How much executive time is spent resolving avoidable execution friction?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-WC-LFC1",
+    "questionStem": "Which statement best reflects operational flow?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Are handoff breakdowns creating systemic drag?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Work moves smoothly across teams with minimal rework.",
+        "insightPrompt": "Are handoff breakdowns creating systemic drag?"
+      },
+      "optionB": {
+        "label": "Work frequently stalls due to unclear ownership or handoffs.",
+        "insightPrompt": "Are handoff breakdowns creating systemic drag?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Self-Rating",
+    "questionCode": "OS-ERM-L1",
+    "questionStem": "We allocate budget, people, and time based on strategic priorities rather than legacy patterns.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Are resources aligned to strategy or constrained by historical decisions?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Behavioural",
+    "questionCode": "OS-ERM-LB1",
+    "questionStem": "In the past 30 days, how often did capacity constraints delay strategic execution?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are resource gaps creating instability or burnout risk?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Forced-Choice",
+    "questionCode": "OS-ERM-LFC1",
+    "questionStem": "Which statement best reflects resource alignment?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Is the organization proactive or reactive in resource deployment?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Resources are proactively shifted to match strategic needs.",
+        "insightPrompt": "Is the organization proactive or reactive in resource deployment?"
+      },
+      "optionB": {
+        "label": "Resource allocation changes only after problems escalate.",
+        "insightPrompt": "Is the organization proactive or reactive in resource deployment?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-OS-PR-L1-OP",
+    "questionStem": "Our strategic priorities are clearly defined and consistently reinforced across leadership.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where do competing priorities create friction or confusion at the senior level?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-OS-PR-LB1-OP",
+    "questionStem": "In the past 30 days, how often did you realign priorities to focus on highest-impact outcomes?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "How frequently are leaders adjusting focus to reduce operational drag?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Operational Steadiness",
+    "subdomain": "Prioritization",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-OS-PR-LFC1-OP",
+    "questionStem": "Which statement best reflects current prioritization discipline?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Is priority overload driving operational instability?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We stop lower-value work to protect critical priorities.",
+        "insightPrompt": "Is priority overload driving operational instability?"
+      },
+      "optionB": {
+        "label": "We add new priorities without removing existing ones.",
+        "insightPrompt": "Is priority overload driving operational instability?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-OS-WC-L1-OW",
+    "questionStem": "Decision rights and accountability are clearly defined across teams.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are decision bottlenecks or role ambiguities slowing execution?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-OS-WC-LB1-OW",
+    "questionStem": "In the past 30 days, how often did workflow confusion escalate to leadership level?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "How much executive time is spent resolving avoidable execution friction?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Operational Steadiness",
+    "subdomain": "Workflow Clarity",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-OS-WC-LFC1-OW",
+    "questionStem": "Which statement best reflects operational flow?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Are handoff breakdowns creating systemic drag?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Work moves smoothly across teams with minimal rework.",
+        "insightPrompt": "Are handoff breakdowns creating systemic drag?"
+      },
+      "optionB": {
+        "label": "Work frequently stalls due to unclear ownership or handoffs.",
+        "insightPrompt": "Are handoff breakdowns creating systemic drag?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-OS-ERM-L1-OE",
+    "questionStem": "We allocate budget, people, and time based on strategic priorities rather than legacy patterns.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Are resources aligned to strategy or constrained by historical decisions?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-OS-ERM-LB1-OE",
+    "questionStem": "In the past 30 days, how often did capacity constraints delay strategic execution?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are resource gaps creating instability or burnout risk?",
+    "subdomainWeight": 0.25
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Operational Steadiness",
+    "subdomain": "Effective Resource Management",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-OS-ERM-LFC1-OE",
+    "questionStem": "Which statement best reflects resource alignment?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Is the organization proactive or reactive in resource deployment?",
+    "subdomainWeight": 0.25,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Resources are proactively shifted to match strategic needs.",
+        "insightPrompt": "Is the organization proactive or reactive in resource deployment?"
+      },
+      "optionB": {
+        "label": "Resource allocation changes only after problems escalate.",
+        "insightPrompt": "Is the organization proactive or reactive in resource deployment?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-DA-L1",
+    "questionStem": "Leadership decisions are consistently informed by reliable data, analytics and unbiased observations.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are data gaps limiting executive confidence and speed?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Behavioural",
+    "questionCode": "DF-DA-LB1",
+    "questionStem": "In the past 30 days, how often did you use data or analytics to challenge assumptions or refine decisions?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Is data shaping strategy or validating pre-made decisions?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-DA-LFC1",
+    "questionStem": "Which statement best reflects digital maturity?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Is digital transformation operationalized or aspirational?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We proactively leverage automation and AI to increase efficiency and insight.",
+        "insightPrompt": "Is digital transformation operationalized or aspirational?"
+      },
+      "optionB": {
+        "label": "Automation and AI are discussed but rarely embedded in workflows.",
+        "insightPrompt": "Is digital transformation operationalized or aspirational?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-DCC-L1",
+    "questionStem": "Digital tools enable seamless collaboration across teams and functions.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are digital silos limiting cross-functional flow?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Behavioural",
+    "questionCode": "DF-DCC-LB1",
+    "questionStem": "In the past 30 days, how often did digital tools reduce meeting load or increase transparency?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Are tools reducing friction or adding complexity?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-DCC-LFC1",
+    "questionStem": "Which statement best reflects collaboration effectiveness?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Are collaboration platforms optimized or under-leveraged?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Our digital platforms simplify communication and document sharing.",
+        "insightPrompt": "Are collaboration platforms optimized or under-leveraged?"
+      },
+      "optionB": {
+        "label": "We rely heavily on email and manual coordination to move work forward.",
+        "insightPrompt": "Are collaboration platforms optimized or under-leveraged?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-MCR-L1",
+    "questionStem": "Senior leaders demonstrate confidence and optimism when adopting new digital initiatives.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where does hesitation or skepticism slow digital momentum?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Behavioural",
+    "questionCode": "DF-MCR-LB1",
+    "questionStem": "In the past 30 days, how often did you visibly champion a new digital initiative?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Is leadership modeling digital confidence or delegating it downward?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-MCR-LFC1",
+    "questionStem": "Which statement best reflects leadership posture toward digital change?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Is digital risk tolerance aligned with strategic ambition?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We experiment, learn quickly, and iterate.",
+        "insightPrompt": "Is digital risk tolerance aligned with strategic ambition?"
+      },
+      "optionB": {
+        "label": "We delay adoption until solutions are fully proven elsewhere.",
+        "insightPrompt": "Is digital risk tolerance aligned with strategic ambition?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Self-Rating",
+    "questionCode": "DF-TSP-L1",
+    "questionStem": "Leaders understand the capabilities and limitations of core enterprise systems.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Are strategic decisions aligned with system realities?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Behavioural",
+    "questionCode": "DF-TSP-LB1",
+    "questionStem": "In the past 30 days, how often did system limitations constrain execution or digitally dependent performance?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are system weaknesses driving operational inefficiency?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "leader",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Forced-Choice",
+    "questionCode": "DF-TSP-LFC1",
+    "questionStem": "Which statement best reflects system effectiveness?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Is system architecture enabling or constraining scale?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Our systems are integrated and support strategic visibility.",
+        "insightPrompt": "Is system architecture enabling or constraining scale?"
+      },
+      "optionB": {
+        "label": "Our systems are fragmented and require manual workarounds.",
+        "insightPrompt": "Is system architecture enabling or constraining scale?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-DF-DA-L1-DD",
+    "questionStem": "Leadership decisions are consistently informed by reliable data, analytics and unbiased observations.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are data gaps limiting executive confidence and speed?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-DF-DA-LB1-DD",
+    "questionStem": "In the past 30 days, how often did you use data or analytics to challenge assumptions or refine decisions?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Is data shaping strategy or validating pre-made decisions?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Data, AI & Automation Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-DF-DA-LFC1-DD",
+    "questionStem": "Which statement best reflects digital maturity?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Is digital transformation operationalized or aspirational?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We proactively leverage automation and AI to increase efficiency and insight.",
+        "insightPrompt": "Is digital transformation operationalized or aspirational?"
+      },
+      "optionB": {
+        "label": "Automation and AI are discussed but rarely embedded in workflows.",
+        "insightPrompt": "Is digital transformation operationalized or aspirational?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-DF-DCC-L1-DD",
+    "questionStem": "Digital tools enable seamless collaboration across teams and functions.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where are digital silos limiting cross-functional flow?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-DF-DCC-LB1-DD",
+    "questionStem": "In the past 30 days, how often did digital tools reduce meeting load or increase transparency?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Are tools reducing friction or adding complexity?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Digital Communication & Collaboration",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-DF-DCC-LFC1-DD",
+    "questionStem": "Which statement best reflects collaboration effectiveness?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Are collaboration platforms optimized or under-leveraged?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Our digital platforms simplify communication and document sharing.",
+        "insightPrompt": "Are collaboration platforms optimized or under-leveraged?"
+      },
+      "optionB": {
+        "label": "We rely heavily on email and manual coordination to move work forward.",
+        "insightPrompt": "Are collaboration platforms optimized or under-leveraged?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-DF-MCR-L1-DM",
+    "questionStem": "Senior leaders demonstrate confidence and optimism when adopting new digital initiatives.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Where does hesitation or skepticism slow digital momentum?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-DF-MCR-LB1-DM",
+    "questionStem": "In the past 30 days, how often did you visibly champion a new digital initiative?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Is leadership modeling digital confidence or delegating it downward?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Mindset, Confidence and Change Readiness",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-DF-MCR-LFC1-DM",
+    "questionStem": "Which statement best reflects leadership posture toward digital change?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Is digital risk tolerance aligned with strategic ambition?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "We experiment, learn quickly, and iterate.",
+        "insightPrompt": "Is digital risk tolerance aligned with strategic ambition?"
+      },
+      "optionB": {
+        "label": "We delay adoption until solutions are fully proven elsewhere.",
+        "insightPrompt": "Is digital risk tolerance aligned with strategic ambition?"
+      },
+      "higherValueOption": "A"
+    }
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Self-Rating",
+    "questionCode": "ADMIN-DF-TSP-L1-DT",
+    "questionStem": "Leaders understand the capabilities and limitations of core enterprise systems.",
+    "scale": "SCALE_1_5",
+    "insightPrompt": "Are strategic decisions aligned with system realities?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Behavioural",
+    "questionCode": "ADMIN-DF-TSP-LB1-DT",
+    "questionStem": "In the past 30 days, how often did system limitations constrain execution or digitally dependent performance?",
+    "scale": "NEVER_ALWAYS",
+    "insightPrompt": "Where are system weaknesses driving operational inefficiency?",
+    "subdomainWeight": 0.2
+  },
+  {
+    "stakeholder": "admin",
+    "domain": "Digital Fluency",
+    "subdomain": "Tool & System Proficiency",
+    "questionType": "Forced-Choice",
+    "questionCode": "ADMIN-DF-TSP-LFC1-DT",
+    "questionStem": "Which statement best reflects system effectiveness?",
+    "scale": "FORCED_CHOICE",
+    "insightPrompt": "Is system architecture enabling or constraining scale?",
+    "subdomainWeight": 0.2,
+    "forcedChoice": {
+      "optionA": {
+        "label": "Our systems are integrated and support strategic visibility.",
+        "insightPrompt": "Is system architecture enabling or constraining scale?"
+      },
+      "optionB": {
+        "label": "Our systems are fragmented and require manual workarounds.",
+        "insightPrompt": "Is system architecture enabling or constraining scale?"
+      },
+      "higherValueOption": "A"
+    }
   }
 ];
 
