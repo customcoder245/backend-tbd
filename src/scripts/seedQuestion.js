@@ -173,7 +173,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you intervene to remove cross-team friction?",
     "scale": "NEVER_ALWAYS",
@@ -184,7 +184,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you recognize behaviours that strengthen collaboration and trust?",
     "scale": "NEVER_ALWAYS",
@@ -195,7 +195,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you address misalignment between leaders/teams?",
     "scale": "NEVER_ALWAYS",
@@ -206,7 +206,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you communicate a decision with clear rationale and impacts?",
     "scale": "NEVER_ALWAYS",
@@ -217,7 +217,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you engage directly with frontline teams to listen/respond?",
     "scale": "NEVER_ALWAYS",
@@ -228,7 +228,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you correct mixed messages or misalignment between leaders?",
     "scale": "NEVER_ALWAYS",
@@ -239,7 +239,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement about collaboration seems most accurate to you?",
     "scale": "FORCED_CHOICE",
@@ -261,7 +261,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement about working execution seems most accurate to you?",
     "scale": "FORCED_CHOICE",
@@ -283,7 +283,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement about leadership communication seems most accurate to you?",
     "scale": "FORCED_CHOICE",
@@ -305,7 +305,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement about leadership listening and feedback seems most accurate to you?",
     "scale": "FORCED_CHOICE",
@@ -327,7 +327,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "We build trust through consistent leadership behaviour and follow-through.",
     "scale": "SCALE_1_5",
@@ -338,7 +338,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "Cross-team collaboration is expected and actively enabled by leaders and managers.",
     "scale": "SCALE_1_5",
@@ -349,7 +349,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "We address politics, misalignment, and conflict quickly and constructively.",
     "scale": "SCALE_1_5",
@@ -360,7 +360,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "People feel recognized and connected to purpose, not just tasks.",
     "scale": "SCALE_1_5",
@@ -371,7 +371,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "Leadership communication is clear, consistent, and aligned across leaders.",
     "scale": "SCALE_1_5",
@@ -382,7 +382,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "We explain \u201cwhy\u201d behind decisions and the implications for teams.",
     "scale": "SCALE_1_5",
@@ -393,7 +393,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "Leaders are visible and accessible enough to maintain trust and reduce uncertainty.",
     "scale": "SCALE_1_5",
@@ -404,7 +404,7 @@ const questions = [
   {
     "stakeholder": "admin",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "Communication is delivered with empathy and acknowledges real constraints on teams.",
     "scale": "SCALE_1_5",
@@ -624,7 +624,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you receive clear, helpful communication from your team?",
     "scale": "NEVER_ALWAYS",
@@ -635,7 +635,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often were disagreements handled respectfully and constructively?",
     "scale": "NEVER_ALWAYS",
@@ -646,7 +646,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did your manager/leader check in on workload or wellbeing?",
     "scale": "NEVER_ALWAYS",
@@ -657,7 +657,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you receive coaching, guidance, or feedback that helped you improve?",
     "scale": "NEVER_ALWAYS",
@@ -668,7 +668,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Calibration",
     "questionStem": "I can be candid about team dynamics and relationships without worry.",
     "scale": "SCALE_1_5",
@@ -679,7 +679,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Calibration",
     "questionStem": "I can be honest about leadership support without worry.",
     "scale": "SCALE_1_5",
@@ -690,7 +690,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement is closer to your team\u2019s reality?",
     "scale": "FORCED_CHOICE",
@@ -712,7 +712,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement is closer to your feedback experience?",
     "scale": "FORCED_CHOICE",
@@ -734,7 +734,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement best matches your experience with leadership support?",
     "scale": "FORCED_CHOICE",
@@ -756,7 +756,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement best matches your experience of recognition and respect?",
     "scale": "FORCED_CHOICE",
@@ -778,7 +778,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "People on my team communicate openly and listen to understand.",
     "scale": "SCALE_1_5",
@@ -789,7 +789,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "I can raise concerns directly with colleagues without conflict escalating.",
     "scale": "SCALE_1_5",
@@ -800,7 +800,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "I feel trusted and included by the people I work with.",
     "scale": "SCALE_1_5",
@@ -811,7 +811,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "My manager/leader shows genuine care for people, not just results.",
     "scale": "SCALE_1_5",
@@ -822,7 +822,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "My manager/leader is approachable and responds constructively when concerns are raised.",
     "scale": "SCALE_1_5",
@@ -833,7 +833,7 @@ const questions = [
   {
     "stakeholder": "employee",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "I receive recognition and support that helps me stay engaged and motivated to perform well.",
     "scale": "SCALE_1_5",
@@ -1009,7 +1009,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you intervene to remove cross-team friction?",
     "scale": "NEVER_ALWAYS",
@@ -1020,7 +1020,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you recognize behaviours that strengthen collaboration and trust?",
     "scale": "NEVER_ALWAYS",
@@ -1031,7 +1031,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you address misalignment between leaders/teams?",
     "scale": "NEVER_ALWAYS",
@@ -1042,7 +1042,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you communicate a decision with clear rationale and impacts?",
     "scale": "NEVER_ALWAYS",
@@ -1053,7 +1053,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you engage directly with frontline teams to listen/respond?",
     "scale": "NEVER_ALWAYS",
@@ -1064,7 +1064,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you correct mixed messages or misalignment between leaders?",
     "scale": "NEVER_ALWAYS",
@@ -1075,7 +1075,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement about collaboration seems most accurate to you?",
     "scale": "FORCED_CHOICE",
@@ -1097,7 +1097,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement about working execution seems most accurate to you?",
     "scale": "FORCED_CHOICE",
@@ -1119,7 +1119,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement about leadership communication seems most accurate to you?",
     "scale": "FORCED_CHOICE",
@@ -1141,7 +1141,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "Which statement about leadership listening and feedback seems most accurate to you?",
     "scale": "FORCED_CHOICE",
@@ -1163,7 +1163,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "We build trust through consistent leadership behaviour and follow-through.",
     "scale": "SCALE_1_5",
@@ -1174,7 +1174,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "Cross-team collaboration is expected and actively enabled by leaders and managers.",
     "scale": "SCALE_1_5",
@@ -1185,7 +1185,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "We address politics, misalignment, and conflict quickly and constructively.",
     "scale": "SCALE_1_5",
@@ -1196,7 +1196,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "People feel recognized and connected to purpose, not just tasks.",
     "scale": "SCALE_1_5",
@@ -1207,7 +1207,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "Leadership communication is clear, consistent, and aligned across leaders.",
     "scale": "SCALE_1_5",
@@ -1218,7 +1218,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "We explain \u201cwhy\u201d behind decisions and the implications for teams.",
     "scale": "SCALE_1_5",
@@ -1229,7 +1229,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "Leaders are visible and accessible enough to maintain trust and reduce uncertainty.",
     "scale": "SCALE_1_5",
@@ -1240,7 +1240,7 @@ const questions = [
   {
     "stakeholder": "leader",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "Communication is delivered with empathy and acknowledges real constraints on teams.",
     "scale": "SCALE_1_5",
@@ -1570,7 +1570,7 @@ const questions = [
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you give timely, specific feedback that improved performance?",
     "scale": "NEVER_ALWAYS",
@@ -1581,7 +1581,7 @@ const questions = [
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Behavioural",
     "questionStem": "In the past 30 days, how often did you resolve a tension before it affected outcomes?",
     "scale": "NEVER_ALWAYS",
@@ -1592,7 +1592,7 @@ const questions = [
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "I ensure that team understands the \u201cwhy\u201d behind decisions.",
     "scale": "NEVER_ALWAYS",
@@ -1603,7 +1603,7 @@ const questions = [
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Forced-Choice",
     "questionStem": "I address performance issues directly and respectfully.",
     "scale": "NEVER_ALWAYS",
@@ -1614,7 +1614,7 @@ const questions = [
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "I handle conflict and difficult conversations calmly and constructively.",
     "scale": "SCALE_1_5",
@@ -1625,7 +1625,7 @@ const questions = [
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "I build trust by following through consistently and listening with empathy.",
     "scale": "SCALE_1_5",
@@ -1636,7 +1636,7 @@ const questions = [
   {
     "stakeholder": "manager",
     "domain": "People Potential",
-    "subdomain": "Relational & Emotional Intelligence",
+    "subdomain": "Relational & Emotional Intelligence Adaptability",
     "questionType": "Self-Rating",
     "questionStem": "I encourage open dialogue and honest feedback across my team.",
     "scale": "SCALE_1_5",
