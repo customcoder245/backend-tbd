@@ -1,4 +1,4 @@
-import mongoose, {Schema} from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 const submittedAssessmentSchema = new Schema(
   {
@@ -27,6 +27,26 @@ const submittedAssessmentSchema = new Schema(
     responses: {
       type: [Object], // FULL response objects
       required: true
+    },
+
+    scores: {
+      overall: { type: Number, default: 0 },
+      domains: {
+        type: Map,
+        of: {
+          score: Number,
+          subdomains: {
+            type: Map,
+            of: Number
+          }
+        }
+      }
+    },
+
+    classification: {
+      type: String,
+      enum: ["Low", "Medium", "High"],
+      default: "Low"
     },
 
     submittedAt: {

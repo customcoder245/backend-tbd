@@ -55,7 +55,27 @@ const assessmentSchema = new Schema({
       answer: Schema.Types.Mixed,
       comment: String
     }
-  ]
+  ],
+
+  scores: {
+    overall: { type: Number, default: 0 },
+    domains: {
+      type: Map,
+      of: {
+        score: Number,
+        subdomains: {
+          type: Map,
+          of: Number
+        }
+      }
+    }
+  },
+
+  classification: {
+    type: String,
+    enum: ["Low", "Medium", "High"],
+    default: "Low"
+  }
 }, { timestamps: true });
 
 export default mongoose.model("Assessment", assessmentSchema);

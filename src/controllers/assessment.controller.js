@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 import { createNotification, notifySuperAdmins, notifyOrgAdmins } from "../utils/notification.utils.js";
 import Invitation from "../models/invitation.model.js";
 import { ASSESSMENT_CYCLE_MONTHS, getAssessmentCycleStartDate } from "../config/assessment.config.js";
+import { calculateAssessmentScores } from "../utils/scoring.utils.js";
 
 /**
  * START ASSESSMENT
@@ -170,15 +171,24 @@ export const submitAssessment = async (req, res) => {
     assessment.submittedAt = new Date();
     assessment.userId = userId;
     assessment.userDetails = cleanedUserDetails;
+
+    // 🏆 Calculate scores (Phase 1 Logic)
+    const { scores, classification } = calculateAssessmentScores(responses);
+
+    assessment.scores = scores;
+    assessment.classification = classification;
+
     await assessment.save();
 
-    // 🔥 5️⃣ SAVE SNAPSHOT (THIS IS OPTION 2)
+    // 🔥 6️⃣ SAVE SNAPSHOT
     const submittedAssessment = await SubmittedAssessment.create({
       assessmentId: assessment._id,
       stakeholder: assessment.stakeholder,
       userId,
       userDetails: cleanedUserDetails,
       responses: fullResponses,
+      scores,
+      classification,
       submittedAt: new Date()
     });
 

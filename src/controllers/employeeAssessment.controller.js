@@ -3,6 +3,7 @@ import Response from "../models/response.model.js";
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Invitation from "../models/invitation.model.js";
 import mongoose from "mongoose";
+import { calculateAssessmentScores } from "../utils/scoring.utils.js";
 
 
 export const startEmployeeAssessment = async (req, res) => {
@@ -108,6 +109,12 @@ export const submitEmployeeAssessment = async (req, res) => {
     assessment.isCompleted = true;
     assessment.submittedAt = new Date();
 
+    // 🏆 Calculate scores (Phase 1 Logic)
+    const { scores, classification } = calculateAssessmentScores(responses);
+
+    assessment.scores = scores;
+    assessment.classification = classification;
+
     await assessment.save();
 
     // 4️⃣ Snapshot (immutable record)
@@ -116,6 +123,8 @@ export const submitEmployeeAssessment = async (req, res) => {
       stakeholder: "employee",
       userDetails: employeeDetails,
       responses,
+      scores,
+      classification,
       submittedAt: new Date()
     });
 
