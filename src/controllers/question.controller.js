@@ -228,7 +228,8 @@ export const updateQuestion = async (req, res) => {
       questionStem,
       scale,
       insightPrompt,
-      forcedChoice
+      forcedChoice,
+      order // Added order to allowed fields
     } = req.body;
 
     // Required editable fields
@@ -284,7 +285,8 @@ export const updateQuestion = async (req, res) => {
         scale,
         questionCode: generatedCode,
         insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
-        forcedChoice: scale === "FORCED_CHOICE" ? forcedChoice : null
+        forcedChoice: scale === "FORCED_CHOICE" ? forcedChoice : null,
+        order: order !== undefined ? Number(order) : oldQuestion.order // Update order if provided
       },
       { new: true, runValidators: true }
     );
@@ -441,25 +443,44 @@ export const getQuestionById = async (req, res) => {
 export const reorderQuestions = async (req, res) => {
   try {
     const updates = req.body;
+    console.log(`Reorder request: received ${Array.isArray(updates) ? updates.length : "invalid"} items`);
 
     if (!Array.isArray(updates)) {
-      return res.status(400).json({ message: "Updates must be an array of {id, order} objects" });
+      return res.status(400).json({ message: "Updates must be an array of objects with id and order properties" });
     }
 
-    const bulkOps = updates.map(update => ({
-      updateOne: {
-        filter: { _id: update.id },
-        update: { $set: { order: update.order } }
-      }
-    }));
+    const bulkOps = updates
+      .filter(u => (u._id || u.id) && (u.order !== undefined || u.subdomain))
+      .map(u => {
+        const updateDoc = {};
+        if (u.order !== undefined) updateDoc.order = Number(u.order);
+        if (u.subdomain) updateDoc.subdomain = u.subdomain;
 
-    await Question.bulkWrite(bulkOps);
+        return {
+          updateOne: {
+            filter: { _id: u._id || u.id },
+            update: { $set: updateDoc }
+          }
+        };
+      });
+
+    if (bulkOps.length === 0) {
+      console.log("No valid bulk operations generated from updates:", JSON.stringify(updates).substring(0, 100));
+      return res.status(400).json({ message: "No valid order updates provided" });
+    }
+
+    const result = await Question.bulkWrite(bulkOps);
+    console.log(`Bulk reorder completed: ${result.modifiedCount} documents updated.`);
 
     return res.status(200).json({
-      message: "Questions reordered successfully"
+      success: true,
+      message: "Questions reordered successfully",
+      modifiedCount: result.modifiedCount
     });
   } catch (error) {
+    console.error("Error in reorderQuestions:", error);
     return res.status(500).json({
+      success: false,
       message: "Error reordering questions",
       error: error.message
     });
