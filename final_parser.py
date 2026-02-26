@@ -2,6 +2,7 @@
 import pandas as pd
 import json
 import os
+import re
 
 docs_dir = r"C:\Users\ST\OneDrive\Documents"
 files_mapping = [
@@ -16,11 +17,32 @@ files_mapping = [
     {"stakeholder": "leader", "file": "POD360_Senior_Leader_QuestionSet.xlsx - D_Senior Leader_Questions.csv"}
 ]
 
-domain_weights = {
-    "People Potential": 0.35,
-    "Operational Steadiness": 0.25,
-    "Digital Fluency": 0.20
+domain_abbr = {
+    "People Potential": "PP",
+    "Operational Steadiness": "OS",
+    "Digital Fluency": "DF"
 }
+
+stakeholder_prefix = {
+    "admin": "A",
+    "leader": "L",
+    "manager": "M",
+    "employee": "E"
+}
+
+type_suffix = {
+    "Calibration": "CAL",
+    "Behavioural": "B",
+    "Forced-Choice": "FC",
+    "Self-Rating": ""
+}
+
+def get_abbreviation(text):
+    if not text: return ""
+    exclude = ["and", "the", "with", "or"]
+    parts = re.split(r'[\s&/-]+', str(text))
+    abbr = "".join([p[0].upper() for p in parts if p and p.lower() not in exclude])
+    return abbr
 
 def clean_scale(s):
     if not isinstance(s, str): return "SCALE_1_5"
@@ -40,6 +62,13 @@ def clean_type(t):
     return "Self-Rating"
 
 output_questions = []
+prefix_counters = {}
+stakeholder_order_counters = {
+    "employee": 1,
+    "manager": 1,
+    "leader": 1,
+    "admin": 1
+}
 
 for entry in files_mapping:
     stakeholder = entry["stakeholder"]
@@ -55,39 +84,55 @@ for entry in files_mapping:
         except:
             df = pd.read_csv(f_path, encoding='latin1')
             
-        roles = [stakeholder]
-        if stakeholder == "leader":
-            roles.append("admin")
+        # We need to process each row for both potential roles (leader -> admin)
+        # But we must ensure the 'order' is consistent. 
+        # If we loop over roles outside, the order will be mixed if multiple files have the same stakeholder.
+        # But here files are grouped by stakeholder, so roles = [stakeholder] or [leader, admin] is fine.
+        
+        for _, row in df.iterrows():
+            domain = str(row.get('Domain', '')).strip()
+            subdomain = str(row.get('SubDomain', row.get('Subdomain', ''))).strip()
+            if not domain or domain == "nan": continue
             
-        for role in roles:
-            for _, row in df.iterrows():
-                domain = str(row.get('Domain', '')).strip()
-                subdomain = str(row.get('SubDomain', row.get('Subdomain', ''))).strip()
-                if not domain or domain == "nan": continue
+            q_type = clean_type(row.get("QuestionType", "Self-Rating"))
+            scale = clean_scale(row.get("Scale", "1-5"))
+            q_stem = str(row.get("QuestionStem", "")).strip()
+            insight = str(row.get("InsightPrompt", "")).strip() if pd.notna(row.get("InsightPrompt")) else ""
+            
+            if not q_stem or q_stem == "nan": continue
+
+            roles = [stakeholder]
+            if stakeholder == "leader":
+                roles.append("admin")
+            
+            for role in roles:
+                dAbbr = domain_abbr.get(domain, get_abbreviation(domain))
+                sAbbr = get_abbreviation(subdomain)
+                rolePref = stakeholder_prefix.get(role.lower(), role[0].upper())
+                tSuff = type_suffix.get(q_type, "")
                 
-                q_type = clean_type(row.get("QuestionType", "Self-Rating"))
-                scale = clean_scale(row.get("Scale", "1-5"))
-                q_stem = str(row.get("QuestionStem", "")).strip()
-                insight = str(row.get("InsightPrompt", "")).strip() if pd.notna(row.get("InsightPrompt")) else ""
+                prefix = f"{dAbbr}-{sAbbr}-{rolePref}{tSuff}"
+                if prefix not in prefix_counters:
+                    prefix_counters[prefix] = 1
+                else:
+                    prefix_counters[prefix] += 1
                 
-                # Create a unique code if missing or for duplication
-                q_code = str(row.get("QuestionCode", "")).strip()
-                if not q_code or role == "admin" or q_code == "nan":
-                    # For admin, we want a distinct code if leader code is present
-                    orig_code = q_code if q_code and q_code != "nan" else "Q"
-                    q_code = f"{role.upper()}-{orig_code}-{domain[0]}{subdomain[0]}" # Added more uniqueness
+                generated_code = f"{prefix}{prefix_counters[prefix]}"
                 
                 q_data = {
                     "stakeholder": role,
                     "domain": domain,
                     "subdomain": subdomain,
                     "questionType": q_type,
-                    "questionCode": q_code,
+                    "questionCode": generated_code,
                     "questionStem": q_stem,
                     "scale": scale,
                     "insightPrompt": insight,
-                    "subdomainWeight": domain_weights.get(domain, 0.35)
+                    "subdomainWeight": (0.35 if domain == "People Potential" else (0.25 if domain == "Operational Steadiness" else 0.20)),
+                    "order": stakeholder_order_counters[role]
                 }
+                
+                stakeholder_order_counters[role] += 1
                 
                 if scale == "FORCED_CHOICE":
                     optA = str(row.get("OptionA", "")).strip()
@@ -97,6 +142,9 @@ for entry in files_mapping:
                         "optionB": { "label": optB, "insightPrompt": insight },
                         "higherValueOption": "A"
                     }
+                else:
+                    if not q_data["insightPrompt"]:
+                        q_data["insightPrompt"] = f"Please provide details regarding your experience with {subdomain.lower()}."
                 
                 output_questions.append(q_data)
                 
@@ -108,3 +156,5 @@ with open(r"c:\Users\ST\OneDrive\Desktop\backend-tbd\final_questions.json", "w",
     json.dump(output_questions, f, indent=4)
 
 print(f"Total questions generated: {len(output_questions)}")
+for role, count in stakeholder_order_counters.items():
+    print(f"  {role}: {count-1} questions")

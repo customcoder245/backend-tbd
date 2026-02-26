@@ -77,6 +77,10 @@ const questionSchema = new Schema(
     subdomainWeight: {
       type: Number,
       required: true
+    },
+    order: {
+      type: Number,
+      default: 0
     }
   },
   { timestamps: true }

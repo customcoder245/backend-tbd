@@ -54,119 +54,6 @@ const generateQuestionCode = async (stakeholder, domain, subdomain, questionType
 };
 
 /**
- * CREATE QUESTION (Admin)
- */
-// export const createQuestion = async (req, res) => {
-//   try {
-//     const {
-//       stakeholder,
-//       domain,
-//       subdomain,
-//       questionType,
-//       questionCode,
-//       questionStem,
-//       scale,
-//       insightPrompt,
-//       forcedChoice
-//     } = req.body;
-
-//     // Common required fields validation
-//     if (
-//       !stakeholder ||
-//       !domain ||
-//       !subdomain ||
-//       !questionType ||
-//       !questionCode ||
-//       !questionStem ||
-//       !scale
-//     ) {
-//       return res.status(400).json({
-//         message: "All required fields must be provided"
-//       });
-//     }
-
-//     // Scale-specific validation
-//     if (scale === "FORCED_CHOICE") {
-//       if (
-//         !forcedChoice ||
-//         !forcedChoice.optionA?.label ||
-//         !forcedChoice.optionA?.insightPrompt ||
-//         !forcedChoice.optionB?.label ||
-//         !forcedChoice.optionB?.insightPrompt ||
-//         !forcedChoice.higherValueOption
-//       ) {
-//         return res.status(400).json({
-//           message:
-//             "Forced choice questions require optionA, optionB, and higherValueOption"
-//         });
-//       }
-//     } else {
-//       if (!insightPrompt) {
-//         return res.status(400).json({
-//           message: "Insight prompt is required for non-forced-choice questions"
-//         });
-//       }
-//     }
-
-//     // Prevent duplicate questionCode
-//     const existingCode = await Question.findOne({ questionCode });
-//     // const existingQuestion  = await Question.findOne({ questionStem });
-//     // if (existingCode && !existingQuestion || !existingCode && existingQuestion) {
-//     //   return res.status(409).json({
-//     //     message: "Question with this questionCode or QuesitonStem already exists "
-//     //   });
-//     // }
-
-//     if (existingCode) {
-//       return res.status(409).json({
-//         message: "Question with this questionCode or QuesitonStem already exists "
-//       });
-//     }
-
-//     // Calculate subdomainWeight based on the domain
-//     let subdomainWeight = 0;
-
-//     const subdomainWeights = {
-//       "People Potential": 0.35,
-//       "Operational Steadiness": 0.25,
-//       "Digital Fluency": 0.20
-//     };
-
-//     // Assign the weight based on domain
-//     if (subdomainWeights[domain]) {
-//       subdomainWeight = subdomainWeights[domain];
-//     }
-
-//     // Create the new question with the calculated subdomainWeight
-//     const question = new Question({
-//       stakeholder,
-//       domain,
-//       subdomain,
-//       questionType,
-//       questionCode,
-//       questionStem,
-//       scale,
-//       insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
-//       forcedChoice: scale === "FORCED_CHOICE" ? forcedChoice : null,
-//       subdomainWeight // Set the calculated subdomainWeight
-//     });
-
-//     // Save the question to the database
-//     const savedQuestion = await question.save();
-
-//     return res.status(201).json({
-//       message: "Question created successfully",
-//       data: savedQuestion
-//     });
-//   } catch (error) {
-//     return res.status(500).json({
-//       message: "Error creating question",
-//       error: error.message
-//     });
-//   }
-// };
-
-/**
  * CREATE MULTIPLE QUESTIONS (Admin)
  */
 export const createMultipleQuestions = async (req, res) => {
@@ -466,7 +353,7 @@ export const getQuestionsByStakeholder = async (req, res) => {
     const questions = await Question.find({
       stakeholder,
       isDeleted: false
-    });
+    }).sort({ order: 1 }); // Sort by order for the quiz
 
     return res.status(200).json({
       data: questions
@@ -502,7 +389,7 @@ export const getAllQuestions = async (req, res) => {
       filter.subdomain = subdomain;
     }
 
-    const questions = await Question.find(filter).sort({ createdAt: -1 });
+    const questions = await Question.find(filter).sort({ stakeholder: 1, order: 1 }); // Sort by stakeholder and then order
 
     return res.status(200).json({
       success: true,
@@ -542,6 +429,38 @@ export const getQuestionById = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error fetching question",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * BATCH REORDER QUESTIONS (Admin Drag & Drop)
+ * req.body expects: [{ id: "...", order: 1 }, { id: "...", order: 2 }, ...]
+ */
+export const reorderQuestions = async (req, res) => {
+  try {
+    const updates = req.body;
+
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({ message: "Updates must be an array of {id, order} objects" });
+    }
+
+    const bulkOps = updates.map(update => ({
+      updateOne: {
+        filter: { _id: update.id },
+        update: { $set: { order: update.order } }
+      }
+    }));
+
+    await Question.bulkWrite(bulkOps);
+
+    return res.status(200).json({
+      message: "Questions reordered successfully"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error reordering questions",
       error: error.message
     });
   }
