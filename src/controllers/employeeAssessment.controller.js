@@ -4,6 +4,8 @@ import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Invitation from "../models/invitation.model.js";
 import mongoose from "mongoose";
 import { calculateAssessmentScores } from "../utils/scoring.utils.js";
+import { getDomainFeedback } from "../utils/feedback.utils.js";
+
 
 
 export const startEmployeeAssessment = async (req, res) => {
@@ -111,6 +113,12 @@ export const submitEmployeeAssessment = async (req, res) => {
 
     // 🏆 Calculate scores (Phase 1 Logic)
     const { scores, classification } = calculateAssessmentScores(responses);
+
+    // 💡 Add feedback from XLSX data
+    for (const domainName in scores.domains) {
+      const domainScore = scores.domains[domainName].score;
+      scores.domains[domainName].feedback = getDomainFeedback(domainName, domainScore);
+    }
 
     assessment.scores = scores;
     assessment.classification = classification;

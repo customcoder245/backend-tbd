@@ -63,6 +63,7 @@ const assessmentSchema = new Schema({
       type: Map,
       of: {
         score: Number,
+        feedback: { type: Object, default: null },
         subdomains: {
           type: Map,
           of: Number
