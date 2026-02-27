@@ -11,7 +11,7 @@
     "dev": "nodemon -r dotenv/config src/index.js"
   },
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
