@@ -7,7 +7,18 @@ dotenv.config({
     quiet: true
 });
 
-// Connect to DB on module load (not inside app.listen)
-connectDB();
+// Cache the DB connection across warm serverless invocations
+let dbConnected = false;
 
-export default app;
+export default async function handler(req, res) {
+    if (!dbConnected) {
+        try {
+            await connectDB();
+            dbConnected = true;
+        } catch (err) {
+            console.error('DB connection failed:', err.message);
+            return res.status(500).json({ success: false, message: 'Database connection failed' });
+        }
+    }
+    return app(req, res);
+}
