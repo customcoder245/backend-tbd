@@ -4,31 +4,30 @@
  */
 
 export const getClassification = (score) => {
-    if (score < 2.5) return "Low";
-    if (score < 3.75) return "Medium";
+    if (score < 50) return "Low";
+    if (score < 75) return "Medium";
     return "High";
 };
 
 /**
- * Converts a question response to a 1-5 numeric scale
+ * Converts a question response to a scale of 20, 40, 60, 80, 100
  */
 export const convertToNumericScore = (response) => {
-    const { scale, value, selectedOption } = response;
+    const { scale, value } = response;
 
     if (scale === "SCALE_1_5" || scale === "NEVER_ALWAYS") {
-        // These are already saved as 1-5 integers in the value field generally
-        // But we ensure it's a number
-        return Number(value) || 1;
+        // Shift 1-5 to 20, 40, 60, 80, 100
+        const numericVal = Number(value) || 1;
+        return numericVal * 20;
     }
 
     if (scale === "FORCED_CHOICE") {
-        // Phase 1: Higher maturity option = 5, Lower maturity option = 1
-        // We compare selectedOption with the higherValueOption stored in the response record
+        // Higher maturity option = 100, Lower maturity option = 20
         const hvOption = response.higherValueOption || "A";
-        return response.selectedOption === hvOption ? 5 : 1;
+        return response.selectedOption === hvOption ? 100 : 20;
     }
 
-    return 1;
+    return 20;
 };
 
 /**
