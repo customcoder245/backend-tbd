@@ -1,23 +1,17 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
- 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
- 
+import { createRequire } from "module";
+
+// Use createRequire so JSON imports work reliably in both dev and production
+// (avoids fs.readFileSync path resolution issues in deployed environments)
+const require = createRequire(import.meta.url);
+
 let feedbackData = {};
 try {
-    const filePath = path.join(__dirname, "../data/domainFeedback.json");
-    if (fs.existsSync(filePath)) {
-        feedbackData = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    } else {
-        console.warn(`Warning: ${filePath} not found. Domain feedback will be unavailable.`);
-    }
+    feedbackData = require("../data/domainFeedback.json");
 } catch (error) {
-    console.error("Error loading domain feedback data:", error);
+    console.error("Error loading domain feedback data:", error.message);
 }
- 
- 
+
+
 /**
  * Maps a numeric score (0-100) to the corresponding feedback level
  */
@@ -26,7 +20,7 @@ export const getLevelFromScore = (score) => {
     if (score < 75) return "Medium";
     return "High";
 };
- 
+
 /**
  * Retrieves the matching insight for a given domain and score
  */

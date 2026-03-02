@@ -177,14 +177,18 @@ export const submitAssessment = async (req, res) => {
     // 🏆 Calculate scores (Phase 1 Logic)
     const { scores, classification } = calculateAssessmentScores(responses);
 
-    // 💡 Add feedback from XLSX data
+    // 💡 Add feedback BEFORE assigning to model (Mongoose Maps don't track mutations after assignment)
     for (const domainName in scores.domains) {
       const domainScore = scores.domains[domainName].score;
       scores.domains[domainName].feedback = getDomainFeedback(domainName, domainScore);
     }
 
+    // Assign the fully-built scores object (with feedback already included)
     assessment.scores = scores;
     assessment.classification = classification;
+
+    // ⚠️ Tell Mongoose the nested Map changed so it persists correctly
+    assessment.markModified('scores');
 
     await assessment.save();
 

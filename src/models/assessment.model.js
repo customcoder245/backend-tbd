@@ -60,15 +60,8 @@ const assessmentSchema = new Schema({
   scores: {
     overall: { type: Number, default: 0 },
     domains: {
-      type: Map,
-      of: {
-        score: Number,
-        feedback: { type: Object, default: null },
-        subdomains: {
-          type: Map,
-          of: Number
-        }
-      }
+      type: Schema.Types.Mixed,
+      default: {}
     }
   },
 
