@@ -67,7 +67,7 @@ export const sendInvitationEmail = async (email, link, role, orgName) => {
     </p>
     <p style="font-size: 16px; margin-bottom: 16px;">
 
-      You have been invited to participate in Talent By Design's POD-360(TM) Workplace Assessment.  We thank you in advance for your time and look forward to supporting you along your journey
+      You have been invited to participate in <strong> Talent By Design's POD-360™ </strong> Workplace Assessment.  We thank you in advance for your time and look forward to supporting you along your journey
       ${isEmployee
       ? "We're excited to have you complete your confidential professional assessment."
       : "You have been assigned administrative access to help manage your organization's talent growth."}
