@@ -25,6 +25,19 @@ export const getLevelFromScore = (score) => {
  * Retrieves the matching insight for a given domain and score
  */
 export const getDomainFeedback = (domainName, score) => {
+    if (!domainName) return null;
+
     const level = getLevelFromScore(score);
-    return feedbackData[domainName]?.[level] || null;
+    const cleanedName = domainName.trim();
+
+    // Case-insensitive lookup fallback
+    const feedback = feedbackData[cleanedName] ||
+        Object.entries(feedbackData).find(([key]) => key.toLowerCase() === cleanedName.toLowerCase())?.[1];
+
+    if (!feedback) {
+        console.warn(`[Feedback] No feedback found for domain: "${cleanedName}"`);
+        return null;
+    }
+
+    return feedback[level] || null;
 };

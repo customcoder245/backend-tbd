@@ -33,6 +33,11 @@ export const startAssessment = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // 🚫 Super Admins are not permitted to take assessments
+    if (user.role === "superAdmin") {
+      return res.status(403).json({ message: "Super Admins are not permitted to take assessments." });
+    }
+
     // 2. Check the latest COMPLETED assessment first (determines the cycle)
     const latestCompletedAssessment = await Assessment.findOne({
       userId,
@@ -127,15 +132,19 @@ export const submitAssessment = async (req, res) => {
     const { assessmentId } = req.params;
     const { userId } = req.user;
 
+    console.log(`[Assessment Submission] Attempting to submit assessment ${assessmentId} by user ${userId}`);
+
     const assessmentObjectId = new mongoose.Types.ObjectId(assessmentId);
 
     // 1️⃣ Fetch assessment
     const assessment = await Assessment.findById(assessmentObjectId);
     if (!assessment) {
+      console.warn(`[Assessment Submission] Assessment ${assessmentId} not found.`);
       return res.status(404).json({ message: "Assessment not found" });
     }
 
     if (assessment.isCompleted) {
+      console.warn(`[Assessment Submission] Assessment ${assessmentId} already submitted.`);
       return res.status(400).json({ message: "Assessment already submitted" });
     }
 
@@ -143,8 +152,10 @@ export const submitAssessment = async (req, res) => {
     const responses = await Response.find({ assessmentId: assessmentObjectId });
 
     if (!responses || responses.length === 0) {
+      console.warn(`[Assessment Submission] No responses found for assessment ${assessmentId}.`);
       return res.status(400).json({ message: "No responses provided" });
     }
+    console.log(`[Assessment Submission] Found ${responses.length} responses for assessment ${assessmentId}.`);
 
     const fullResponses = responses.map(r => {
       const obj = r.toObject();
@@ -155,8 +166,10 @@ export const submitAssessment = async (req, res) => {
     // 3️⃣ Fetch & clean user
     const user = await User.findById(userId).lean();
     if (!user) {
+      console.warn(`[Assessment Submission] User ${userId} not found.`);
       return res.status(404).json({ message: "User not found" });
     }
+    console.log(`[Assessment Submission] User ${user.email} found for assessment ${assessmentId}.`);
 
     const cleanedUserDetails = {
       _id: user._id,
@@ -176,12 +189,17 @@ export const submitAssessment = async (req, res) => {
 
     // 🏆 Calculate scores (Phase 1 Logic)
     const { scores, classification } = calculateAssessmentScores(responses);
+    console.log(`[Assessment Submission] Scores calculated for assessment ${assessmentId}. Classification: ${classification}`);
 
     // 💡 Add feedback BEFORE assigning to model (Mongoose Maps don't track mutations after assignment)
+    let fbCount = 0;
     for (const domainName in scores.domains) {
       const domainScore = scores.domains[domainName].score;
-      scores.domains[domainName].feedback = getDomainFeedback(domainName, domainScore);
+      const fb = getDomainFeedback(domainName, domainScore);
+      if (fb) fbCount++;
+      scores.domains[domainName].feedback = fb;
     }
+    console.log(`[Assessment Submission] Attached feedback to ${fbCount}/${Object.keys(scores.domains).length} domains.`);
 
     // Assign the fully-built scores object (with feedback already included)
     assessment.scores = scores;
@@ -191,6 +209,7 @@ export const submitAssessment = async (req, res) => {
     assessment.markModified('scores');
 
     await assessment.save();
+    console.log(`[Assessment Submission] Assessment ${assessmentId} marked as completed and saved.`);
 
     // 🔥 6️⃣ SAVE SNAPSHOT
     const submittedAssessment = await SubmittedAssessment.create({
@@ -203,6 +222,7 @@ export const submitAssessment = async (req, res) => {
       classification,
       submittedAt: new Date()
     });
+    console.log(`[Assessment Submission] Snapshot created for assessment ${assessmentId} as submittedAssessment ${submittedAssessment._id}.`);
 
     // --- DYNAMIC NOTIFICATIONS ---
     // 1. Notify the user
@@ -212,6 +232,7 @@ export const submitAssessment = async (req, res) => {
       message: "Your assessment has been successfully submitted.",
       type: "success"
     });
+    console.log(`[Assessment Submission] Notification sent to user ${userId}.`);
 
     // 2. Notify their Organization Admins
     if (user.orgName) {
@@ -222,6 +243,7 @@ export const submitAssessment = async (req, res) => {
         type: "success",
         excludeUser: userId
       });
+      console.log(`[Assessment Submission] Notifications sent to Org Admins for ${user.orgName}.`);
     }
 
     // 3. Notify Super Admins
@@ -231,6 +253,7 @@ export const submitAssessment = async (req, res) => {
       type: "info",
       excludeUser: userId
     });
+    console.log(`[Assessment Submission] Notifications sent to Super Admins.`);
 
     // 6️⃣ Return response
     return res.status(200).json({
@@ -238,7 +261,7 @@ export const submitAssessment = async (req, res) => {
       submittedAssessment
     });
   } catch (error) {
-    // console.error("Error submitting assessment:", error);
+    console.error("Error submitting assessment:", error);
     res.status(500).json({
       message: "Error submitting assessment",
       error: error.message

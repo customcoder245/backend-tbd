@@ -27,22 +27,22 @@ export const saveResponse = async (req, res) => {
       }
 
       let finalComment = comment;
-      
+
       // DYNAMIC LOGIC STARTS HERE
       if (question.scale === "SCALE_1_5" || question.questionType === "Calibration") {
-        if (answer <= 3 && !comment?.trim()) {
-          return res.status(400).json({ message: "Comment is required for answers <= 3" });
-        } else if (answer > 3) {
+        if (answer <= 2 && !comment?.trim()) {
+          return res.status(400).json({ message: "Comment is required for 'Never' or 'Rarely' answers." });
+        } else if (answer > 2) {
           finalComment = null;
         }
-      } 
+      }
       else if (question.scale === "FORCED_CHOICE") {
         // We get the specific higher value for THIS question (could be A or B)
-        const hvOption = question.forcedChoice?.higherValueOption; 
+        const hvOption = question.forcedChoice?.higherValueOption;
 
         if (answer === hvOption && !comment?.trim()) {
-          return res.status(400).json({ 
-            message: `Comment is required for higher value option (${hvOption})` 
+          return res.status(400).json({
+            message: `Comment is required for higher value option (${hvOption})`
           });
         } else if (answer !== hvOption) {
           // If they picked the lower value option, we clear the comment

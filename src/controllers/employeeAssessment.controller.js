@@ -111,19 +111,31 @@ export const submitEmployeeAssessment = async (req, res) => {
     assessment.isCompleted = true;
     assessment.submittedAt = new Date();
 
+    console.log(`[Employee Assessment Submission] Processing assessment ${assessmentId} for employee ${email}. Found ${responses.length} responses.`);
+
     // 🏆 Calculate scores (Phase 1 Logic)
     const { scores, classification } = calculateAssessmentScores(responses);
+    console.log(`[Employee Assessment Submission] Scores calculated. Classification: ${classification}`);
 
-    // 💡 Add feedback from XLSX data
+    // 💡 Add feedback BEFORE assigning to model (Mongoose Mixed types don't track mutations after assignment)
+    let fbCount = 0;
     for (const domainName in scores.domains) {
       const domainScore = scores.domains[domainName].score;
-      scores.domains[domainName].feedback = getDomainFeedback(domainName, domainScore);
+      const fb = getDomainFeedback(domainName, domainScore);
+      if (fb) fbCount++;
+      scores.domains[domainName].feedback = fb;
     }
+    console.log(`[Employee Assessment Submission] Attached feedback to ${fbCount}/${Object.keys(scores.domains).length} domains.`);
 
+    // Assign the fully-built scores object (with feedback already included)
     assessment.scores = scores;
     assessment.classification = classification;
 
+    // ⚠️ Tell Mongoose the nested object changed so it persists correctly
+    assessment.markModified('scores');
+
     await assessment.save();
+    console.log(`[Employee Assessment Submission] Assessment ${assessmentId} saved.`);
 
     // 4️⃣ Snapshot (immutable record)
     const submittedAssessment = await SubmittedAssessment.create({
