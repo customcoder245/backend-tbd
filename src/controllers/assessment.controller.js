@@ -479,6 +479,24 @@ export const getSuperAdminIntelligence = async (req, res) => {
       healthRate
     };
 
+    // 7. Dynamic AI Insights
+    const aiInsights = [
+      {
+        title: "Platform Growth",
+        desc: totalOrgs > 0
+          ? `Currently managing ${totalOrgs} organizations with ${totalUsers} total users across all sectors.`
+          : "Platform onboarding is ready for new organizations.",
+        type: "positive",
+      },
+      {
+        title: "Data Integrity",
+        desc: healthRate > 80
+          ? `High data integrity: ${healthRate}% of organizations have active, verified assessment cycles.`
+          : `Data collection in progress: ${healthRate}% of organizations have completed recent assessments.`,
+        type: "info",
+      },
+    ];
+
     res.status(200).json({
       stats: [
         { label: "Onboarded Organizations", value: totalOrgs, icon: "solar:buildings-2-bold-duotone", color: "#448CD2", growth: "+4%", path: "/dashboard/org-assessments" },
@@ -495,7 +513,8 @@ export const getSuperAdminIntelligence = async (req, res) => {
       },
       completionByRole: roleCompletionRates,
       recentActivities: activity,
-      currentCycle
+      currentCycle,
+      aiInsights
     });
   } catch (error) {
     console.error("Super Admin Intelligence Error:", error);

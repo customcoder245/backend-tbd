@@ -8,6 +8,7 @@ import assessmentRoutes from "./routes/assessment.routes.js";
 import employeeAssessmentRoutes from "./routes/employeeAssessment.routes.js";
 import questionRoutes from "./routes/question.routes.js";
 import responseRoutes from "./routes/response.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
 const app = express();
 // Trigger restart.
@@ -41,6 +42,7 @@ app.use("/api/v1/assessment", assessmentRoutes);
 app.use("/api/v1/employee-assessment", employeeAssessmentRoutes);
 app.use("/api/v1/questions", questionRoutes);
 app.use("/api/v1/responses", responseRoutes);
+app.use("/api/v1/dashboard", dashboardRoutes);
 
 
 
