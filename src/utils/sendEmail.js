@@ -55,17 +55,19 @@ const sendEmail = async (mailOptions) => {
 
 export const sendInvitationEmail = async (email, link, role, orgName) => {
   if (!email || !link) return;
-
+  
   const isEmployee = role === 'employee';
   const title = isEmployee ? "Your Assessment Invitation" : "You're Invited to Join";
   const buttonText = isEmployee ? "Start Assessment" : "Complete Registration";
-
+  
+  // You have been invited to join <strong>${orgName || 'the platform'}</strong> on Talent By Design. 
   const content = `
     <p style="font-size: 16px; margin-bottom: 24px;">
       Hello,
     </p>
     <p style="font-size: 16px; margin-bottom: 16px;">
-      You have been invited to join <strong>${orgName || 'the platform'}</strong> on Talent By Design. 
+
+      You have been invited to participate in Talent By Design's POD-360(TM) Workplace Assessment.  We thank you in advance for your time and look forward to supporting you along your journey
       ${isEmployee
       ? "We're excited to have you complete your confidential professional assessment."
       : "You have been assigned administrative access to help manage your organization's talent growth."}
