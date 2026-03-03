@@ -59,7 +59,7 @@ router.post("/send-bulk-invitation", protect, uploadCSV, sendBulkInvitations);
 // User Routes
 router.get("/me", protect, getMe);
 router.get("/my-profile", protect, myProfile);
-router.patch("/update-profile", protect, upload.single("profileImage"), updateProfile);
+router.patch("/update-profile", protect, upload.fields([{ name: "profileImage", maxCount: 1 }, { name: "orgLogo", maxCount: 1 }]), updateProfile);
 
 // Organization Routes
 router.get("/organization/:orgName", protect, getOrgDetails);

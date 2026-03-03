@@ -116,6 +116,11 @@ const userSchema = new Schema(
       required: false
     },
 
+    orgLogo: {
+      type: String,
+      required: false
+    },
+
     isEmailVerified: {
       type: Boolean,
       default: false

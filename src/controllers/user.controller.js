@@ -6,7 +6,7 @@ import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 // ==================== GET Current Authenticated User (auth/me) ====================
 export const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId).select("-password");
+        const user = await User.findById(req.user.userId).select("-password").populate("adminId", "orgLogo");
         if (!user) return res.status(404).json({ message: "User not found" });
 
         let assessmentStatus = "NOT_REQUIRED";
@@ -30,6 +30,18 @@ export const getMe = async (req, res) => {
             }
         }
 
+        let orgLogo = user.orgLogo || "";
+        if (user.role !== "admin" && user.role !== "superAdmin") {
+            if (user.adminId && user.adminId.orgLogo) {
+                orgLogo = user.adminId.orgLogo;
+            } else if (user.orgName) {
+                const adminUser = await User.findOne({ orgName: user.orgName, role: "admin" }).select("orgLogo");
+                if (adminUser && adminUser.orgLogo) {
+                    orgLogo = adminUser.orgLogo;
+                }
+            }
+        }
+
         res.status(200).json({
             _id: user._id,
             firstName: user.firstName || "",
@@ -38,6 +50,7 @@ export const getMe = async (req, res) => {
             role: user.role || "",
             orgName: user.orgName || "",
             profileImage: user.profileImage || "",
+            orgLogo: orgLogo,
             debug: "v2",
             assessmentStatus
         });
@@ -50,10 +63,22 @@ export const getMe = async (req, res) => {
 // ------------------------ Get profile information ---------------------
 export const myProfile = async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId).select("-password");
+        const user = await User.findById(req.user.userId).select("-password").populate("adminId", "orgLogo");
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
+        }
+
+        let orgLogo = user.orgLogo || "";
+        if (user.role !== "admin" && user.role !== "superAdmin") {
+            if (user.adminId && user.adminId.orgLogo) {
+                orgLogo = user.adminId.orgLogo;
+            } else if (user.orgName) {
+                const adminUser = await User.findOne({ orgName: user.orgName, role: "admin" }).select("orgLogo");
+                if (adminUser && adminUser.orgLogo) {
+                    orgLogo = adminUser.orgLogo;
+                }
+            }
         }
 
         res.status(200).json({
@@ -76,6 +101,7 @@ export const myProfile = async (req, res) => {
             zipCode: user.zipCode || "",
 
             profileImage: user.profileImage || "",
+            orgLogo: orgLogo,
 
             // Optional flags (helpful for frontend)
             profileCompleted: user.profileCompleted,
@@ -122,10 +148,18 @@ export const updateProfile = async (req, res) => {
         if (state !== undefined) user.state = state;
         if (zipCode !== undefined) user.zipCode = zipCode;
 
-        if (req.file) {
-            const cloudinaryResponse = await uploadOnCloudinary(req.file.path);
-            if (cloudinaryResponse) {
-                user.profileImage = cloudinaryResponse.secure_url;
+        if (req.files) {
+            if (req.files["profileImage"] && req.files["profileImage"][0]) {
+                const cloudinaryResponse = await uploadOnCloudinary(req.files["profileImage"][0].path);
+                if (cloudinaryResponse) {
+                    user.profileImage = cloudinaryResponse.secure_url;
+                }
+            }
+            if (req.files["orgLogo"] && req.files["orgLogo"][0]) {
+                const cloudinaryResponse = await uploadOnCloudinary(req.files["orgLogo"][0].path);
+                if (cloudinaryResponse) {
+                    user.orgLogo = cloudinaryResponse.secure_url;
+                }
             }
         }
 
@@ -137,6 +171,7 @@ export const updateProfile = async (req, res) => {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 profileImage: user.profileImage,
+                orgLogo: user.orgLogo,
                 state: user.state,
                 zipCode: user.zipCode,
                 phoneNumber: user.phoneNumber
