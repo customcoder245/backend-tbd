@@ -9,11 +9,28 @@ export const getOrgDetails = async (req, res) => {
         const { orgName } = req.params;
         if (!orgName) return res.status(400).json({ message: "Org name is required" });
 
-        // Fetch all invitations for this organization
-        const invitations = await Invitation.find({ orgName }).sort({ createdAt: -1 });
+        // Get requester info for filtering
+        const requester = await User.findById(req.user.userId);
+        const requesterRole = requester?.role?.toLowerCase() || "";
+        const requesterDept = requester?.department;
 
-        const formattedMembers = await Promise.all(
+        if (requesterRole === "employee") {
+            return res.status(403).json({ message: "Access denied. Employees do not have permission to view organization details." });
+        }
+
+        // Fetch all invitations for this organization (case-insensitive)
+        const invitations = await Invitation.find({
+            orgName: { $regex: new RegExp("^" + orgName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + "$", "i") }
+        }).sort({ createdAt: -1 });
+
+        const formattedMembers = (await Promise.all(
             invitations.map(async (inv) => {
+                // Hierarchy Filter
+                // Leader sees Leaders (Peers), Managers & Employees. Manager sees Peer Managers & Employees.
+                // We allow seeing peers of the same role if they belong to the same organization/department.
+                if (requesterRole === "leader" && !["leader", "manager", "employee"].includes(inv.role.toLowerCase())) return null;
+                if (requesterRole === "manager" && !["manager", "employee"].includes(inv.role.toLowerCase())) return null;
+
                 let name = "—";
                 let currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
                 let assessmentStatus = "Not Started";
@@ -23,9 +40,24 @@ export const getOrgDetails = async (req, res) => {
                     $or: [
                         { invitationToken: inv.token1 },
                         { invitationToken: inv.token },
-                        { email: inv.email }
+                        { email: inv.email.toLowerCase() }
                     ]
                 });
+
+                // Department Filter for Leader/Manager
+                if (requesterRole === "leader" || requesterRole === "manager") {
+                    const invDept = inv.department;
+                    const userDept = registeredUser?.department;
+
+                    // Only filter if the requester has a department AND the member (either via invite or registered user) has a department
+                    // AND those departments do not match.
+                    if (requesterDept) { // Requester must have a department to apply this filter
+                        const memberDept = userDept || invDept; // Prioritize registered user's department, then invitation's department
+                        if (memberDept && memberDept !== requesterDept) { // If member has a department AND it doesn't match requester's, filter
+                            return null;
+                        }
+                    }
+                }
 
                 if (registeredUser) {
                     if (registeredUser.firstName || registeredUser.lastName) {
@@ -51,11 +83,17 @@ export const getOrgDetails = async (req, res) => {
                 } else {
                     // If no user found, check for assessment data (for employees who might have taken it without full account yet)
                     try {
-                        const assessment = await Assessment.findOne({ invitationId: inv._id });
+                        const assessment = await Assessment.findOne({
+                            $or: [
+                                { invitationId: inv._id },
+                                { employeeEmail: inv.email, orgName: inv.orgName }
+                            ]
+                        }).sort({ submittedAt: -1 });
+
                         if (assessment) {
                             if (assessment.userDetails) {
                                 const details = assessment.userDetails;
-                                name = `${details.firstName || ""} ${details.lastName || ""}`.trim() || "Completed (Anonymous)";
+                                name = `${details.firstName || ""} ${details.lastName || ""}`.trim() || "Member";
                             }
 
                             if (assessment.isCompleted) {
@@ -78,15 +116,16 @@ export const getOrgDetails = async (req, res) => {
                     role: inv.role,
                     createdAt: inv.createdAt,
                     status: currentStatus,
-                    assessmentStatus // Added field
+                    assessmentStatus
                 };
             })
-        );
+        )).filter(m => m !== null);
 
         // Stats
         const adminUser = await User.findOne({ orgName, role: "admin" });
 
-        if (adminUser) {
+        // Only show Admin in the list for SuperAdmins and Admins
+        if (adminUser && (requesterRole === "admin" || requesterRole === "superadmin")) {
             // Ensure Admin isn't already in the list via invitation
             const isAdminListed = formattedMembers.some(m => m.email === adminUser.email);
 
@@ -96,9 +135,8 @@ export const getOrgDetails = async (req, res) => {
 
                 if (adminAssessment) {
                     adminAssessmentStatus = "Completed";
-                    const threeMonthsAgo = new Date();
-                    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-                    if (adminAssessment.submittedAt < threeMonthsAgo) {
+                    const cycleStart = getAssessmentCycleStartDate();
+                    if (adminAssessment.submittedAt < cycleStart) {
                         adminAssessmentStatus = "Due";
                     }
                 } else {

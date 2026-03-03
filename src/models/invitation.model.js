@@ -16,6 +16,7 @@ const invitationSchema = new Schema(
     token: { type: String, required: true, unique: true },
     token1: { type: String, unique: true },
     orgName: { type: String },
+    department: { type: String },
     adminId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -28,7 +29,7 @@ const invitationSchema = new Schema(
     },
     expiredAt: {
       type: Date,
-      required: true 
+      required: true
     },
     used: {
       type: Boolean,
@@ -37,7 +38,8 @@ const invitationSchema = new Schema(
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
   },
-  { timestamps: true ,
+  {
+    timestamps: true,
     autoIndex: false
   }
 );

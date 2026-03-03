@@ -131,8 +131,20 @@ export const submitAssessment = async (req, res) => {
   try {
     const { assessmentId } = req.params;
     const { userId } = req.user;
+    const { firstName, lastName, department } = req.body;
 
     console.log(`[Assessment Submission] Attempting to submit assessment ${assessmentId} by user ${userId}`);
+
+    // Update User Profile with provided data (if any)
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (department) user.department = department;
+    await user.save();
 
     const assessmentObjectId = new mongoose.Types.ObjectId(assessmentId);
 
@@ -163,22 +175,18 @@ export const submitAssessment = async (req, res) => {
       return obj;
     });
 
-    // 3️⃣ Fetch & clean user
-    const user = await User.findById(userId).lean();
-    if (!user) {
-      console.warn(`[Assessment Submission] User ${userId} not found.`);
-      return res.status(404).json({ message: "User not found" });
-    }
-    console.log(`[Assessment Submission] User ${user.email} found for assessment ${assessmentId}.`);
+    // 3️⃣ Reuse user for snapshot
+    const userObj = user.toObject();
+    console.log(`[Assessment Submission] User ${userObj.email} found for assessment ${assessmentId}.`);
 
     const cleanedUserDetails = {
-      _id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      department: user.department,
-      role: user.role,
-      orgName: user.orgName
+      _id: userObj._id,
+      firstName: userObj.firstName,
+      lastName: userObj.lastName,
+      email: userObj.email,
+      department: userObj.department,
+      role: userObj.role,
+      orgName: userObj.orgName
     };
 
     // 4️⃣ Mark assessment completed

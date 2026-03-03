@@ -13,6 +13,45 @@ const getLatestReportData = async (req, res, targetRole) => {
         // Determine which user we're looking at
         const userId = queryUserId || loggedInUserId;
 
+        // --- ACCESS CONTROL CHECK ---
+        if (queryUserId && queryUserId !== loggedInUserId) {
+            const requester = await User.findById(loggedInUserId);
+            const targetUser = await User.findById(userId);
+
+            if (!targetUser) {
+                return res.status(404).json({ message: "Target user not found" });
+            }
+
+            const rRole = requester?.role?.toLowerCase() || "";
+            const tRole = targetUser?.role?.toLowerCase() || "";
+            const rOrg = requester?.orgName;
+            const tOrg = targetUser?.orgName;
+            const rDept = requester?.department;
+            const tDept = targetUser?.department;
+
+            let isAllowed = false;
+
+            if (rRole === "superadmin") {
+                isAllowed = true;
+            } else if (rRole === "admin") {
+                // Admin can see everyone in their organization
+                isAllowed = (rOrg === tOrg);
+            } else if (rRole === "leader") {
+                // Leader can see Managers and Employees in their Organization AND Department
+                isAllowed = (rOrg === tOrg) && (rDept && rDept === tDept) && (["manager", "employee"].includes(tRole));
+            } else if (rRole === "manager") {
+                // Manager can see only Employees in their Organization AND Department
+                isAllowed = (rOrg === tOrg) && (rDept && rDept === tDept) && (tRole === "employee");
+            }
+
+            if (!isAllowed) {
+                return res.status(403).json({
+                    message: "Access denied. You can only view members within your organization and department according to your role permissions.",
+                    hasReport: false
+                });
+            }
+        }
+
         // Find the latest completed assessment for this user
         const report = await SubmittedAssessment.findOne({ userId })
             .sort({ submittedAt: -1 }) // Get the most recent

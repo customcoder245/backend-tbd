@@ -133,27 +133,47 @@ export const completeProfile = async (req, res) => {
       return res.status(400).json({ message: "Invalid token or profile already completed." });
     }
 
+    // Always fetch latest invitation for inheritance
+    const invitation = await Invitation.findOne({ email: user.email }).sort({ createdAt: -1 });
+
     if (user.role === "admin") {
       if (!orgName) return res.status(400).json({ message: "Organization name is required for Admins." });
       user.orgName = orgName;
     } else {
-      const inviter = await User.findById(user.invitedBy || user.adminId);
-      if (inviter) {
-        user.orgName = inviter.orgName;
+      // Inherit from Invitation or Inviter
+      if (invitation) {
+        user.orgName = invitation.orgName || user.orgName;
+        user.adminId = invitation.adminId || user.adminId;
+        // Inherit department from invitation if user didn't provide one
+        if (!department && invitation.department) {
+          user.department = invitation.department;
+        }
+      }
+
+      if (!user.orgName) {
+        const inviter = await User.findById(user.invitedBy || user.adminId);
+        if (inviter) {
+          user.orgName = inviter.orgName;
+          user.adminId = inviter.adminId || inviter._id;
+        }
       }
     }
 
     user.firstName = firstName;
     user.lastName = lastName;
-    user.department = department;
+    if (department) user.department = department;
     user.titles = titles;
     user.profileCompleted = true;
+    user.profileCompletedAfterRegistration = true; // Secondary flag
     user.emailVerificationToken = null;
     user.emailVerificationExpires = null;
 
+    if (!user.orgName && invitation?.orgName) {
+      user.orgName = invitation.orgName;
+    }
+
     await user.save();
 
-    const invitation = await Invitation.findOne({ email: user.email });
     if (invitation) {
       invitation.used = true;
       await invitation.save();

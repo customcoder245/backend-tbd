@@ -30,7 +30,7 @@ import { getOrgDetails } from "../controllers/organization.controller.js";
 
 import { getNotifications, markAsRead, markAllAsRead, clearNotifications } from "../controllers/notification.controller.js";
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
-import { protect } from "../middlewares/auth.middleware.js";
+import { protect, flexibleProtect } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { uploadCSV } from "../middlewares/csvUpload.middleware.js";
 
@@ -57,8 +57,8 @@ router.delete("/invitation/:id", protect, deleteInvitation);
 router.post("/send-bulk-invitation", protect, uploadCSV, sendBulkInvitations);
 
 // User Routes
-router.get("/me", protect, getMe);
-router.get("/my-profile", protect, myProfile);
+router.get("/me", flexibleProtect, getMe);
+router.get("/my-profile", flexibleProtect, myProfile);
 router.patch("/update-profile", protect, upload.fields([{ name: "profileImage", maxCount: 1 }, { name: "orgLogo", maxCount: 1 }]), updateProfile);
 
 // Organization Routes

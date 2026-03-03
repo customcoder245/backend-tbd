@@ -29,51 +29,61 @@ export const protect = (req, res, next) => {
  */
 export const flexibleProtect = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  const inviteToken = req.headers["x-invite-token"];
+  const inviteTokenFromHeader = req.headers["x-invite-token"];
+  const inviteTokenFromCookie = req.cookies?.invitationToken;
+  const inviteToken = inviteTokenFromHeader || inviteTokenFromCookie;
 
-  // 1. Try Session Token (Admin/Leader/Manager)
-  if (authHeader && authHeader.startsWith("Bearer ")) {
+  const accessTokenFromCookie = req.cookies?.accessToken;
+
+  // 1. Try Session Token (Admin/Leader/Manager - LOGGED IN)
+  if ((authHeader && authHeader.startsWith("Bearer ")) || accessTokenFromCookie) {
     try {
-      const token = authHeader.split(" ")[1];
+      const token = authHeader ? authHeader.split(" ")[1] : accessTokenFromCookie;
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       if (decoded.userId) {
         req.user = decoded;
         return next();
       }
     } catch (err) {
-      // If it's a session token but expired, we should probably stop here
       if (err.name === 'TokenExpiredError' && !inviteToken) {
         return res.status(401).json({ message: "Session expired" });
       }
+      // If it's a session token but invalid, we continue to check inviteToken
     }
   }
 
-  // 2. Try Invite Token (Employee)
+  // 2. Try Invite Token (ALL STAKEHOLDERS - via URL/Header)
   if (inviteToken) {
     try {
       const decoded = jwt.verify(inviteToken, process.env.JWT_SECRET);
 
+      // Find the invitation by token directly for maximum reliability
+      // We don't check 'used: false' here because we just need to identify the guest
       const invitation = await Invitation.findOne({
-        adminId: new mongoose.Types.ObjectId(decoded.invitedId),
-        email: decoded.email,
-        role: "employee"
+        $or: [{ token: inviteToken }, { token1: inviteToken }],
+        email: decoded.email
       });
 
       if (invitation) {
-        req.employee = {
+        // We set req.employee/req.guest to distinguish from logged-in users
+        req.guest = {
           email: decoded.email,
+          role: decoded.role || invitation.role,
           invitedBy: invitation.invitedBy,
           orgName: invitation.orgName,
           invitationId: invitation._id
         };
+        // For backwards compatibility with controllers expecting req.employee
+        req.employee = req.guest;
+
         return next();
       }
     } catch (err) {
       if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({ message: "Invitation expired" });
+        return res.status(401).json({ message: "Invitation link has expired" });
       }
     }
   }
 
-  return res.status(401).json({ message: "Unauthorized: Invalid or missing token" });
+  return res.status(401).json({ message: "Unauthorized. Please login or use a valid invitation link." });
 };

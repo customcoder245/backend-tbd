@@ -22,6 +22,30 @@ export const sendInvitation = async (req, res) => {
             return res.status(404).json({ message: "Inviter not found" });
         }
 
+        // --- HIERARCHY CHECK ---
+        const inviterRole = inviter.role?.toLowerCase();
+        const targetRole = role?.toLowerCase();
+
+        if (inviterRole === "superadmin") {
+            if (targetRole !== "admin") {
+                return res.status(403).json({ message: "SuperAdmins can only invite Admins." });
+            }
+        } else if (inviterRole === "admin") {
+            if (!["leader", "manager", "employee"].includes(targetRole)) {
+                return res.status(403).json({ message: "Admins can only invite Leader, Manager, or Employee roles." });
+            }
+        } else if (inviterRole === "leader") {
+            if (!["manager", "employee"].includes(targetRole)) {
+                return res.status(403).json({ message: "Leaders can only invite Managers and Employees." });
+            }
+        } else if (inviterRole === "manager") {
+            if (targetRole !== "employee") {
+                return res.status(403).json({ message: "Managers can only invite Employees." });
+            }
+        } else {
+            return res.status(403).json({ message: "You do not have permission to send invitations." });
+        }
+
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json({ message: "User with this email already exists" });
@@ -52,8 +76,9 @@ export const sendInvitation = async (req, res) => {
             token,
             token1: token,
             invitedBy: inviterId,
-            adminId: inviterId,
+            adminId: inviter.adminId || inviterId,
             orgName: inviter.orgName,
+            department: inviter.department || null,
             expiredAt: dbExpiry,
         });
         await invitation.save();
@@ -179,9 +204,42 @@ export const getInvitations = async (req, res) => {
             return res.status(200).json(formattedData);
 
         } else {
-            const invitations = await Invitation.find({ orgName: userOrg, invitedBy: userId }).sort({ createdAt: -1 });
-            const formattedData = await Promise.all(
+            const requester = await User.findById(userId);
+            const dept = requester?.department;
+
+            const filter = { orgName: userOrg };
+
+            if (role === "leader") {
+                filter.role = { $in: ["manager", "employee"] };
+                if (dept) filter.department = dept;
+            } else if (role === "manager") {
+                filter.role = "employee";
+                if (dept) filter.department = dept;
+            } else if (role === "admin") {
+                // admin sees all in org
+            } else {
+                // employee or other, only see what they invited (though they shouldn't usually invite)
+                filter.invitedBy = userId;
+            }
+
+            const invitations = await Invitation.find(filter).sort({ createdAt: -1 });
+            const formattedData = (await Promise.all(
                 invitations.map(async (inv) => {
+                    // Double check department for registered users if it wasn't in the invite
+                    if ((role === "leader" || role === "manager") && dept) {
+                        const registeredUser = await User.findOne({
+                            $or: [
+                                { invitationToken: inv.token1 },
+                                { invitationToken: inv.token },
+                                { email: inv.email }
+                            ]
+                        });
+
+                        if (registeredUser && registeredUser.department && registeredUser.department !== dept) {
+                            return null;
+                        }
+                    }
+
                     let name = "—";
                     let currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
 
@@ -216,7 +274,7 @@ export const getInvitations = async (req, res) => {
                         status: currentStatus
                     };
                 })
-            );
+            )).filter(d => d !== null);
             return res.status(200).json(formattedData);
         }
     } catch (error) {
@@ -254,7 +312,7 @@ export const deleteInvitation = async (req, res) => {
     }
 };
 
-export const createAndSendInvite = async (email, role, inviter) => {
+export const createAndSendInvite = async (email, role, inviter, department) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) throw new Error("USER_EXISTS");
 
@@ -277,9 +335,10 @@ export const createAndSendInvite = async (email, role, inviter) => {
         role,
         token,
         token1: token,
-        adminId: inviter._id,
+        adminId: inviter.adminId || inviter._id,
         invitedBy: inviter._id,
         orgName: inviter.orgName,
+        department: department || inviter.department || null,
         expiredAt: Date.now() + 60 * 60 * 1000,
     });
 
@@ -320,9 +379,10 @@ export const sendBulkInvitations = async (req, res) => {
             .on("data", row => {
                 const email = row.email?.trim().toLowerCase();
                 const role = row.role?.trim().toLowerCase();
+                const department = row.department?.trim();
 
                 if (email && role) {
-                    invitations.push({ email, role });
+                    invitations.push({ email, role, department });
                 } else if (email || role) {
                     failed.push({
                         email: email || "missing",
@@ -332,7 +392,9 @@ export const sendBulkInvitations = async (req, res) => {
             })
             .on("end", async () => {
                 if (invitations.length === 0) {
-                    fs.unlinkSync(req.file.path);
+                    if (req.file && fs.existsSync(req.file.path)) {
+                        fs.unlinkSync(req.file.path);
+                    }
                     return res.status(400).json({
                         message: "No valid invitations found in CSV. Please check the format.",
                         success: 0,
@@ -341,7 +403,7 @@ export const sendBulkInvitations = async (req, res) => {
                     });
                 }
 
-                for (const { email, role } of invitations) {
+                for (const { email, role, department } of invitations) {
                     try {
                         if (!allowedRoles.includes(role)) {
                             failed.push({
@@ -351,7 +413,17 @@ export const sendBulkInvitations = async (req, res) => {
                             continue;
                         }
 
-                        await createAndSendInvite(email, role, inviter);
+                        // Hierarchy re-check for leader/manager
+                        if (inviterRole.toLowerCase() === "leader" && !["manager", "employee"].includes(role)) {
+                            failed.push({ email, reason: "Permission denied for this role" });
+                            continue;
+                        }
+                        if (inviterRole.toLowerCase() === "manager" && role !== "employee") {
+                            failed.push({ email, reason: "Permission denied for this role" });
+                            continue;
+                        }
+
+                        await createAndSendInvite(email, role, inviter, department);
                         success++;
                     } catch (err) {
                         if (err.message === "USER_EXISTS") {

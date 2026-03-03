@@ -6,7 +6,54 @@ import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 // ==================== GET Current Authenticated User (auth/me) ====================
 export const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId).select("-password").populate("adminId", "orgLogo");
+        let user = null;
+        if (req.user?.userId) {
+            user = await User.findById(req.user.userId).select("-password").populate("adminId", "orgLogo");
+        }
+
+        // FALLBACK: If no user found (e.g. Employee via invite token)
+        if (!user && req.guest) {
+            const { email, invitationId } = req.guest;
+            const assessment = await Assessment.findOne({
+                $or: [{ invitationId }, { employeeEmail: email }]
+            }).sort({ submittedAt: -1 });
+
+            let assessmentStatus = "NOT_STARTED";
+            let orgLogo = "";
+            let firstName = "";
+            let lastName = "";
+            let role = req.guest.role || "employee";
+            let orgName = assessment?.orgName || req.guest.orgName || "";
+
+            if (assessment) {
+                if (assessment.isCompleted) {
+                    assessmentStatus = "COMPLETED";
+                    const cycleStart = getAssessmentCycleStartDate();
+                    if (assessment.submittedAt < cycleStart) {
+                        assessmentStatus = "DUE";
+                    }
+                } else {
+                    assessmentStatus = "PENDING";
+                }
+                firstName = assessment.userDetails?.firstName || "";
+                lastName = assessment.userDetails?.lastName || "";
+
+                const inviter = await User.findById(assessment.invitedBy).select("orgLogo");
+                if (inviter) orgLogo = inviter.orgLogo;
+            }
+
+            return res.status(200).json({
+                _id: "guest-" + (invitationId || email),
+                firstName,
+                lastName,
+                role,
+                orgName,
+                orgLogo,
+                isGuest: true,
+                assessmentStatus
+            });
+        }
+
         if (!user) return res.status(404).json({ message: "User not found" });
 
         let assessmentStatus = "NOT_REQUIRED";
@@ -63,7 +110,42 @@ export const getMe = async (req, res) => {
 // ------------------------ Get profile information ---------------------
 export const myProfile = async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId).select("-password").populate("adminId", "orgLogo");
+        let user = null;
+        if (req.user?.userId) {
+            user = await User.findById(req.user.userId).select("-password").populate("adminId", "orgLogo");
+        }
+
+        // FALLBACK: If no user found (e.g. Employee via invite token), try to fetch data from Assessment
+        if (!user && req.guest) {
+            const { email, invitationId } = req.guest;
+            const assessment = await Assessment.findOne({
+                $or: [{ invitationId }, { employeeEmail: email }]
+            }).sort({ submittedAt: -1 });
+
+            if (assessment) {
+                const details = assessment.userDetails || {};
+                const inviter = await User.findById(assessment.invitedBy).select("orgName orgLogo");
+
+                return res.status(200).json({
+                    firstName: details.firstName || "",
+                    middleInitial: details.middleInitial || "",
+                    lastName: details.lastName || "",
+                    email: email,
+                    role: req.guest.role || "employee",
+                    orgName: assessment.orgName || inviter?.orgName || "",
+                    phoneNumber: details.phoneNumber || "",
+                    dob: details.dob || "",
+                    gender: details.gender || "",
+                    country: details.country || "",
+                    state: details.state || "",
+                    zipCode: details.zipCode || "",
+                    profileImage: details.profileImage || "",
+                    orgLogo: inviter?.orgLogo || "",
+                    profileCompleted: true,
+                    isGuest: true
+                });
+            }
+        }
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
