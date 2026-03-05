@@ -55,6 +55,7 @@ export const register = async (req, res) => {
       password,
       role: invitation.role,
       orgName: invitation.orgName,
+      department: invitation.department,
       invitedBy: invitation.invitedBy || invitation.adminId,
       adminId: invitation.adminId,
       emailVerificationToken: verificationToken,
@@ -222,8 +223,17 @@ export const getCurrentUserSession = async (req, res) => {
       return res.status(401).json({ message: "Invalid verification session" });
     }
 
-    let inheritedOrgName = "";
-    if (user.role !== "admin") {
+    let inheritedOrgName = user.orgName || "";
+    let inheritedDept = user.department || "";
+
+    const invitation = await Invitation.findOne({ email: user.email }).sort({ createdAt: -1 });
+
+    if (invitation) {
+      if (!inheritedOrgName) inheritedOrgName = invitation.orgName || "";
+      if (!inheritedDept) inheritedDept = invitation.department || "";
+    }
+
+    if (!inheritedOrgName && user.role !== "admin") {
       const inviter = await User.findById(user.invitedBy || user.adminId);
       if (inviter) {
         inheritedOrgName = inviter.orgName;
@@ -233,7 +243,8 @@ export const getCurrentUserSession = async (req, res) => {
     res.status(200).json({
       email: user.email,
       role: user.role,
-      inheritedOrgName: inheritedOrgName
+      inheritedOrgName: inheritedOrgName,
+      department: inheritedDept
     });
   } catch (error) {
     console.error("getCurrentUserSession error:", error);
@@ -310,6 +321,7 @@ export const login = async (req, res) => {
         email: user.email,
         role: user.role,
         orgName: user.orgName,
+        department: user.department || "",
         profileCompleted: user.profileCompleted,
         emailVerificationToken: user.emailVerificationToken,
       },

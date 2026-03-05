@@ -98,6 +98,7 @@ export const getMe = async (req, res) => {
             orgName: user.orgName || "",
             profileImage: user.profileImage || "",
             orgLogo: orgLogo,
+            department: user.department || "",
             debug: "v2",
             assessmentStatus
         });
@@ -133,6 +134,7 @@ export const myProfile = async (req, res) => {
                     email: email,
                     role: req.guest.role || "employee",
                     orgName: assessment.orgName || inviter?.orgName || "",
+                    department: assessment.department || "",
                     phoneNumber: details.phoneNumber || "",
                     dob: details.dob || "",
                     gender: details.gender || "",
@@ -171,6 +173,7 @@ export const myProfile = async (req, res) => {
             email: user.email || "",
             role: user.role || "",
             orgName: user.orgName || "",
+            department: user.department || "",
 
             // Personal Info
             dob: user.dob || "",
@@ -208,7 +211,8 @@ export const updateProfile = async (req, res) => {
             phoneNumber,
             country,
             state,
-            zipCode
+            zipCode,
+            department
         } = req.body;
 
         const user = await User.findById(req.user.userId);
@@ -229,6 +233,7 @@ export const updateProfile = async (req, res) => {
         if (country !== undefined) user.country = country;
         if (state !== undefined) user.state = state;
         if (zipCode !== undefined) user.zipCode = zipCode;
+        if (department !== undefined) user.department = department;
 
         if (req.files) {
             if (req.files["profileImage"] && req.files["profileImage"][0]) {
@@ -256,7 +261,8 @@ export const updateProfile = async (req, res) => {
                 orgLogo: user.orgLogo,
                 state: user.state,
                 zipCode: user.zipCode,
-                phoneNumber: user.phoneNumber
+                phoneNumber: user.phoneNumber,
+                department: user.department
             }
         });
 

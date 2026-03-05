@@ -23,7 +23,8 @@ import {
   acceptInvitation,
   getInvitations,
   deleteInvitation,
-  sendBulkInvitations
+  sendBulkInvitations,
+  getInvitationDetails
 } from "../controllers/invitation.controller.js";
 
 import { getOrgDetails } from "../controllers/organization.controller.js";
@@ -55,6 +56,7 @@ router.get("/invite/:token", acceptInvitation);
 router.get("/invitations", protect, getInvitations);
 router.delete("/invitation/:id", protect, deleteInvitation);
 router.post("/send-bulk-invitation", protect, uploadCSV, sendBulkInvitations);
+router.get("/invitation-details/:token", getInvitationDetails);
 
 // User Routes
 router.get("/me", flexibleProtect, getMe);

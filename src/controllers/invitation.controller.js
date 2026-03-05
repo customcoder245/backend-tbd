@@ -144,6 +144,38 @@ export const acceptInvitation = async (req, res) => {
     }
 };
 
+// ==================== Get Invitation Details (for Register Page) ====================
+export const getInvitationDetails = async (req, res) => {
+    try {
+        const { token } = req.params;
+
+        const invitation = await Invitation.findOne({
+            $or: [{ token: token }, { token1: token }],
+        });
+
+        if (!invitation) {
+            return res.status(404).json({ message: "Invitation not found" });
+        }
+
+        if (invitation.used) {
+            return res.status(400).json({ message: "Invitation already used" });
+        }
+
+        if (new Date(invitation.expiredAt) < new Date()) {
+            return res.status(400).json({ message: "Invitation expired" });
+        }
+
+        res.status(200).json({
+            email: invitation.email,
+            role: invitation.role,
+            orgName: invitation.orgName
+        });
+    } catch (error) {
+        console.error("Get invitation details error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
 // ==================== Get Invitations ====================
 export const getInvitations = async (req, res) => {
     try {
