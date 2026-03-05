@@ -203,7 +203,7 @@ export const submitAssessment = async (req, res) => {
     let fbCount = 0;
     for (const domainName in scores.domains) {
       const domainScore = scores.domains[domainName].score;
-      const fb = getDomainFeedback(domainName, domainScore);
+      const fb = getDomainFeedback(domainName, domainScore, user.role);
       if (fb) fbCount++;
       scores.domains[domainName].feedback = fb;
     }

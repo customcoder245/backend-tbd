@@ -22,22 +22,31 @@ export const getLevelFromScore = (score) => {
 };
 
 /**
- * Retrieves the matching insight for a given domain and score
+ * Retrieves the matching insight for a given domain, score, and role
  */
-export const getDomainFeedback = (domainName, score) => {
+export const getDomainFeedback = (domainName, score, role) => {
     if (!domainName) return null;
 
     const level = getLevelFromScore(score);
     const cleanedName = domainName.trim();
 
-    // Case-insensitive lookup fallback
-    const feedback = feedbackData[cleanedName] ||
-        Object.entries(feedbackData).find(([key]) => key.toLowerCase() === cleanedName.toLowerCase())?.[1];
+    // Use the role name directly as we now have 4 roles in domainFeedback.json
+    const targetRole = role || 'leader';
+    const roleData = feedbackData[targetRole];
 
-    if (!feedback) {
-        console.warn(`[Feedback] No feedback found for domain: "${cleanedName}"`);
+    if (!roleData) {
+        console.warn(`[Feedback] No feedback data found for role: "${targetRole}"`);
         return null;
     }
 
-    return feedback[level] || null;
+    // Case-insensitive domain lookup
+    const domainData = roleData[cleanedName] ||
+        Object.entries(roleData).find(([key]) => key.toLowerCase() === cleanedName.toLowerCase())?.[1];
+
+    if (!domainData) {
+        console.warn(`[Feedback] No feedback found for role "${targetRole}" and domain: "${cleanedName}"`);
+        return null;
+    }
+
+    return domainData[level] || null;
 };
