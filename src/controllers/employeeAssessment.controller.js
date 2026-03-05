@@ -147,7 +147,7 @@ export const submitEmployeeAssessment = async (req, res) => {
         domainObj.feedback = getSubdomainFeedback(minSubName, minScore, 'employee');
       }
     }
-    console.log(`[Employee Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}.`);
+    console.log(`[Employee Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: employee`);
 
     // Assign the fully-built scores object (with feedback already included)
     assessment.scores = scores;
