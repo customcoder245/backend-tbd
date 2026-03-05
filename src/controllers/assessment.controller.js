@@ -144,7 +144,7 @@ export const submitAssessment = async (req, res) => {
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (department) user.department = department;
-    await user.save();
+    // We will save later after scores are calculated
 
     const assessmentObjectId = new mongoose.Types.ObjectId(assessmentId);
 
@@ -235,11 +235,15 @@ export const submitAssessment = async (req, res) => {
     assessment.scores = scores;
     assessment.classification = classification;
 
+    // 🏆 Also Store in User record for easy dashboard access
+    user.lastAssessmentScore = scores.overall;
+    user.lastAssessmentClassification = classification;
+
     // ⚠️ Tell Mongoose the nested Map changed so it persists correctly
     assessment.markModified('scores');
 
-    // 🔥 5️⃣ SAVE ASSESSMENT & SNAPSHOT (In parallel for speed)
-    const [savedAssessment, submittedAssessment] = await Promise.all([
+    // 🔥 5️⃣ SAVE ASSESSMENT & SNAPSHOT & USER (In parallel for speed)
+    const [savedAssessment, submittedAssessment, savedUser] = await Promise.all([
       assessment.save(),
       SubmittedAssessment.create({
         assessmentId: assessment._id,
@@ -250,7 +254,8 @@ export const submitAssessment = async (req, res) => {
         scores,
         classification,
         submittedAt: new Date()
-      })
+      }),
+      user.save()
     ]);
     console.log(`[Assessment Submission] Assessment ${assessmentId} saved and snapshot created.`);
 
@@ -599,7 +604,9 @@ export const getAdminIntelligence = async (req, res) => {
         name: u.firstName !== "-" ? `${u.firstName} ${u.lastName}` : u.email,
         role: u.role,
         status: "Registered",
-        assessmentStatus: "Not Started"
+        assessmentStatus: "Not Started",
+        lastScore: u.lastAssessmentScore || 0,
+        classification: u.lastAssessmentClassification || null
       });
     });
 
@@ -616,7 +623,9 @@ export const getAdminIntelligence = async (req, res) => {
         role: a.userDetails?.role || existing?.role || "Employee",
         status: a.isCompleted ? "Completed" : "Active",
         assessmentStatus: a.isCompleted ? "Completed" : "In Progress",
-        lastActivity: a.submittedAt || a.updatedAt || a.createdAt
+        lastActivity: a.submittedAt || a.updatedAt || a.createdAt,
+        lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : (existing?.lastScore || 0),
+        classification: a.isCompleted ? a.classification : (existing?.classification || null)
       });
     });
 

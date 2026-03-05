@@ -34,6 +34,8 @@ export const getOrgDetails = async (req, res) => {
                 let name = "—";
                 let currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
                 let assessmentStatus = "Not Started";
+                let lastScore = 0;
+                let classification = null;
 
                 // Try to find the registered user by token or email
                 const registeredUser = await User.findOne({
@@ -70,6 +72,8 @@ export const getOrgDetails = async (req, res) => {
                     const userAssessment = await Assessment.findOne({ userId: registeredUser._id, isCompleted: true }).sort({ submittedAt: -1 });
                     if (userAssessment) {
                         assessmentStatus = "Completed";
+                        lastScore = Math.round(userAssessment.scores?.overall || registeredUser.lastAssessmentScore || 0);
+                        classification = userAssessment.classification || registeredUser.lastAssessmentClassification;
                         // Check if expired/due (>3 months)
                         const cycleStart = getAssessmentCycleStartDate();
                         if (userAssessment.submittedAt < cycleStart) {
@@ -98,6 +102,8 @@ export const getOrgDetails = async (req, res) => {
 
                             if (assessment.isCompleted) {
                                 assessmentStatus = "Completed";
+                                lastScore = Math.round(assessment.scores?.overall || 0);
+                                classification = assessment.classification;
                             } else {
                                 assessmentStatus = "In Progress";
                             }
@@ -116,7 +122,9 @@ export const getOrgDetails = async (req, res) => {
                     role: inv.role,
                     createdAt: inv.createdAt,
                     status: currentStatus,
-                    assessmentStatus
+                    assessmentStatus,
+                    lastScore,
+                    classification
                 };
             })
         )).filter(m => m !== null);
@@ -131,10 +139,14 @@ export const getOrgDetails = async (req, res) => {
 
             if (!isAdminListed) {
                 let adminAssessmentStatus = "Not Started";
+                let lastScore = 0;
+                let classification = null;
                 const adminAssessment = await Assessment.findOne({ userId: adminUser._id, isCompleted: true }).sort({ submittedAt: -1 });
 
                 if (adminAssessment) {
                     adminAssessmentStatus = "Completed";
+                    lastScore = Math.round(adminAssessment.scores?.overall || adminUser.lastAssessmentScore || 0);
+                    classification = adminAssessment.classification || adminUser.lastAssessmentClassification;
                     const cycleStart = getAssessmentCycleStartDate();
                     if (adminAssessment.submittedAt < cycleStart) {
                         adminAssessmentStatus = "Due";
@@ -153,7 +165,9 @@ export const getOrgDetails = async (req, res) => {
                     role: "admin",
                     createdAt: adminUser.createdAt,
                     status: "Accept", // Admin is active
-                    assessmentStatus: adminAssessmentStatus
+                    assessmentStatus: adminAssessmentStatus,
+                    lastScore,
+                    classification
                 });
             }
         }

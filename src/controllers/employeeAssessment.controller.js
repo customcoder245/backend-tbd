@@ -103,8 +103,9 @@ export const submitEmployeeAssessment = async (req, res) => {
     const employeeDetails = {
       firstName,
       lastName,
-      email,
+      email: email.toLowerCase(),
       department,
+      role: assessment.stakeholder || "employee",
       orgName: assessment.orgName
     };
 
@@ -160,6 +161,14 @@ export const submitEmployeeAssessment = async (req, res) => {
     // Find the User record for this email to link correctly to the dashboard
     const submittingUser = await User.findOne({ email: email.toLowerCase() });
 
+    if (submittingUser) {
+      if (firstName) submittingUser.firstName = firstName;
+      if (lastName) submittingUser.lastName = lastName;
+      if (department) submittingUser.department = department;
+      submittingUser.lastAssessmentScore = scores.overall;
+      submittingUser.lastAssessmentClassification = classification;
+    }
+
     // 🔥 5️⃣ SAVE ASSESSMENT & SNAPSHOT (In parallel for speed)
     const [savedAssessment, submittedAssessment] = await Promise.all([
       assessment.save(),
@@ -176,7 +185,8 @@ export const submitEmployeeAssessment = async (req, res) => {
       Invitation.findOneAndUpdate(
         { email: email.toLowerCase(), role: "employee" },
         { used: true }
-      )
+      ),
+      submittingUser ? submittingUser.save() : Promise.resolve()
     ]);
     console.log(`[Employee Assessment Submission] Data saved and invitation locked for ${email}. Linked to userId: ${submittingUser ? submittingUser._id : "none"}`);
 

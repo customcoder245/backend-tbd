@@ -132,6 +132,17 @@ const userSchema = new Schema(
     resetPasswordToken: String,
     resetPasswordExpires: Date,
 
+    // Assessment scores snapshot
+    lastAssessmentScore: {
+      type: Number,
+      default: 0
+    },
+    lastAssessmentClassification: {
+      type: String,
+      enum: ["Low", "Medium", "High", null],
+      default: null
+    },
+
     notificationPreferences: {
       system: {
         type: Boolean,
