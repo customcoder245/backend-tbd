@@ -1,4 +1,5 @@
 import Assessment from "../models/assessment.model.js";
+import User from "../models/user.model.js";
 import Response from "../models/response.model.js";
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Invitation from "../models/invitation.model.js";
@@ -156,24 +157,28 @@ export const submitEmployeeAssessment = async (req, res) => {
     // ⚠️ Tell Mongoose the nested object changed so it persists correctly
     assessment.markModified('scores');
 
-    // 4️⃣ SAVE EVERYTHING    // 🔥 5️⃣ SAVE ASSESSMENT & SNAPSHOT (In parallel for speed)
+    // Find the User record for this email to link correctly to the dashboard
+    const submittingUser = await User.findOne({ email: email.toLowerCase() });
+
+    // 🔥 5️⃣ SAVE ASSESSMENT & SNAPSHOT (In parallel for speed)
     const [savedAssessment, submittedAssessment] = await Promise.all([
       assessment.save(),
       SubmittedAssessment.create({
         assessmentId: assessment._id,
         stakeholder: assessment.stakeholder,
-        userDetails: employeeDetails, // Assuming employeeDetails is the equivalent of cleanedUserDetails for employee
-        responses, // Assuming responses is the equivalent of fullResponses
+        userId: submittingUser ? submittingUser._id : null, // 🏆 Link to user if they exist
+        userDetails: employeeDetails,
+        responses,
         scores,
         classification,
         submittedAt: new Date()
       }),
       Invitation.findOneAndUpdate(
-        { email, role: "employee" },
+        { email: email.toLowerCase(), role: "employee" },
         { used: true }
       )
     ]);
-    console.log(`[Employee Assessment Submission] Data saved and invitation locked for ${email}.`);
+    console.log(`[Employee Assessment Submission] Data saved and invitation locked for ${email}. Linked to userId: ${submittingUser ? submittingUser._id : "none"}`);
 
     return res.status(200).json({
       message: "Assessment submitted successfully",
