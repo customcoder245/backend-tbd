@@ -6,9 +6,11 @@ const require = createRequire(import.meta.url);
 
 let feedbackData = {};
 try {
-    feedbackData = require("../data/domainFeedback.json");
+    const rawData = require("../data/domainSubdomainFeedback.json");
+    // Handle cases where require might wrap JSON in a .default property
+    feedbackData = rawData.default || rawData;
 } catch (error) {
-    console.error("Error loading domain feedback data:", error.message);
+    console.error("Error loading subdomain feedback data:", error.message);
 }
 
 
@@ -22,31 +24,52 @@ export const getLevelFromScore = (score) => {
 };
 
 /**
- * Retrieves the matching insight for a given domain, score, and role
+ * Normalizes a string for robust comparison (lowercase, alphanumeric only)
  */
-export const getDomainFeedback = (domainName, score, role) => {
-    if (!domainName) return null;
+const robustNormalize = (str) => {
+    if (!str) return "";
+    return str.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
+};
+
+/**
+ * Retrieves the matching insight for a given subdomain, score, and role
+ */
+export const getSubdomainFeedback = (subdomainName, score, role) => {
+    if (!subdomainName) return null;
 
     const level = getLevelFromScore(score);
-    const cleanedName = domainName.trim();
+    const normSubdomain = robustNormalize(subdomainName);
 
-    // Use the role name directly as we now have 4 roles in domainFeedback.json
-    const targetRole = role || 'leader';
-    const roleData = feedbackData[targetRole];
+    // Map superAdmin to admin and ensure we have a fallback
+    let normalizedRoleStr = (role || 'leader').toLowerCase();
+    if (normalizedRoleStr === 'superadmin') normalizedRoleStr = 'admin';
+
+    const normRole = robustNormalize(normalizedRoleStr);
+
+    // Case-insensitive / Robust role lookup
+    const targetRoleKey = Object.keys(feedbackData).find(k => robustNormalize(k) === normRole) ||
+        Object.keys(feedbackData).find(k => robustNormalize(k) === 'leader'); // Fallback to leader
+
+    const roleData = feedbackData[targetRoleKey];
 
     if (!roleData) {
-        console.warn(`[Feedback] No feedback data found for role: "${targetRole}"`);
+        console.warn(`[Feedback] No feedback data found for role: "${normalizedRoleStr}" (norm: ${normRole})`);
         return null;
     }
 
-    // Case-insensitive domain lookup
-    const domainData = roleData[cleanedName] ||
-        Object.entries(roleData).find(([key]) => key.toLowerCase() === cleanedName.toLowerCase())?.[1];
+    // Aggressive subdomain lookup
+    const subdomainKey = Object.keys(roleData).find(k => robustNormalize(k) === normSubdomain);
+    const subdomainData = roleData[subdomainKey];
 
-    if (!domainData) {
-        console.warn(`[Feedback] No feedback found for role "${targetRole}" and domain: "${cleanedName}"`);
+    if (!subdomainData) {
+        console.warn(`[Feedback] No feedback found for role "${targetRoleKey}" and subdomain: "${subdomainName}" (norm: ${normSubdomain})`);
         return null;
     }
 
-    return domainData[level] || null;
+    const result = subdomainData[level] || null;
+    if (!result) {
+        console.warn(`[Feedback] No feedback found for level "${level}" in subdomain "${subdomainName}"`);
+    }
+
+    return result;
 };

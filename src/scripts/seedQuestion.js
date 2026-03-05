@@ -4,6 +4,10 @@ import Question from "../models/question.model.js";
 
 dotenv.config();
 
+// Fix for DNS resolution issues with MongoDB Atlas SRV records
+import dns from "dns";
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
+
 const questions = [
   {
     "stakeholder": "employee",
@@ -3658,18 +3662,18 @@ const seedQuestions = async () => {
     await mongoose.connect(process.env.MONGODB_URL);
     console.log("Connected.");
 
-    console.log(`Starting to seed/update ${questions.length} questions...`);
-    
+    // 🚩 Delete all existing questions as requested
+    console.log("Deleting all existing questions...");
+    await Question.deleteMany({});
+    console.log("Cleanup complete.");
+
+    console.log(`Starting to seed ${questions.length} questions...`);
+
     let count = 0;
     for (const qData of questions) {
-        const existing = await Question.findOne({ questionCode: qData.questionCode });
-        if (existing) {
-            await Question.findByIdAndUpdate(existing._id, qData);
-        } else {
-            await Question.create(qData);
-        }
-        count++;
-        if (count % 20 === 0) console.log(`Processed ${count}...`);
+      await Question.create(qData);
+      count++;
+      if (count % 20 === 0) console.log(`Processed ${count}...`);
     }
 
     console.log(`Successfully completed. Total: ${count} questions.`);

@@ -46,6 +46,7 @@ export const calculateAssessmentScores = (responses) => {
         const domain = res.domain;
         const subdomain = res.subdomain;
         const score = convertToNumericScore(res);
+        const weight = res.subdomainWeight || 1; // Default to 1 if missing
 
         if (!domainMap[domain]) {
             domainMap[domain] = {
@@ -56,7 +57,8 @@ export const calculateAssessmentScores = (responses) => {
         if (!domainMap[domain].subdomains[subdomain]) {
             domainMap[domain].subdomains[subdomain] = {
                 totalScore: 0,
-                count: 0
+                count: 0,
+                weight: weight // Save weight for this subdomain
             };
         }
 
@@ -75,18 +77,22 @@ export const calculateAssessmentScores = (responses) => {
     for (const domainName in domainMap) {
         const subdomainsData = domainMap[domainName].subdomains;
         const subDomainScores = {};
-        const subDomainScoresList = [];
+
+        let domainWeightedSum = 0;
+        let totalDomainWeight = 0;
 
         for (const subName in subdomainsData) {
-            const { totalScore, count } = subdomainsData[subName];
+            const { totalScore, count, weight } = subdomainsData[subName];
             const avg = count > 0 ? totalScore / count : 0;
             subDomainScores[subName] = avg;
-            subDomainScoresList.push(avg);
+
+            domainWeightedSum += (avg * weight);
+            totalDomainWeight += weight;
         }
 
-        // 3. Step 2: Calculate Domain Score (Average of Sub-Domains)
-        const domainAvg = subDomainScoresList.length > 0
-            ? subDomainScoresList.reduce((a, b) => a + b, 0) / subDomainScoresList.length
+        // 3. Step 2: Calculate Domain Score (Weighted Average of Sub-Domains)
+        const domainAvg = totalDomainWeight > 0
+            ? domainWeightedSum / totalDomainWeight
             : 0;
 
         finalScores.domains[domainName] = {
@@ -98,7 +104,6 @@ export const calculateAssessmentScores = (responses) => {
     }
 
     // 4. Step 3: Overall Score (Average of Domains)
-    // User says 3 domains, but we average whatever domains exist
     finalScores.overall = domainScoresList.length > 0
         ? domainScoresList.reduce((a, b) => a + b, 0) / domainScoresList.length
         : 0;
