@@ -238,52 +238,51 @@ export const submitAssessment = async (req, res) => {
     // ⚠️ Tell Mongoose the nested Map changed so it persists correctly
     assessment.markModified('scores');
 
-    await assessment.save();
-    console.log(`[Assessment Submission] Assessment ${assessmentId} marked as completed and saved.`);
+    // 🔥 5️⃣ SAVE ASSESSMENT & SNAPSHOT (In parallel for speed)
+    const [savedAssessment, submittedAssessment] = await Promise.all([
+      assessment.save(),
+      SubmittedAssessment.create({
+        assessmentId: assessment._id,
+        stakeholder: assessment.stakeholder,
+        userId,
+        userDetails: cleanedUserDetails,
+        responses: fullResponses,
+        scores,
+        classification,
+        submittedAt: new Date()
+      })
+    ]);
+    console.log(`[Assessment Submission] Assessment ${assessmentId} saved and snapshot created.`);
 
-    // 🔥 6️⃣ SAVE SNAPSHOT
-    const submittedAssessment = await SubmittedAssessment.create({
-      assessmentId: assessment._id,
-      stakeholder: assessment.stakeholder,
-      userId,
-      userDetails: cleanedUserDetails,
-      responses: fullResponses,
-      scores,
-      classification,
-      submittedAt: new Date()
-    });
-    console.log(`[Assessment Submission] Snapshot created for assessment ${assessmentId} as submittedAssessment ${submittedAssessment._id}.`);
-
-    // --- DYNAMIC NOTIFICATIONS ---
+    // --- DYNAMIC NOTIFICATIONS (Fire & Forget to make API fast) ---
     // 1. Notify the user
-    await createNotification({
+    createNotification({
       recipient: userId,
       title: "Assessment Submitted",
       message: "Your assessment has been successfully submitted.",
       type: "success"
-    });
-    console.log(`[Assessment Submission] Notification sent to user ${userId}.`);
+    }).catch(err => console.error("[Notification Error]", err));
 
     // 2. Notify their Organization Admins
     if (user.orgName) {
-      await notifyOrgAdmins({
+      notifyOrgAdmins({
         orgName: user.orgName,
         title: "Assessment Completed",
         message: `${user.firstName} ${user.lastName} (${user.role}) has completed the assessment.`,
         type: "success",
         excludeUser: userId
-      });
-      console.log(`[Assessment Submission] Notifications sent to Org Admins for ${user.orgName}.`);
+      }).catch(err => console.error("[Org Admin Notification Error]", err));
     }
 
     // 3. Notify Super Admins
-    await notifySuperAdmins({
+    notifySuperAdmins({
       title: "New Assessment Activity",
       message: `${user.firstName} ${user.lastName} from ${user.orgName || "Unknown Org"} has submitted an assessment.`,
       type: "info",
       excludeUser: userId
-    });
-    console.log(`[Assessment Submission] Notifications sent to Super Admins.`);
+    }).catch(err => console.error("[Super Admin Notification Error]", err));
+
+    console.log(`[Assessment Submission] Triggered background notifications for assessment ${assessmentId}.`);
 
     // 6️⃣ Return response
     return res.status(200).json({

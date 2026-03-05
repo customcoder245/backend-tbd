@@ -72,4 +72,9 @@ const assessmentSchema = new Schema({
   }
 }, { timestamps: true });
 
+assessmentSchema.index({ userId: 1 });
+assessmentSchema.index({ invitationId: 1 });
+assessmentSchema.index({ isCompleted: 1 });
+assessmentSchema.index({ employeeEmail: 1 });
+
 export default mongoose.model("Assessment", assessmentSchema);

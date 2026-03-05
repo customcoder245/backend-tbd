@@ -51,4 +51,9 @@ const submittedAssessmentSchema = new Schema(
   { timestamps: true }
 );
 
+submittedAssessmentSchema.index({ assessmentId: 1 });
+submittedAssessmentSchema.index({ userId: 1 });
+submittedAssessmentSchema.index({ adminId: 1 });
+submittedAssessmentSchema.index({ submittedAt: -1 });
+
 export default mongoose.model("SubmittedAssessment", submittedAssessmentSchema);

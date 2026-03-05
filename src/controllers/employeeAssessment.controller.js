@@ -156,25 +156,24 @@ export const submitEmployeeAssessment = async (req, res) => {
     // ⚠️ Tell Mongoose the nested object changed so it persists correctly
     assessment.markModified('scores');
 
-    await assessment.save();
-    console.log(`[Employee Assessment Submission] Assessment ${assessmentId} saved.`);
-
-    // 4️⃣ Snapshot (immutable record)
-    const submittedAssessment = await SubmittedAssessment.create({
-      assessmentId: assessment._id,
-      stakeholder: "employee",
-      userDetails: employeeDetails,
-      responses,
-      scores,
-      classification,
-      submittedAt: new Date()
-    });
-
-    // 5️⃣ Lock invitation (ONE TIME USE)
-    await Invitation.findOneAndUpdate(
-      { email, role: "employee" },
-      { used: true }
-    );
+    // 4️⃣ SAVE EVERYTHING    // 🔥 5️⃣ SAVE ASSESSMENT & SNAPSHOT (In parallel for speed)
+    const [savedAssessment, submittedAssessment] = await Promise.all([
+      assessment.save(),
+      SubmittedAssessment.create({
+        assessmentId: assessment._id,
+        stakeholder: assessment.stakeholder,
+        userDetails: employeeDetails, // Assuming employeeDetails is the equivalent of cleanedUserDetails for employee
+        responses, // Assuming responses is the equivalent of fullResponses
+        scores,
+        classification,
+        submittedAt: new Date()
+      }),
+      Invitation.findOneAndUpdate(
+        { email, role: "employee" },
+        { used: true }
+      )
+    ]);
+    console.log(`[Employee Assessment Submission] Data saved and invitation locked for ${email}.`);
 
     return res.status(200).json({
       message: "Assessment submitted successfully",

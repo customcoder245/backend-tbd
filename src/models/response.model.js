@@ -53,8 +53,8 @@ const responseSchema = new Schema(
       required: true
     },
 
-    value: { 
-      type: Number 
+    value: {
+      type: Number
     },
 
     selectedOption: {
@@ -79,11 +79,14 @@ const responseSchema = new Schema(
 
     subdomainWeight: {
       type: Number,
-      required: true, 
+      required: true,
       min: 0
     }
   },
   { timestamps: true }
 );
+
+responseSchema.index({ assessmentId: 1 });
+responseSchema.index({ questionId: 1 });
 
 export default mongoose.model("Response", responseSchema);
