@@ -1,6 +1,6 @@
 import path from "path";
-import fs from "fs";
 import { fileURLToPath } from "url";
+import fs from "fs";
 // 🚀 Importing as JS module is 100% reliable for Vercel
 import feedbackData from "../data/domainSubdomainFeedback.js";
 
