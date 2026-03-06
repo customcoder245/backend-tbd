@@ -1,13 +1,39 @@
-import path from "path";
+﻿import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-// 🚀 Importing as JS module is 100% reliable for Vercel
-import { feedbackData } from "../data/domainSubdomainFeedback.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log(`[Feedback Utils] SUCCESS: Data loaded via direct import. Total roles: ${Object.keys(feedbackData).length}`);
+let feedbackData = {};
+try {
+    const pathsToTry = [
+        path.join(process.cwd(), "src", "data", "domainSubdomainFeedback.json"),
+        path.join(process.cwd(), "data", "domainSubdomainFeedback.json"),
+        path.resolve(__dirname, "../../src/data/domainSubdomainFeedback.json"),
+        path.resolve(__dirname, "../data/domainSubdomainFeedback.json")
+    ];
+
+    let jsonPath = null;
+    for (const p of pathsToTry) {
+        if (fs.existsSync(p)) {
+            jsonPath = p;
+            break;
+        }
+    }
+
+    if (jsonPath) {
+        const rawContent = fs.readFileSync(jsonPath, 'utf8');
+        feedbackData = JSON.parse(rawContent);
+        console.log(`[Feedback Utils] SUCCESS: Loaded data from ${jsonPath}`);
+    } else {
+        console.error(`[Feedback Utils] ERROR: JSON not found. Paths checked: ${pathsToTry.join(', ')}`);
+        console.error(`__dirname: ${__dirname}, cwd: ${process.cwd()}`);
+    }
+} catch (error) {
+    console.error(`[Feedback Utils] CRITICAL: ${error.message}`);
+}
+
 
 /**
  * Maps a numeric score (0-100) to the corresponding feedback level
@@ -47,11 +73,11 @@ export const getSubdomainFeedback = (subdomainName, score, role) => {
 
     const roleData = feedbackData[targetRoleKey];
     if (!roleData) {
-        console.error(`[Feedback] No role data found for role: ${reqRole}`);
+        console.error(`[Feedback] No role data found in JSON for role: ${reqRole}. Status: ${Object.keys(feedbackData).length} roles in DB.`);
         return null;
     }
 
-    // 🔗 Alias Mapping for inconsistent naming (Question vs Feedback Sheet)
+    // ≡ƒöù Alias Mapping for inconsistent naming (Question vs Feedback Sheet)
     const aliases = {
         "mindsetadaptability": ["mindsetconfidenceandchangereadiness", "mindsetconfidenceandchangereadiness", "mindsetconfidencechangereadiness", "adaptability"],
         "mindsetconfidenceandchangereadiness": ["mindsetadaptability", "mindsetconfidenceandchangereadiness", "mindsetconfidencechangereadiness", "adaptability"],
@@ -72,18 +98,27 @@ export const getSubdomainFeedback = (subdomainName, score, role) => {
         }
     }
 
-    // 3. Global Fallback: If not found in current role, try in 'leader' role
+    // 3. Global Fallback: If not found in current role, try in 'leader' role (it has most subdomains)
     if (!subdomainKey && targetRoleKey !== 'leader') {
         const leaderData = feedbackData['leader'] || {};
         subdomainKey = Object.keys(leaderData).find(k => robustNormalize(k) === normSubdomain);
         if (subdomainKey) {
+            console.log(`[Feedback] Fallback used leader data for sub: "${subdomainName}" for role: "${targetRoleKey}"`);
             const fb = leaderData[subdomainKey]?.[level];
             return fb || null;
         }
     }
 
     const subdomainData = roleData[subdomainKey];
-    if (!subdomainData) return null;
+    if (!subdomainData) {
+        console.warn(`[Feedback] Missing: Role[${targetRoleKey}] Sub[${subdomainName}] (Norm: ${normSubdomain})`);
+        return null;
+    }
 
-    return subdomainData[level] || null;
+    const result = subdomainData[level] || null;
+    if (!result) {
+        console.warn(`[Feedback] Missing Level: Role[${targetRoleKey}] Sub[${subdomainKey}] Level[${level}]`);
+    }
+
+    return result;
 };
