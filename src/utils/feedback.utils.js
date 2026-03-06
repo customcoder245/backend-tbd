@@ -1,8 +1,8 @@
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-// 🚀 Direct import is much more reliable for Vercel bundling
-import feedbackData from "../data/domainSubdomainFeedback.json" assert { type: "json" };
+// 🚀 Importing as JS module is 100% reliable for Vercel
+import feedbackData from "../data/domainSubdomainFeedback.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
