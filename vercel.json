@@ -1,14 +1,20 @@
 {
   "version": 2,
-  "functions": {
-    "src/index.js": {
-      "runtime": "@vercel/node"
-    }
-  },
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "src/index.js"
+      "src": "src/index.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "src/data/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/index.js"
     }
   ]
 }
