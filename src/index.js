@@ -18,7 +18,7 @@ if (process.env.NODE_ENV !== 'production') {
  
 connectDB()
     .then(async () => {
-        // --- ΓÜÖ∩╕Å DATABASE CLEANUP (FIXES 500 ERROR) ---
+        // --- DATABASE CLEANUP ---
         // This drops the 'invitationId' unique index that prevents recurring assessments
         try {
             const db = mongoose.connection.db;
@@ -28,15 +28,11 @@ connectDB()
  
             if (hasInvitationIndex) {
                 await collection.dropIndex('invitationId_1');
-                console.log("Γ£à Fixed: Removed unique constraint from invitationId.");
+                console.log("Fixed: Removed unique constraint from invitationId.");
             }
         } catch (err) {
-            console.log("ΓÜá∩╕Å Index cleanup status:", err.message);
+            console.log("Index cleanup status:", err.message);
         }
- 
-        app.listen(process.env.PORT || 3000, () => {
-            console.log(`Server is running at port : ${process.env.PORT}`);
-        });
  
         // Run the cron job to clean expired users every minute
         cron.schedule('* * * * *', async () => {

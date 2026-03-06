@@ -7,8 +7,7 @@ import feedbackData from "../data/domainSubdomainFeedback.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log(`[Feedback Utils] SUCCESS: Data loaded via direct import. Total roles: ${Object.keys(feedbackData).length}`);
-
+console.log(`[Feedback Utils] Data loaded. Total roles: ${Object.keys(feedbackData || {}).length}`);
 
 /**
  * Maps a numeric score (0-100) to the corresponding feedback level
@@ -31,24 +30,24 @@ const robustNormalize = (str) => {
  * Retrieves the matching insight for a given subdomain, score, and role
  */
 export const getSubdomainFeedback = (subdomainName, score, role) => {
-    if (!subdomainName) return null;
+    if (!subdomainName || !feedbackData) return null;
 
     const level = getLevelFromScore(score);
     const normSubdomain = robustNormalize(subdomainName);
 
     // Map roles correctly
-    let reqRole = (role || 'leader').toLowerCase().trim();
-    if (reqRole === 'superadmin') reqRole = 'admin';
-    const normReqRole = robustNormalize(reqRole);
+    let normalizedRoleStr = (role || 'leader').toLowerCase().trim();
+    if (normalizedRoleStr === 'superadmin') normalizedRoleStr = 'admin';
+    const normRole = robustNormalize(normalizedRoleStr);
 
-    // 1. Role Lookup (Match exactly or find first role if only 1 exists)
-    const targetRoleKey = Object.keys(feedbackData).find(k => robustNormalize(k) === normReqRole) ||
+    // 1. Role Lookup
+    const targetRoleKey = Object.keys(feedbackData).find(k => robustNormalize(k) === normRole) ||
         Object.keys(feedbackData).find(k => robustNormalize(k) === 'leader') ||
         Object.keys(feedbackData)[0];
 
     const roleData = feedbackData[targetRoleKey];
     if (!roleData) {
-        console.error(`[Feedback] No role data found in JSON for role: ${reqRole}. Status: ${Object.keys(feedbackData).length} roles in DB.`);
+        console.warn(`[Feedback] No role data for "${normRole}" or fallback "leader"`);
         return null;
     }
 
