@@ -1,13 +1,12 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-// 🚀 Direct import for 100% reliability on Vercel
+// 🚀 Importing as JS module is 100% reliable for Vercel
 import { feedbackData } from "../data/domainSubdomainFeedback.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Log status on startup
 console.log(`[Feedback Utils] SUCCESS: Data loaded via direct import. Total roles: ${Object.keys(feedbackData).length}`);
 
 /**
