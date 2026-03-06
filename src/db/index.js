@@ -1,6 +1,12 @@
 import mongoose from "mongoose";
 
 const connectDB = async () => {
+  // If already connected, do not create a new connection or pool
+  if (mongoose.connection.readyState >= 1) {
+    console.log("MongoDB is already connected");
+    return;
+  }
+
   try {
     await mongoose.connect(process.env.MONGODB_URL, {
       maxPoolSize: 10,
