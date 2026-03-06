@@ -1,38 +1,13 @@
 import path from "path";
-import { fileURLToPath } from "url";
 import fs from "fs";
+import { fileURLToPath } from "url";
+// 🚀 Direct import is much more reliable for Vercel bundling
+import feedbackData from "../data/domainSubdomainFeedback.json" assert { type: "json" };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let feedbackData = {};
-try {
-    const pathsToTry = [
-        path.join(process.cwd(), "src", "data", "domainSubdomainFeedback.json"),
-        path.join(process.cwd(), "data", "domainSubdomainFeedback.json"),
-        path.resolve(__dirname, "../../src/data/domainSubdomainFeedback.json"),
-        path.resolve(__dirname, "../data/domainSubdomainFeedback.json")
-    ];
-
-    let jsonPath = null;
-    for (const p of pathsToTry) {
-        if (fs.existsSync(p)) {
-            jsonPath = p;
-            break;
-        }
-    }
-
-    if (jsonPath) {
-        const rawContent = fs.readFileSync(jsonPath, 'utf8');
-        feedbackData = JSON.parse(rawContent);
-        console.log(`[Feedback Utils] SUCCESS: Loaded data from ${jsonPath}`);
-    } else {
-        console.error(`[Feedback Utils] ERROR: JSON not found. Paths checked: ${pathsToTry.join(', ')}`);
-        console.error(`__dirname: ${__dirname}, cwd: ${process.cwd()}`);
-    }
-} catch (error) {
-    console.error(`[Feedback Utils] CRITICAL: ${error.message}`);
-}
+console.log(`[Feedback Utils] SUCCESS: Data loaded via direct import. Total roles: ${Object.keys(feedbackData).length}`);
 
 
 /**
