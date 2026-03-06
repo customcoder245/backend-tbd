@@ -231,13 +231,14 @@ export const submitAssessment = async (req, res) => {
     }
     console.log(`[Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: ${user.role}`);
 
+    // 🔥 4.5 Link to User record for easier access from dashboard
+    user.lastAssessmentScore = scores.overall;
+    user.lastAssessmentClassification = classification;
+
+
     // Assign the fully-built scores object (with feedback already included)
     assessment.scores = scores;
     assessment.classification = classification;
-
-    // 🏆 Also Store in User record for easy dashboard access
-    user.lastAssessmentScore = scores.overall;
-    user.lastAssessmentClassification = classification;
 
     // ⚠️ Tell Mongoose the nested Map changed so it persists correctly
     assessment.markModified('scores');
@@ -257,7 +258,13 @@ export const submitAssessment = async (req, res) => {
       }),
       user.save()
     ]);
-    console.log(`[Assessment Submission] Assessment ${assessmentId} saved and snapshot created.`);
+    console.log(`[Assessment Submission] Assessment ${assessmentId} saved and snapshot created. Linked to userId: ${userId}`);
+
+    return res.status(200).json({
+      message: "Assessment submitted successfully",
+      submittedAssessment
+    });
+
 
     // --- DYNAMIC NOTIFICATIONS (Fire & Forget to make API fast) ---
     // 1. Notify the user
