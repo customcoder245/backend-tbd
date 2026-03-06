@@ -1,39 +1,14 @@
-﻿import path from "path";
+import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+// 🚀 Direct import for 100% reliability on Vercel
+import { feedbackData } from "../data/domainSubdomainFeedback.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let feedbackData = {};
-try {
-    const pathsToTry = [
-        path.join(process.cwd(), "src", "data", "domainSubdomainFeedback.json"),
-        path.join(process.cwd(), "data", "domainSubdomainFeedback.json"),
-        path.resolve(__dirname, "../../src/data/domainSubdomainFeedback.json"),
-        path.resolve(__dirname, "../data/domainSubdomainFeedback.json")
-    ];
-
-    let jsonPath = null;
-    for (const p of pathsToTry) {
-        if (fs.existsSync(p)) {
-            jsonPath = p;
-            break;
-        }
-    }
-
-    if (jsonPath) {
-        const rawContent = fs.readFileSync(jsonPath, 'utf8');
-        feedbackData = JSON.parse(rawContent);
-        console.log(`[Feedback Utils] SUCCESS: Loaded data from ${jsonPath}`);
-    } else {
-        console.error(`[Feedback Utils] ERROR: JSON not found. Paths checked: ${pathsToTry.join(', ')}`);
-        console.error(`__dirname: ${__dirname}, cwd: ${process.cwd()}`);
-    }
-} catch (error) {
-    console.error(`[Feedback Utils] CRITICAL: ${error.message}`);
-}
-
+// Log status on startup
+console.log(`[Feedback Utils] SUCCESS: Data loaded via direct import. Total roles: ${Object.keys(feedbackData).length}`);
 
 /**
  * Maps a numeric score (0-100) to the corresponding feedback level
@@ -77,7 +52,7 @@ export const getSubdomainFeedback = (subdomainName, score, role) => {
         return null;
     }
 
-    // ≡ƒöù Alias Mapping for inconsistent naming (Question vs Feedback Sheet)
+    // 🔗 Alias Mapping for inconsistent naming (Question vs Feedback Sheet)
     const aliases = {
         "mindsetadaptability": ["mindsetconfidenceandchangereadiness", "mindsetconfidenceandchangereadiness", "mindsetconfidencechangereadiness", "adaptability"],
         "mindsetconfidenceandchangereadiness": ["mindsetadaptability", "mindsetconfidenceandchangereadiness", "mindsetconfidencechangereadiness", "adaptability"],
