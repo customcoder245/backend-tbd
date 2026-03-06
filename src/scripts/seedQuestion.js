@@ -89,7 +89,7 @@ const questions = [
         "label": "I’m unsure what to do and feel left to figure it out on my own.",
         "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -112,7 +112,7 @@ const questions = [
         "label": "I see change as disruptive and mostly negative.",
         "insightPrompt": "What helps or hinders adaptability (learning support, clarity, confidence, resilience) in day-to-day work?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -219,7 +219,7 @@ const questions = [
         "label": "I’m expected to cope without changes or support.",
         "insightPrompt": "What conditions strengthen or weaken psychological health & safety (speaking up, respect, workload stress)?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -314,7 +314,7 @@ const questions = [
         "label": "Tensions linger and problems are avoided or handled indirectly.",
         "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -337,7 +337,7 @@ const questions = [
         "label": "Feedback feels unclear, harsh, or is rarely given.",
         "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -432,7 +432,7 @@ const questions = [
         "label": "Barriers remain and I’m expected to manage them on my own.",
         "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -455,7 +455,7 @@ const questions = [
         "label": "Effort and contributions often go unnoticed.",
         "insightPrompt": "Where are relationships strongest/weakest (trust, communication, conflict, feedback) and what would improve them?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -538,7 +538,7 @@ const questions = [
         "label": "Priorities change frequently and feel overwhelming.",
         "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -561,7 +561,7 @@ const questions = [
         "label": "Work expectations often exceed capacity.",
         "insightPrompt": "Where are unclear or shifting priorities affecting focus, workload, or performance?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -632,7 +632,7 @@ const questions = [
         "label": "Processes frequently require clarification.",
         "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -655,7 +655,7 @@ const questions = [
         "label": "Expectations are often unclear or assumed.",
         "insightPrompt": "Where are unclear roles, communication gaps, or workflow breakdowns slowing progress?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -726,7 +726,7 @@ const questions = [
         "label": "Support is slow or difficult to access.",
         "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -749,7 +749,7 @@ const questions = [
         "label": "Work continues regardless of strain.",
         "insightPrompt": "Where are capacity, tools, or support gaps affecting your ability to perform effectively?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -808,7 +808,7 @@ const questions = [
         "label": "I rely mostly on experience or guesswork.",
         "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -831,7 +831,7 @@ const questions = [
         "label": "Much work is still manual and repetitive.",
         "insightPrompt": "Where do data access or automation gaps limit better performance or decision-making?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -890,7 +890,7 @@ const questions = [
         "label": "Coordination depends mostly on email or chats.",
         "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -913,7 +913,7 @@ const questions = [
         "label": "Information is scattered or siloed.",
         "insightPrompt": "Where do digital tools support or hinder collaboration and visibility?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -972,7 +972,7 @@ const questions = [
         "label": "I prefer sticking with familiar methods.",
         "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -995,7 +995,7 @@ const questions = [
         "label": "Support is limited or inconsistent.",
         "insightPrompt": "Where is hesitation or uncertainty slowing digital adoption?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1054,7 +1054,7 @@ const questions = [
         "label": "Systems require frequent workarounds.",
         "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1077,7 +1077,7 @@ const questions = [
         "label": "I mostly learn systems on my own.",
         "insightPrompt": "Where do system usability or skill gaps create friction in your daily work?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1160,7 +1160,7 @@ const questions = [
         "label": "Announced and we move on without support.",
         "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1183,7 +1183,7 @@ const questions = [
         "label": "As failures to avoid.",
         "insightPrompt": "What’s preventing stronger adaptability (skills, clarity, time, support, confidence) and what would help?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1266,7 +1266,7 @@ const questions = [
         "label": "I respond defensively or delay addressing it.",
         "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1289,7 +1289,7 @@ const questions = [
         "label": "Mistakes often trigger blame or embarrassment.",
         "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1384,7 +1384,7 @@ const questions = [
         "label": "Decisions feel inconsistent or influenced by politics.",
         "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1407,7 +1407,7 @@ const questions = [
         "label": "Some people feel excluded or overlooked.",
         "insightPrompt": "Where is psychological health & safety most at risk (speaking up, respect, stress) and why?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1574,7 +1574,7 @@ const questions = [
         "label": "Work accumulates and we try to do everything.",
         "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1597,7 +1597,7 @@ const questions = [
         "label": "Priorities change often or are interpreted differently across people.",
         "insightPrompt": "Where is priority overload or unclear trade-offs creating rework, delays, or stress—and what should be stopped, sequenced, or clarified?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1668,7 +1668,7 @@ const questions = [
         "label": "Work often stalls due to unclear ownership, approvals, or rework.",
         "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1691,7 +1691,7 @@ const questions = [
         "label": "Decisions are unclear and frequently require escalation to move forward.",
         "insightPrompt": "Where are handoffs, decision rights, or unclear ownership slowing execution—and what processes or roles need to be clarified?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1762,7 +1762,7 @@ const questions = [
         "label": "We absorb extra work until stress or quality issues force changes.",
         "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1785,7 +1785,7 @@ const questions = [
         "label": "Resources are fixed, and priorities compete without reallocation.",
         "insightPrompt": "Where are capacity, skills, budget, or tools misaligned to expectations—and what reallocations or protections are needed to stabilize delivery?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1844,7 +1844,7 @@ const questions = [
         "label": "Data is hard to access, inconsistent, or rarely used in decisions.",
         "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1867,7 +1867,7 @@ const questions = [
         "label": "Automation/AI is discussed, but we haven’t translated it into practical pilots.",
         "insightPrompt": "Where do data quality, access, or literacy gaps limit decision-making—and what automation/AI opportunities are realistic in the next 6–12 months?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1926,7 +1926,7 @@ const questions = [
         "label": "Information is scattered across emails/chats/files; people often ask for the latest version.",
         "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -1949,7 +1949,7 @@ const questions = [
         "label": "Coordination relies on manual follow-ups and individual effort.",
         "insightPrompt": "Where do collaboration tools help or hinder execution (visibility, coordination, decision capture)—and what would reduce meeting/email load?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2008,7 +2008,7 @@ const questions = [
         "label": "We delay adoption until solutions feel fully proven and low-risk.",
         "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2031,7 +2031,7 @@ const questions = [
         "label": "People are expected to adapt quickly with limited time or support.",
         "insightPrompt": "Where does hesitation, risk aversion, or change fatigue slow digital adoption—and what support or reinforcement would increase confidence?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2090,7 +2090,7 @@ const questions = [
         "label": "Core systems are confusing or slow, so people avoid them when possible.",
         "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2113,7 +2113,7 @@ const questions = [
         "label": "Training/support is inconsistent; people mostly learn by trial and error.",
         "insightPrompt": "Where do system/tool usability, integration, or skill gaps create workarounds—and what would most improve proficiency and efficiency?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2664,7 +2664,7 @@ const questions = [
         "label": "Collaboration is difficult due to silos/politics/unclear expectations.",
         "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2687,7 +2687,7 @@ const questions = [
         "label": "Collaboration is difficult due to silos/politics/unclear expectations.",
         "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2710,7 +2710,7 @@ const questions = [
         "label": "People feel like execution matters more than people.",
         "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2733,7 +2733,7 @@ const questions = [
         "label": "People feel like execution matters more than people.",
         "insightPrompt": "Where are trust, collaboration, engagement, and cross-team relationships strong/weak—and why?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2924,7 +2924,7 @@ const questions = [
         "label": "People experience leadership communication as mixed or conflicting.",
         "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2947,7 +2947,7 @@ const questions = [
         "label": "People experience leadership communication as mixed or conflicting.",
         "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2970,7 +2970,7 @@ const questions = [
         "label": "Listening happens, but follow-through is inconsistent.",
         "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -2993,7 +2993,7 @@ const questions = [
         "label": "Listening happens, but follow-through is inconsistent.",
         "insightPrompt": "How consistent and credible is leadership communication (clarity, alignment, empathy, visibility) across the org?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3064,7 +3064,7 @@ const questions = [
         "label": "We add new priorities without removing existing ones.",
         "insightPrompt": "Is priority overload driving operational instability?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3087,7 +3087,7 @@ const questions = [
         "label": "We add new priorities without removing existing ones.",
         "insightPrompt": "Is priority overload driving operational instability?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3158,7 +3158,7 @@ const questions = [
         "label": "Work frequently stalls due to unclear ownership or handoffs.",
         "insightPrompt": "Are handoff breakdowns creating systemic drag?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3181,7 +3181,7 @@ const questions = [
         "label": "Work frequently stalls due to unclear ownership or handoffs.",
         "insightPrompt": "Are handoff breakdowns creating systemic drag?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3252,7 +3252,7 @@ const questions = [
         "label": "Resource allocation changes only after problems escalate.",
         "insightPrompt": "Is the organization proactive or reactive in resource deployment?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3275,7 +3275,7 @@ const questions = [
         "label": "Resource allocation changes only after problems escalate.",
         "insightPrompt": "Is the organization proactive or reactive in resource deployment?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3346,7 +3346,7 @@ const questions = [
         "label": "Automation and AI are discussed but rarely embedded in workflows.",
         "insightPrompt": "Is digital transformation operationalized or aspirational?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3369,7 +3369,7 @@ const questions = [
         "label": "Automation and AI are discussed but rarely embedded in workflows.",
         "insightPrompt": "Is digital transformation operationalized or aspirational?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3440,7 +3440,7 @@ const questions = [
         "label": "We rely heavily on email and manual coordination to move work forward.",
         "insightPrompt": "Are collaboration platforms optimized or under-leveraged?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3463,7 +3463,7 @@ const questions = [
         "label": "We rely heavily on email and manual coordination to move work forward.",
         "insightPrompt": "Are collaboration platforms optimized or under-leveraged?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3534,7 +3534,7 @@ const questions = [
         "label": "We delay adoption until solutions are fully proven elsewhere.",
         "insightPrompt": "Is digital risk tolerance aligned with strategic ambition?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3557,7 +3557,7 @@ const questions = [
         "label": "We delay adoption until solutions are fully proven elsewhere.",
         "insightPrompt": "Is digital risk tolerance aligned with strategic ambition?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3628,7 +3628,7 @@ const questions = [
         "label": "Our systems are fragmented and require manual workarounds.",
         "insightPrompt": "Is system architecture enabling or constraining scale?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   },
   {
@@ -3651,7 +3651,7 @@ const questions = [
         "label": "Our systems are fragmented and require manual workarounds.",
         "insightPrompt": "Is system architecture enabling or constraining scale?"
       },
-      "higherValueOption": "A"
+      "higherValueOption": "B"
     }
   }
 ];

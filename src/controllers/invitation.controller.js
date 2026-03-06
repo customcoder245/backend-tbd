@@ -61,7 +61,7 @@ export const sendInvitation = async (req, res) => {
         const isEmployee = role === "employee";
         const tokenExpiry = isEmployee ? "7d" : "1h";
         const dbExpiry = isEmployee
-            ? Date.now() + 7 * 24 * 60 * 60 * 1000
+            ? Date.now() + 3 * 24 * 60 * 60 * 1000
             : Date.now() + 60 * 60 * 1000;
 
         const token = jwt.sign(
