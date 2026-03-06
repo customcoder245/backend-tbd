@@ -296,7 +296,7 @@ export const sendInvitationEmail = async (email, link, role, orgName) => {
       ? "We're excited to have you complete your confidential professional assessment."
       : "You have been assigned administrative access to help manage your organization's talent growth."}
     </p>
-    <div style="text-align: center; margin: 40px 0;">
+    <div style="margin: 40px 0;">
       <a href="${link}" style="display: inline-block; padding: 12px 28px; background: rgba(68, 140, 210, 0.05); color: #448cd2; text-decoration: none; border-radius: 32px; font-size: 16px; font-weight: 600; border: 1px solid #448cd2; cursor: pointer;">
         ${buttonText}
       </a>
