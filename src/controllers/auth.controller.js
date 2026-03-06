@@ -106,6 +106,7 @@ export const verifyEmail = async (req, res) => {
       sameSite: isProduction ? "none" : "lax",
       maxAge: 15 * 60 * 1000,
     });
+    
 
     const frontendUrl = process.env.FRONTEND_URL.endsWith("/")
       ? process.env.FRONTEND_URL.slice(0, -1)
