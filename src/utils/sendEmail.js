@@ -9,11 +9,11 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-const LOGO_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775850/talent-by-design/email-assets/logo.svg';
-const FOOTER_LOGO_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775853/talent-by-design/email-assets/footer-logo.svg';
-const FB_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775855/talent-by-design/email-assets/fb.svg';
-const INSTA_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775857/talent-by-design/email-assets/insta.svg';
-const TWITTER_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775859/talent-by-design/email-assets/twitter.svg';
+const LOGO_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775850/talent-by-design/email-assets/logo.png';
+const FOOTER_LOGO_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775853/talent-by-design/email-assets/footer-logo.png';
+const FB_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775855/talent-by-design/email-assets/fb.png';
+const INSTA_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775857/talent-by-design/email-assets/insta.png';
+const TWITTER_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775859/talent-by-design/email-assets/twitter.png';
 const LINKEDIN_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775861/talent-by-design/email-assets/linkedin.png';
 const HERO_IMAGE_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775862/talent-by-design/email-assets/hero-banner.png';
 
@@ -103,29 +103,34 @@ const getEmailWrapper = (firstName, content) => `<!DOCTYPE html PUBLIC "-//W3C//
             <tr>
               <td
                 align="left"
-                valign="middle"
-                style="
-                  padding: 80px 24px;
-                  background-color: #448cd2;
-                  background-image: url('${HERO_IMAGE_URL}');
-                  background-size: contain;
-                  background-position: right;
-                  background-repeat: no-repeat;
-                "
+                bgcolor="#448cd2"
+                style="padding: 0; background-color: #448cd2;"
               >
-                <div>
-                  <h1
-                    style="
-                      color: #ffffff;
-                      font-size: 28px;
-                      font-weight: bold;
-                      margin: 0;
-                      line-height: 40px;
-                    "
-                  >
-                    Hi ${firstName || 'there'}!
-                  </h1>
-                </div>
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td align="left" valign="middle" style="padding: 60px 24px;">
+                      <h1
+                        style="
+                          color: #ffffff;
+                          font-size: 28px;
+                          font-weight: bold;
+                          margin: 0;
+                          line-height: 40px;
+                        "
+                      >
+                        Hi ${firstName || 'there'}!
+                      </h1>
+                    </td>
+                    <td align="right" valign="bottom" style="padding: 0;">
+                      <img
+                        src="${HERO_IMAGE_URL}"
+                        alt="Join Us"
+                        width="250"
+                        style="display: block; width: 250px; max-width: 100%; border: 0;"
+                      />
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
  
@@ -185,6 +190,9 @@ const getEmailWrapper = (firstName, content) => `<!DOCTYPE html PUBLIC "-//W3C//
                                     <img
                                       src="${FB_ICON_URL}"
                                       alt="Fb"
+                                      width="24"
+                                      height="24"
+                                      style="display: block; width: 24px; height: 24px; border: 0;"
                                     />
                                   </a>
                                 </td>
@@ -193,6 +201,9 @@ const getEmailWrapper = (firstName, content) => `<!DOCTYPE html PUBLIC "-//W3C//
                                     <img
                                       src="${INSTA_ICON_URL}"
                                       alt="Insta"
+                                      width="24"
+                                      height="24"
+                                      style="display: block; width: 24px; height: 24px; border: 0;"
                                     />
                                   </a>
                                 </td>
@@ -201,6 +212,9 @@ const getEmailWrapper = (firstName, content) => `<!DOCTYPE html PUBLIC "-//W3C//
                                     <img
                                       src="${TWITTER_ICON_URL}"
                                       alt="Twitter"
+                                      width="24"
+                                      height="24"
+                                      style="display: block; width: 24px; height: 24px; border: 0;"
                                     />
                                   </a>
                                 </td>
@@ -209,6 +223,9 @@ const getEmailWrapper = (firstName, content) => `<!DOCTYPE html PUBLIC "-//W3C//
                                     <img
                                       src="${LINKEDIN_ICON_URL}"
                                       alt="LinkedIn"
+                                      width="24"
+                                      height="24"
+                                      style="display: block; width: 24px; height: 24px; border: 0;"
                                     />
                                   </a>
                                 </td>
