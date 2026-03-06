@@ -7,14 +7,25 @@ const __dirname = path.dirname(__filename);
 
 let feedbackData = {};
 try {
-    const jsonPath = path.resolve(__dirname, "../data/domainSubdomainFeedback.json");
-    console.log(`[Feedback Utils] Loading data from: ${jsonPath}`);
-    if (fs.existsSync(jsonPath)) {
+    const relativePath = "../data/domainSubdomainFeedback.json";
+    const dirPath = path.resolve(__dirname, relativePath);
+    const cwdPath = path.join(process.cwd(), "src/data/domainSubdomainFeedback.json");
+
+    let jsonPath = null;
+
+    if (fs.existsSync(dirPath)) {
+        jsonPath = dirPath;
+    } else if (fs.existsSync(cwdPath)) {
+        jsonPath = cwdPath;
+    }
+
+    if (jsonPath) {
+        console.log(`[Feedback Utils] Loading data from: ${jsonPath}`);
         const rawContent = fs.readFileSync(jsonPath, 'utf8');
         feedbackData = JSON.parse(rawContent);
         console.log(`[Feedback Utils] Successfully loaded ${Object.keys(feedbackData).length} roles.`);
     } else {
-        console.error(`[Feedback Utils] JSON file not found at ${jsonPath}`);
+        console.error(`[Feedback Utils] JSON file not found. Checked: \n1. ${dirPath}\n2. ${cwdPath}`);
     }
 } catch (error) {
     console.error(`[Feedback Utils] CRITICAL: Failed to load feedback JSON: ${error.message}`);
