@@ -34,9 +34,11 @@ connectDB()
             console.log("⚠️ Index cleanup status:", err.message);
         }
  
-        app.listen(process.env.PORT || 3000, () => {
-            console.log(`Server is running at port : ${process.env.PORT}`);
-        });
+        if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+            app.listen(process.env.PORT || 3000, () => {
+                console.log(`Server is running at port : ${process.env.PORT}`);
+            });
+        }
  
         // Run the cron job to clean expired users every minute
         cron.schedule('* * * * *', async () => {
@@ -56,3 +58,5 @@ connectDB()
     .catch((err) => {
         console.log("MONGO db connection failed !!! ", err);
     });
+
+export default app;
