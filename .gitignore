@@ -44,4 +44,4 @@ coverage/
 # =========================
 # MongoDB local data (ONLY if used)
 # =========================
-data/
+/data/

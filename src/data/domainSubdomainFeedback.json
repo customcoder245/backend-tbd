@@ -1,0 +1,587 @@
+{
+  "admin": {
+    "Psychological Health & Safety": {
+      "Low": {
+        "insight": "Psychological Health & Safety is currently generating friction and variability. In Psychological Safety terms, this indicates the fundamentals are not yet consistently experienced across teams. Priority is to rebuild confidence by strengthening Awareness/Desire and demonstrating follow‑through.",
+        "modelDescription": "This may indicate limited psychological safety, where individuals hesitate to speak up, raise concerns, or challenge ideas openly.",
+        "coachingTips": "STABILIZE & REBUILD: Psychological Health & Safety\r\nPsychological Safety focus — restore trust, speak‑up and constructive conflict habits.\r\n\r\nADKAR Focus (Awareness/Desire trigger):\r\n• Awareness: run a confidential speak‑up pulse to quantify where silence is occurring.\r\n• Desire: senior leaders commit publicly to ‘raise issues early’ and protect candor.\r\n• Knowledge: equip leaders with micro‑behaviours that build safety and close loops.\r\n• Ability: implement a weekly issues‑to‑action ritual with owners and timelines.\r\n• Reinforcement: publish quarterly ‘what we heard / what we changed’ updates.",
+        "recommendedPrograms": "Psychological Health & Safety – Recommended OCM Tactics:\r\n• Leadership Trust Reset\r\n• Speak‑Up Pulse + Close‑Loop Plan\r\n• EI & Coaching Micro‑Skills Lab\r\n• Issues‑to‑Action Ritual Sprint\r\n• Safety/Trust KPIs in QBR",
+        "phaseIndicator": "Awareness/Desire"
+      },
+      "High": {
+        "insight": "Psychological Health & Safety is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects a culture where individuals feel safe to contribute ideas, voice concerns, and engage in healthy dialogue without fear of negative consequences.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Psychological Health & Safety\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain executive modeling in visible forums and onboarding.\r\n• Knowledge: codify safety rituals into playbooks and leader standards.\r\n• Ability: replicate practices enterprise‑wide with coaching support.\r\n• Reinforcement: shift to leading indicators (innovation rate, learning cycles).",
+        "recommendedPrograms": "Psychological Health & Safety – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Mindset & Adaptability": {
+      "Medium": {
+        "insight": "Mindset & Adaptability is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This may indicate a generally adaptive mindset, though consistency may fluctuate during sustained change or complexity.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Mindset & Adaptability\r\nPsychological Safety focus — standardize coaching/feedback routines and leader consistency.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: clarify what’s changing vs. stable to reduce uncertainty.\r\n• Desire: empower managers to protect focus and reduce churn.\r\n• Knowledge: enable leaders with change planning tools.\r\n• Ability: standardize readiness checks and change routines.\r\n• Reinforcement: retire low‑value work quarterly.",
+        "recommendedPrograms": "Mindset & Adaptability – Recommended OCM Tactics:\r\n• Coaching Conversations Mastery\r\n• Peer Feedback Circles\r\n• Standard Retrospectives (AARs)\r\n• Manager Sponsor Enablement\r\n• Quarterly Safety Pulse",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Mindset & Adaptability is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This suggests resilience, openness to change, and a growth-oriented mindset that supports learning and continuous improvement.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Mindset & Adaptability\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: maintain discipline on capacity trade‑offs.\r\n• Knowledge: institutionalize change leadership capability.\r\n• Ability: scale readiness practices across the portfolio.\r\n• Reinforcement: use performance + wellbeing indicators together.",
+        "recommendedPrograms": "Mindset & Adaptability – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Relational & Emotional Intelligence": {
+      "Medium": {
+        "insight": "Relational & Emotional Intelligence is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests generally healthy relationships, though emotional awareness or conflict management may be inconsistent.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Relational & Emotional Intelligence\r\nPsychological Safety focus — standardize coaching/feedback routines and leader consistency.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce feedback as an operating rhythm for execution quality.\r\n• Desire: set manager expectations for coaching routines and clarity.\r\n• Knowledge: micro‑learning on recognition and corrective feedback.\r\n• Ability: observation + feedback loops (shadowing/skip‑levels).\r\n• Reinforcement: quarterly calibration tied to outcomes.",
+        "recommendedPrograms": "Relational & Emotional Intelligence – Recommended OCM Tactics:\r\n• Coaching Conversations Mastery\r\n• Peer Feedback Circles\r\n• Standard Retrospectives (AARs)\r\n• Manager Sponsor Enablement\r\n• Quarterly Safety Pulse",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Relational & Emotional Intelligence is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects strong interpersonal awareness, empathy, and the ability to manage relationships and tensions constructively.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Relational & Emotional Intelligence\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain a coaching culture and celebrate it.\r\n• Knowledge: build internal coaching capability (train‑the‑trainer).\r\n• Ability: scale routines via communities of practice.\r\n• Reinforcement: link to talent outcomes (mobility, retention).",
+        "recommendedPrograms": "Relational & Emotional Intelligence – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Prioritization": {
+      "Medium": {
+        "insight": "Prioritization is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests priorities are defined, though sequencing or resource alignment may occasionally create strain.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Prioritization\r\nStrategic Alignment focus — standardize planning, OKR and prioritization cadences.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: keep capacity constraints visible and explicit.\r\n• Desire: shared ownership for trade‑offs across functions.\r\n• Knowledge: strengthen scoring discipline and criteria.\r\n• Ability: monthly portfolio health checks.\r\n• Reinforcement: recognize teams that stop low‑value work.",
+        "recommendedPrograms": "Prioritization – Recommended OCM Tactics:\r\n• Narrative Consistency Audit\r\n• OKR/Goal Quality Clinics\r\n• Standard Planning Cadence\r\n• Monthly Capacity & Priority Forum\r\n• Quarterly Work Retirement Review",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Workflow Clarity": {
+      "Low": {
+        "insight": "Workflow Clarity is currently generating friction and variability. In Operational Discipline terms, this indicates the fundamentals are not yet consistently experienced across teams. Priority is to rebuild confidence by strengthening Awareness/Desire and demonstrating follow‑through.",
+        "modelDescription": "This may indicate ambiguity in roles, decision rights, or cross-functional processes, creating bottlenecks or duplication.",
+        "coachingTips": "STABILIZE & REBUILD: Workflow Clarity\r\nOperational Discipline focus — establish clear ownership, governance and execution cadence.\r\n\r\nADKAR Focus (Awareness/Desire trigger):\r\n• Awareness: clarify where governance gaps create delay and risk.\r\n• Desire: align to a single operating cadence and decision forum.\r\n• Knowledge: define owners, decision rights, and escalation paths.\r\n• Ability: implement a lightweight operating rhythm.\r\n• Reinforcement: review KPIs and decisions consistently in QBRs.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Operating Rhythm Design\r\n• Decision Rights + Escalation Paths\r\n• Commitment Tracking System\r\n• Process Stabilization Workshops\r\n• KPI Scorecards in Governance",
+        "phaseIndicator": "Awareness/Desire"
+      },
+      "Medium": {
+        "insight": "Workflow Clarity is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests workflows function adequately, though integration or accountability may require refinement.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Workflow Clarity\r\nOperational Discipline focus — tighten operating rhythms and performance routines.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce decision discipline and meeting purpose.\r\n• Desire: strengthen leader participation and ownership.\r\n• Knowledge: improve meeting hygiene and decision documentation.\r\n• Ability: standardize operating rhythm across functions.\r\n• Reinforcement: quarterly governance effectiveness review.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance Effectiveness Review\r\n• Standard Operating Rhythm Rollout\r\n• Kaizen Improvement Sprints\r\n• Commitment Dashboard\r\n• Quarterly Performance Calibration",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Effective Resource Management": {
+      "Medium": {
+        "insight": "Workflow Clarity is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests workflows function adequately, though integration or accountability may require refinement.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Workflow Clarity\r\nOperational Discipline focus — tighten operating rhythms and performance routines.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce decision discipline and meeting purpose.\r\n• Desire: strengthen leader participation and ownership.\r\n• Knowledge: improve meeting hygiene and decision documentation.\r\n• Ability: standardize operating rhythm across functions.\r\n• Reinforcement: quarterly governance effectiveness review.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance Effectiveness Review\r\n• Standard Operating Rhythm Rollout\r\n• Kaizen Improvement Sprints\r\n• Commitment Dashboard\r\n• Quarterly Performance Calibration",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Data, AI & Automation Readiness": {
+      "High": {
+        "insight": "Data, AI & Automation Readiness is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects strategic use of data, analytics, and automation to inform direction and improve efficiency.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Data, AI & Automation Readiness\r\nDigital Adoption focus — scale digital advantage via playbooks and communities.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain focus on decision quality.\r\n• Knowledge: advance to predictive/what‑if thinking.\r\n• Ability: embed analytics into portfolio governance.\r\n• Reinforcement: measure outcomes and learning cycles.",
+        "recommendedPrograms": "Data, AI & Automation Readiness – Recommended OCM Tactics:\r\n• Internal Certification + Playbook\r\n• Data Fluency for Leaders\r\n• Scale Automation Patterns\r\n• Outcome Metrics Dashboard\r\n• Onboarding for New Hires",
+        "phaseIndicator": "Reinforcement"
+      },
+      "Medium": {
+        "insight": "Data, AI & Automation Readiness is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests data is used in decision-making, though integration or governance may be uneven.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Data, AI & Automation Readiness\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: clarify which KPIs matter and why.\r\n• Desire: make data use a leadership expectation.\r\n• Knowledge: analytics storytelling and interpretation for leaders.\r\n• Ability: standard KPI review cadence across teams.\r\n• Reinforcement: recognize evidence‑based decisions.",
+        "recommendedPrograms": "Data, AI & Automation Readiness – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Data Fluency for Leaders\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Digital Communication & Collaboration": {
+      "Medium": {
+        "insight": "Digital Communication & Collaboration is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests digital communication tools are functional, though effectiveness may vary across teams.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Digital Communication & Collaboration\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce expectations and the ‘why’ as tools evolve.\r\n• Desire: activate champions and create social proof through success stories.\r\n• Knowledge: advanced workflow job aids and microlearning.\r\n• Ability: optimize workflows to eliminate workarounds.\r\n• Reinforcement: adoption dashboard + recognition loop.",
+        "recommendedPrograms": "Digital Communication & Collaboration – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Advanced Workflow Microlearning\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Digital Communication & Collaboration is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects clear, structured digital communication and strong cross-functional collaboration.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Digital Communication & Collaboration\r\nDigital Adoption focus — scale digital advantage via playbooks and communities.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain champions and onboarding for new hires.\r\n• Knowledge: codify best practices and internal certification.\r\n• Ability: scale to adjacent processes and teams.\r\n• Reinforcement: shift to outcome metrics (throughput, quality, cost).",
+        "recommendedPrograms": "Digital Communication & Collaboration – Recommended OCM Tactics:\r\n• Internal Certification + Playbook\r\n• Digital CoE Governance\r\n• Scale Automation Patterns\r\n• Outcome Metrics Dashboard\r\n• Onboarding for New Hires",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Mindset, Confidence and Change Readiness": {
+      "High": {
+        "insight": "Mindset, Confidence, and Change Readiness is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects confidence, curiosity, and proactive engagement with digital transformation.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: maintain discipline on capacity trade‑offs.\r\n• Knowledge: institutionalize change leadership capability.\r\n• Ability: scale readiness practices across the portfolio.\r\n• Reinforcement: use performance + wellbeing indicators together.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      },
+      "Medium": {
+        "insight": "Mindset, Confidence, and Change Readiness is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests openness to digital change, though consistency or momentum may fluctuate.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — standardize coaching/feedback routines and leader consistency.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: clarify what’s changing vs. stable to reduce uncertainty.\r\n• Desire: empower managers to protect focus and reduce churn.\r\n• Knowledge: enable leaders with change planning tools.\r\n• Ability: standardize readiness checks and change routines.\r\n• Reinforcement: retire low‑value work quarterly.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Coaching Conversations Mastery\r\n• Peer Feedback Circles\r\n• Standard Retrospectives (AARs)\r\n• Manager Sponsor Enablement\r\n• Quarterly Safety Pulse",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Tool & System Proficiency": {
+      "Low": {
+        "insight": "Tool & System Proficiency is currently generating friction and variability. In Digital Adoption terms, this indicates the fundamentals are not yet consistently experienced across teams. Priority is to rebuild confidence by strengthening Awareness/Desire and demonstrating follow‑through.",
+        "modelDescription": "This may indicate inconsistent use of core systems or underutilization of available technology investments.",
+        "coachingTips": "STABILIZE & REBUILD: Tool & System Proficiency\r\nDigital Adoption focus — stabilize expectations and remove workflow friction.\r\n\r\nADKAR Focus (Awareness/Desire trigger):\r\n• Awareness: explain where tooling constraints are costing time/quality.\r\n• Desire: commit to standardization to reduce tool sprawl.\r\n• Knowledge: define ‘how we work’ standards for core systems.\r\n• Ability: guided migrations + floor‑walk support.\r\n• Reinforcement: quarterly audits to reduce drift.",
+        "recommendedPrograms": "Tool & System Proficiency – Recommended OCM Tactics:\r\n• Adoption Impact Assessment\r\n• Role‑Based Enablement + Job Aids\r\n• Hands‑On Adoption Labs\r\n• Super‑User Network + Office Hours\r\n• Adoption KPI Dashboard",
+        "phaseIndicator": "Awareness/Desire"
+      },
+      "Medium": {
+        "insight": "Tool & System Proficiency is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests systems are generally used effectively, though advanced capabilities may not be fully leveraged.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Tool & System Proficiency\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: confirm standardization priorities to reduce variability.\r\n• Desire: align leaders to enforce standards consistently.\r\n• Knowledge: deepen capability in key efficiency features.\r\n• Ability: workflow redesign to embed system use.\r\n• Reinforcement: quarterly drift/tool sprawl audit.",
+        "recommendedPrograms": "Tool & System Proficiency – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Advanced Workflow Microlearning\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    }
+  },
+  "employee": {
+    "Mindset & Adaptability": {
+      "High": {
+        "insight": "Mindset, Confidence, and Change Readiness is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This reflects confidence, curiosity, and proactive engagement with digital transformation.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: maintain discipline on capacity trade‑offs.\r\n• Knowledge: institutionalize change leadership capability.\r\n• Ability: scale readiness practices across the portfolio.\r\n• Reinforcement: use performance + wellbeing indicators together.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      },
+      "Medium": {
+        "insight": "Mindset, Confidence, and Change Readiness is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This suggests openness to digital change, though consistency or momentum may fluctuate.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — standardize coaching/feedback routines and leader consistency.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: clarify what’s changing vs. stable to reduce uncertainty.\r\n• Desire: empower managers to protect focus and reduce churn.\r\n• Knowledge: enable leaders with change planning tools.\r\n• Ability: standardize readiness checks and change routines.\r\n• Reinforcement: retire low‑value work quarterly.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Coaching Conversations Mastery\r\n• Peer Feedback Circles\r\n• Standard Retrospectives (AARs)\r\n• Manager Sponsor Enablement\r\n• Quarterly Safety Pulse",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Psychological Health & Safety": {
+      "Medium": {
+        "insight": "Psychological Health & Safety is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This suggests safety exists in some areas, though trust and openness may vary across teams or leadership levels.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Psychological Health & Safety\r\nPsychological Safety focus — standardize coaching/feedback routines and leader consistency.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce shared expectations for candor and no‑blame learning.\r\n• Desire: activate managers as local sponsors who model curiosity and follow‑through.\r\n• Knowledge: advanced coaching conversation and facilitation training.\r\n• Ability: standardize retrospectives/after‑action reviews for learning.\r\n• Reinforcement: track issue closure time and safety pulse quarterly.",
+        "recommendedPrograms": "Psychological Health & Safety – Recommended OCM Tactics:\r\n• Coaching Conversations Mastery\r\n• Peer Feedback Circles\r\n• Standard Retrospectives (AARs)\r\n• Manager Sponsor Enablement\r\n• Quarterly Safety Pulse",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Psychological Health & Safety is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This reflects a culture where individuals feel safe to contribute ideas, voice concerns, and engage in healthy dialogue without fear of negative consequences.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Psychological Health & Safety\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain executive modeling in visible forums and onboarding.\r\n• Knowledge: codify safety rituals into playbooks and leader standards.\r\n• Ability: replicate practices enterprise‑wide with coaching support.\r\n• Reinforcement: shift to leading indicators (innovation rate, learning cycles).",
+        "recommendedPrograms": "Psychological Health & Safety – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Relational & Emotional Intelligence": {
+      "High": {
+        "insight": "Relational & Emotional Intelligence is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This reflects strong interpersonal awareness, empathy, and the ability to manage relationships and tensions constructively.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Relational & Emotional Intelligence\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain a coaching culture and celebrate it.\r\n• Knowledge: build internal coaching capability (train‑the‑trainer).\r\n• Ability: scale routines via communities of practice.\r\n• Reinforcement: link to talent outcomes (mobility, retention).",
+        "recommendedPrograms": "Relational & Emotional Intelligence – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      },
+      "Low": {
+        "insight": "Relational & Emotional Intelligence is currently generating friction and variability. In Psychological Safety terms, this indicates the fundamentals are not yet consistently experienced across teams. Priority is to rebuild confidence by strengthening Awareness/Desire and demonstrating follow‑through.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This may indicate challenges in empathy, communication, or conflict navigation, potentially impacting collaboration and trust.",
+        "coachingTips": "STABILIZE & REBUILD: Relational & Emotional Intelligence\r\nPsychological Safety focus — restore trust, speak‑up and constructive conflict habits.\r\n\r\nADKAR Focus (Awareness/Desire trigger):\r\n• Awareness: position feedback as a performance risk, not ‘soft’ work.\r\n• Desire: commit to minimum 1:1 and quarterly check‑in cadences.\r\n• Knowledge: provide scripts/models for tough conversations.\r\n• Ability: run practice clinics and manager co‑coaching.\r\n• Reinforcement: audit completion and quality in leadership reviews.",
+        "recommendedPrograms": "Relational & Emotional Intelligence – Recommended OCM Tactics:\r\n• Leadership Trust Reset\r\n• Speak‑Up Pulse + Close‑Loop Plan\r\n• EI & Coaching Micro‑Skills Lab\r\n• Issues‑to‑Action Ritual Sprint\r\n• Safety/Trust KPIs in QBR",
+        "phaseIndicator": "Awareness/Desire"
+      },
+      "Medium": {
+        "insight": "Relational & Emotional Intelligence is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This suggests generally healthy relationships, though emotional awareness or conflict management may be inconsistent.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Relational & Emotional Intelligence\r\nPsychological Safety focus — standardize coaching/feedback routines and leader consistency.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce feedback as an operating rhythm for execution quality.\r\n• Desire: set manager expectations for coaching routines and clarity.\r\n• Knowledge: micro‑learning on recognition and corrective feedback.\r\n• Ability: observation + feedback loops (shadowing/skip‑levels).\r\n• Reinforcement: quarterly calibration tied to outcomes.",
+        "recommendedPrograms": "Relational & Emotional Intelligence – Recommended OCM Tactics:\r\n• Coaching Conversations Mastery\r\n• Peer Feedback Circles\r\n• Standard Retrospectives (AARs)\r\n• Manager Sponsor Enablement\r\n• Quarterly Safety Pulse",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Prioritization": {
+      "Medium": {
+        "insight": "Prioritization is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This suggests priorities are defined, though sequencing or resource alignment may occasionally create strain.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Prioritization\r\nStrategic Alignment focus — standardize planning, OKR and prioritization cadences.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: keep capacity constraints visible and explicit.\r\n• Desire: shared ownership for trade‑offs across functions.\r\n• Knowledge: strengthen scoring discipline and criteria.\r\n• Ability: monthly portfolio health checks.\r\n• Reinforcement: recognize teams that stop low‑value work.",
+        "recommendedPrograms": "Prioritization – Recommended OCM Tactics:\r\n• Narrative Consistency Audit\r\n• OKR/Goal Quality Clinics\r\n• Standard Planning Cadence\r\n• Monthly Capacity & Priority Forum\r\n• Quarterly Work Retirement Review",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "Low": {
+        "insight": "Prioritization is currently generating friction and variability. In Strategic Alignment terms, this indicates the fundamentals are not yet consistently experienced across teams. Priority is to rebuild confidence by strengthening Awareness/Desire and demonstrating follow‑through.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This may indicate competing priorities, unclear trade-offs, or initiative overload impacting focus and execution.",
+        "coachingTips": "STABILIZE & REBUILD: Prioritization\r\nStrategic Alignment focus — re-anchor priorities and eliminate mixed signals.\r\n\r\nADKAR Focus (Awareness/Desire trigger):\r\n• Awareness: quantify overload and its impact on delivery and morale.\r\n• Desire: commit to trade‑offs (what we will not do).\r\n• Knowledge: define prioritization criteria and capacity rules.\r\n• Ability: run portfolio triage and re‑baseline plans.\r\n• Reinforcement: govern capacity monthly and report changes.",
+        "recommendedPrograms": "Prioritization – Recommended OCM Tactics:\r\n• Executive Strategy Reset\r\n• Strategy Cascade Toolkit\r\n• Priority/Decision Rules\r\n• Monthly Capacity & Priority Forum\r\n• Scorecard Alignment in QBR",
+        "phaseIndicator": "Awareness/Desire"
+      }
+    },
+    "Workflow Clarity": {
+      "Medium": {
+        "insight": "Workflow Clarity is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This suggests workflows function adequately, though integration or accountability may require refinement.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Workflow Clarity\r\nOperational Discipline focus — tighten operating rhythms and performance routines.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce decision discipline and meeting purpose.\r\n• Desire: strengthen leader participation and ownership.\r\n• Knowledge: improve meeting hygiene and decision documentation.\r\n• Ability: standardize operating rhythm across functions.\r\n• Reinforcement: quarterly governance effectiveness review.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance Effectiveness Review\r\n• Standard Operating Rhythm Rollout\r\n• Kaizen Improvement Sprints\r\n• Commitment Dashboard\r\n• Quarterly Performance Calibration",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Workflow Clarity is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This reflects clearly defined processes, decision pathways, and cross-functional coordination.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Workflow Clarity\r\nOperational Discipline focus — optimize throughput, quality and decision speed at scale.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: keep governance disciplined as complexity grows.\r\n• Knowledge: codify governance playbooks.\r\n• Ability: scale governance practices to new portfolios.\r\n• Reinforcement: optimize decision speed and quality.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance/Execution Playbooks\r\n• Cross‑Team Scaling Initiative\r\n• Decision Speed/Quality Optimization\r\n• Operational Excellence Program\r\n• Enterprise Recognition",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Effective Resource Management": {
+      "Medium": {
+        "insight": "Workflow Clarity is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This suggests workflows function adequately, though integration or accountability may require refinement.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Workflow Clarity\r\nOperational Discipline focus — tighten operating rhythms and performance routines.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce decision discipline and meeting purpose.\r\n• Desire: strengthen leader participation and ownership.\r\n• Knowledge: improve meeting hygiene and decision documentation.\r\n• Ability: standardize operating rhythm across functions.\r\n• Reinforcement: quarterly governance effectiveness review.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance Effectiveness Review\r\n• Standard Operating Rhythm Rollout\r\n• Kaizen Improvement Sprints\r\n• Commitment Dashboard\r\n• Quarterly Performance Calibration",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Workflow Clarity is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This reflects clearly defined processes, decision pathways, and cross-functional coordination.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Workflow Clarity\r\nOperational Discipline focus — optimize throughput, quality and decision speed at scale.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: keep governance disciplined as complexity grows.\r\n• Knowledge: codify governance playbooks.\r\n• Ability: scale governance practices to new portfolios.\r\n• Reinforcement: optimize decision speed and quality.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance/Execution Playbooks\r\n• Cross‑Team Scaling Initiative\r\n• Decision Speed/Quality Optimization\r\n• Operational Excellence Program\r\n• Enterprise Recognition",
+        "phaseIndicator": "Reinforcement"
+      },
+      "Low": {
+        "insight": "Workflow Clarity is currently generating friction and variability. In Operational Discipline terms, this indicates the fundamentals are not yet consistently experienced across teams. Priority is to rebuild confidence by strengthening Awareness/Desire and demonstrating follow‑through.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This may indicate ambiguity in roles, decision rights, or cross-functional processes, creating bottlenecks or duplication.",
+        "coachingTips": "STABILIZE & REBUILD: Workflow Clarity\r\nOperational Discipline focus — establish clear ownership, governance and execution cadence.\r\n\r\nADKAR Focus (Awareness/Desire trigger):\r\n• Awareness: clarify where governance gaps create delay and risk.\r\n• Desire: align to a single operating cadence and decision forum.\r\n• Knowledge: define owners, decision rights, and escalation paths.\r\n• Ability: implement a lightweight operating rhythm.\r\n• Reinforcement: review KPIs and decisions consistently in QBRs.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Operating Rhythm Design\r\n• Decision Rights + Escalation Paths\r\n• Commitment Tracking System\r\n• Process Stabilization Workshops\r\n• KPI Scorecards in Governance",
+        "phaseIndicator": "Awareness/Desire"
+      }
+    },
+    "Data, AI & Automation Readiness": {
+      "Medium": {
+        "insight": "Data, AI & Automation Readiness is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This suggests data is used in decision-making, though integration or governance may be uneven.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Data, AI & Automation Readiness\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: clarify which KPIs matter and why.\r\n• Desire: make data use a leadership expectation.\r\n• Knowledge: analytics storytelling and interpretation for leaders.\r\n• Ability: standard KPI review cadence across teams.\r\n• Reinforcement: recognize evidence‑based decisions.",
+        "recommendedPrograms": "Data, AI & Automation Readiness – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Data Fluency for Leaders\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Digital Communication & Collaboration": {
+      "Medium": {
+        "insight": "Digital Communication & Collaboration is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This suggests digital communication tools are functional, though effectiveness may vary across teams.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Digital Communication & Collaboration\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce expectations and the ‘why’ as tools evolve.\r\n• Desire: activate champions and create social proof through success stories.\r\n• Knowledge: advanced workflow job aids and microlearning.\r\n• Ability: optimize workflows to eliminate workarounds.\r\n• Reinforcement: adoption dashboard + recognition loop.",
+        "recommendedPrograms": "Digital Communication & Collaboration – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Advanced Workflow Microlearning\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Digital Communication & Collaboration is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This reflects clear, structured digital communication and strong cross-functional collaboration.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Digital Communication & Collaboration\r\nDigital Adoption focus — scale digital advantage via playbooks and communities.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain champions and onboarding for new hires.\r\n• Knowledge: codify best practices and internal certification.\r\n• Ability: scale to adjacent processes and teams.\r\n• Reinforcement: shift to outcome metrics (throughput, quality, cost).",
+        "recommendedPrograms": "Digital Communication & Collaboration – Recommended OCM Tactics:\r\n• Internal Certification + Playbook\r\n• Digital CoE Governance\r\n• Scale Automation Patterns\r\n• Outcome Metrics Dashboard\r\n• Onboarding for New Hires",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Mindset, Confidence and Change Readiness": {
+      "Medium": {
+        "insight": "Mindset, Confidence, and Change Readiness is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This suggests openness to digital change, though consistency or momentum may fluctuate.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — standardize coaching/feedback routines and leader consistency.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: clarify what’s changing vs. stable to reduce uncertainty.\r\n• Desire: empower managers to protect focus and reduce churn.\r\n• Knowledge: enable leaders with change planning tools.\r\n• Ability: standardize readiness checks and change routines.\r\n• Reinforcement: retire low‑value work quarterly.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Coaching Conversations Mastery\r\n• Peer Feedback Circles\r\n• Standard Retrospectives (AARs)\r\n• Manager Sponsor Enablement\r\n• Quarterly Safety Pulse",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "Low": {
+        "insight": "Mindset, Confidence, and Change Readiness is currently generating friction and variability. In Psychological Safety terms, this indicates the fundamentals are not yet consistently experienced across teams. Priority is to rebuild confidence by strengthening Awareness/Desire and demonstrating follow‑through.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This may indicate hesitation or low confidence in adopting new technologies or navigating digital change.",
+        "coachingTips": "STABILIZE & REBUILD: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — restore trust, speak‑up and constructive conflict habits.\r\n\r\nADKAR Focus (Awareness/Desire trigger):\r\n• Awareness: quantify change load and burnout risk in this area.\r\n• Desire: leadership commits to stop/start decisions to protect capacity.\r\n• Knowledge: provide practical resilience routines for leaders and teams.\r\n• Ability: implement workload triage and escalation mechanisms.\r\n• Reinforcement: track change load indicators in governance.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Leadership Trust Reset\r\n• Speak‑Up Pulse + Close‑Loop Plan\r\n• EI & Coaching Micro‑Skills Lab\r\n• Issues‑to‑Action Ritual Sprint\r\n• Safety/Trust KPIs in QBR",
+        "phaseIndicator": "Awareness/Desire"
+      }
+    },
+    "Tool & System Proficiency": {
+      "Medium": {
+        "insight": "Tool & System Proficiency is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This suggests systems are generally used effectively, though advanced capabilities may not be fully leveraged.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Tool & System Proficiency\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: confirm standardization priorities to reduce variability.\r\n• Desire: align leaders to enforce standards consistently.\r\n• Knowledge: deepen capability in key efficiency features.\r\n• Ability: workflow redesign to embed system use.\r\n• Reinforcement: quarterly drift/tool sprawl audit.",
+        "recommendedPrograms": "Tool & System Proficiency – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Advanced Workflow Microlearning\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Tool & System Proficiency is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This reflects strong proficiency and strategic use of enterprise tools to support performance and transparency.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Tool & System Proficiency\r\nDigital Adoption focus — scale digital advantage via playbooks and communities.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: keep standardization benefits visible.\r\n• Knowledge: codify patterns and design standards.\r\n• Ability: scale integrations and advanced workflows.\r\n• Reinforcement: continuous improvement based on analytics.",
+        "recommendedPrograms": "Tool & System Proficiency – Recommended OCM Tactics:\r\n• Internal Certification + Playbook\r\n• Digital CoE Governance\r\n• Scale Automation Patterns\r\n• Outcome Metrics Dashboard\r\n• Onboarding for New Hires",
+        "phaseIndicator": "Reinforcement"
+      },
+      "Low": {
+        "insight": "Tool & System Proficiency is currently generating friction and variability. In Digital Adoption terms, this indicates the fundamentals are not yet consistently experienced across teams. Priority is to rebuild confidence by strengthening Awareness/Desire and demonstrating follow‑through.",
+        "modelDescription": "At the employee level, this reflects lived workplace experience, team climate, and individual nervous system responses to workload and leadership signals. This may indicate inconsistent use of core systems or underutilization of available technology investments.",
+        "coachingTips": "STABILIZE & REBUILD: Tool & System Proficiency\r\nDigital Adoption focus — stabilize expectations and remove workflow friction.\r\n\r\nADKAR Focus (Awareness/Desire trigger):\r\n• Awareness: explain where tooling constraints are costing time/quality.\r\n• Desire: commit to standardization to reduce tool sprawl.\r\n• Knowledge: define ‘how we work’ standards for core systems.\r\n• Ability: guided migrations + floor‑walk support.\r\n• Reinforcement: quarterly audits to reduce drift.",
+        "recommendedPrograms": "Tool & System Proficiency – Recommended OCM Tactics:\r\n• Adoption Impact Assessment\r\n• Role‑Based Enablement + Job Aids\r\n• Hands‑On Adoption Labs\r\n• Super‑User Network + Office Hours\r\n• Adoption KPI Dashboard",
+        "phaseIndicator": "Awareness/Desire"
+      }
+    }
+  },
+  "manager": {
+    "Mindset & Adaptability": {
+      "High": {
+        "insight": "Mindset, Confidence, and Change Readiness is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This reflects confidence, curiosity, and proactive engagement with digital transformation.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: maintain discipline on capacity trade‑offs.\r\n• Knowledge: institutionalize change leadership capability.\r\n• Ability: scale readiness practices across the portfolio.\r\n• Reinforcement: use performance + wellbeing indicators together.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Psychological Health & Safety": {
+      "Medium": {
+        "insight": "Psychological Health & Safety is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This suggests safety exists in some areas, though trust and openness may vary across teams or leadership levels.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Psychological Health & Safety\r\nPsychological Safety focus — standardize coaching/feedback routines and leader consistency.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce shared expectations for candor and no‑blame learning.\r\n• Desire: activate managers as local sponsors who model curiosity and follow‑through.\r\n• Knowledge: advanced coaching conversation and facilitation training.\r\n• Ability: standardize retrospectives/after‑action reviews for learning.\r\n• Reinforcement: track issue closure time and safety pulse quarterly.",
+        "recommendedPrograms": "Psychological Health & Safety – Recommended OCM Tactics:\r\n• Coaching Conversations Mastery\r\n• Peer Feedback Circles\r\n• Standard Retrospectives (AARs)\r\n• Manager Sponsor Enablement\r\n• Quarterly Safety Pulse",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Psychological Health & Safety is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This reflects a culture where individuals feel safe to contribute ideas, voice concerns, and engage in healthy dialogue without fear of negative consequences.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Psychological Health & Safety\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain executive modeling in visible forums and onboarding.\r\n• Knowledge: codify safety rituals into playbooks and leader standards.\r\n• Ability: replicate practices enterprise‑wide with coaching support.\r\n• Reinforcement: shift to leading indicators (innovation rate, learning cycles).",
+        "recommendedPrograms": "Psychological Health & Safety – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Relational & Emotional Intelligence": {
+      "High": {
+        "insight": "Relational & Emotional Intelligence is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This reflects strong interpersonal awareness, empathy, and the ability to manage relationships and tensions constructively.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Relational & Emotional Intelligence\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain a coaching culture and celebrate it.\r\n• Knowledge: build internal coaching capability (train‑the‑trainer).\r\n• Ability: scale routines via communities of practice.\r\n• Reinforcement: link to talent outcomes (mobility, retention).",
+        "recommendedPrograms": "Relational & Emotional Intelligence – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Prioritization": {
+      "Medium": {
+        "insight": "Prioritization is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This suggests priorities are defined, though sequencing or resource alignment may occasionally create strain.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Prioritization\r\nStrategic Alignment focus — standardize planning, OKR and prioritization cadences.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: keep capacity constraints visible and explicit.\r\n• Desire: shared ownership for trade‑offs across functions.\r\n• Knowledge: strengthen scoring discipline and criteria.\r\n• Ability: monthly portfolio health checks.\r\n• Reinforcement: recognize teams that stop low‑value work.",
+        "recommendedPrograms": "Prioritization – Recommended OCM Tactics:\r\n• Narrative Consistency Audit\r\n• OKR/Goal Quality Clinics\r\n• Standard Planning Cadence\r\n• Monthly Capacity & Priority Forum\r\n• Quarterly Work Retirement Review",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Workflow Clarity": {
+      "Medium": {
+        "insight": "Workflow Clarity is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This suggests workflows function adequately, though integration or accountability may require refinement.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Workflow Clarity\r\nOperational Discipline focus — tighten operating rhythms and performance routines.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce decision discipline and meeting purpose.\r\n• Desire: strengthen leader participation and ownership.\r\n• Knowledge: improve meeting hygiene and decision documentation.\r\n• Ability: standardize operating rhythm across functions.\r\n• Reinforcement: quarterly governance effectiveness review.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance Effectiveness Review\r\n• Standard Operating Rhythm Rollout\r\n• Kaizen Improvement Sprints\r\n• Commitment Dashboard\r\n• Quarterly Performance Calibration",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Effective Resource Management": {
+      "Medium": {
+        "insight": "Workflow Clarity is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This suggests workflows function adequately, though integration or accountability may require refinement.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Workflow Clarity\r\nOperational Discipline focus — tighten operating rhythms and performance routines.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce decision discipline and meeting purpose.\r\n• Desire: strengthen leader participation and ownership.\r\n• Knowledge: improve meeting hygiene and decision documentation.\r\n• Ability: standardize operating rhythm across functions.\r\n• Reinforcement: quarterly governance effectiveness review.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance Effectiveness Review\r\n• Standard Operating Rhythm Rollout\r\n• Kaizen Improvement Sprints\r\n• Commitment Dashboard\r\n• Quarterly Performance Calibration",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Data, AI & Automation Readiness": {
+      "Medium": {
+        "insight": "Data, AI & Automation Readiness is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This suggests data is used in decision-making, though integration or governance may be uneven.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Data, AI & Automation Readiness\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: clarify which KPIs matter and why.\r\n• Desire: make data use a leadership expectation.\r\n• Knowledge: analytics storytelling and interpretation for leaders.\r\n• Ability: standard KPI review cadence across teams.\r\n• Reinforcement: recognize evidence‑based decisions.",
+        "recommendedPrograms": "Data, AI & Automation Readiness – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Data Fluency for Leaders\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Digital Communication & Collaboration": {
+      "Medium": {
+        "insight": "Digital Communication & Collaboration is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This suggests digital communication tools are functional, though effectiveness may vary across teams.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Digital Communication & Collaboration\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce expectations and the ‘why’ as tools evolve.\r\n• Desire: activate champions and create social proof through success stories.\r\n• Knowledge: advanced workflow job aids and microlearning.\r\n• Ability: optimize workflows to eliminate workarounds.\r\n• Reinforcement: adoption dashboard + recognition loop.",
+        "recommendedPrograms": "Digital Communication & Collaboration – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Advanced Workflow Microlearning\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    },
+    "Mindset, Confidence and Change Readiness": {
+      "Medium": {
+        "insight": "Mindset, Confidence, and Change Readiness is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This suggests openness to digital change, though consistency or momentum may fluctuate.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — standardize coaching/feedback routines and leader consistency.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: clarify what’s changing vs. stable to reduce uncertainty.\r\n• Desire: empower managers to protect focus and reduce churn.\r\n• Knowledge: enable leaders with change planning tools.\r\n• Ability: standardize readiness checks and change routines.\r\n• Reinforcement: retire low‑value work quarterly.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Coaching Conversations Mastery\r\n• Peer Feedback Circles\r\n• Standard Retrospectives (AARs)\r\n• Manager Sponsor Enablement\r\n• Quarterly Safety Pulse",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Mindset, Confidence, and Change Readiness is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This reflects confidence, curiosity, and proactive engagement with digital transformation.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: maintain discipline on capacity trade‑offs.\r\n• Knowledge: institutionalize change leadership capability.\r\n• Ability: scale readiness practices across the portfolio.\r\n• Reinforcement: use performance + wellbeing indicators together.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Tool & System Proficiency": {
+      "Medium": {
+        "insight": "Tool & System Proficiency is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "At the manager level, this reflects day-to-day leadership behaviors that directly impact team psychological safety and nervous system regulation. This suggests systems are generally used effectively, though advanced capabilities may not be fully leveraged.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Tool & System Proficiency\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: confirm standardization priorities to reduce variability.\r\n• Desire: align leaders to enforce standards consistently.\r\n• Knowledge: deepen capability in key efficiency features.\r\n• Ability: workflow redesign to embed system use.\r\n• Reinforcement: quarterly drift/tool sprawl audit.",
+        "recommendedPrograms": "Tool & System Proficiency – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Advanced Workflow Microlearning\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      }
+    }
+  },
+  "leader": {
+    "Psychological Health & Safety": {
+      "High": {
+        "insight": "Psychological Health & Safety is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects a culture where individuals feel safe to contribute ideas, voice concerns, and engage in healthy dialogue without fear of negative consequences.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Psychological Health & Safety\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain executive modeling in visible forums and onboarding.\r\n• Knowledge: codify safety rituals into playbooks and leader standards.\r\n• Ability: replicate practices enterprise‑wide with coaching support.\r\n• Reinforcement: shift to leading indicators (innovation rate, learning cycles).",
+        "recommendedPrograms": "Psychological Health & Safety – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      },
+      "Low": {
+        "insight": "Psychological Health & Safety is currently generating friction and variability. In Psychological Safety terms, this indicates the fundamentals are not yet consistently experienced across teams. Priority is to rebuild confidence by strengthening Awareness/Desire and demonstrating follow‑through.",
+        "modelDescription": "This may indicate limited psychological safety, where individuals hesitate to speak up, raise concerns, or challenge ideas openly.",
+        "coachingTips": "STABILIZE & REBUILD: Psychological Health & Safety\r\nPsychological Safety focus — restore trust, speak‑up and constructive conflict habits.\r\n\r\nADKAR Focus (Awareness/Desire trigger):\r\n• Awareness: run a confidential speak‑up pulse to quantify where silence is occurring.\r\n• Desire: senior leaders commit publicly to ‘raise issues early’ and protect candor.\r\n• Knowledge: equip leaders with micro‑behaviours that build safety and close loops.\r\n• Ability: implement a weekly issues‑to‑action ritual with owners and timelines.\r\n• Reinforcement: publish quarterly ‘what we heard / what we changed’ updates.",
+        "recommendedPrograms": "Psychological Health & Safety – Recommended OCM Tactics:\r\n• Leadership Trust Reset\r\n• Speak‑Up Pulse + Close‑Loop Plan\r\n• EI & Coaching Micro‑Skills Lab\r\n• Issues‑to‑Action Ritual Sprint\r\n• Safety/Trust KPIs in QBR",
+        "phaseIndicator": "Awareness/Desire"
+      }
+    },
+    "Mindset & Adaptability": {
+      "High": {
+        "insight": "Mindset & Adaptability is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This suggests resilience, openness to change, and a growth-oriented mindset that supports learning and continuous improvement.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Mindset & Adaptability\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: maintain discipline on capacity trade‑offs.\r\n• Knowledge: institutionalize change leadership capability.\r\n• Ability: scale readiness practices across the portfolio.\r\n• Reinforcement: use performance + wellbeing indicators together.",
+        "recommendedPrograms": "Mindset & Adaptability – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      },
+      "Low": {
+        "insight": "Mindset & Adaptability is currently generating friction and variability. In Psychological Safety terms, this indicates the fundamentals are not yet consistently experienced across teams. Priority is to rebuild confidence by strengthening Awareness/Desire and demonstrating follow‑through.",
+        "modelDescription": "This may indicate resistance to change, limited flexibility under pressure, or difficulty adjusting to evolving priorities. Energy may be reactive rather than forward-looking.",
+        "coachingTips": "STABILIZE & REBUILD: Mindset & Adaptability\r\nPsychological Safety focus — restore trust, speak‑up and constructive conflict habits.\r\n\r\nADKAR Focus (Awareness/Desire trigger):\r\n• Awareness: quantify change load and burnout risk in this area.\r\n• Desire: leadership commits to stop/start decisions to protect capacity.\r\n• Knowledge: provide practical resilience routines for leaders and teams.\r\n• Ability: implement workload triage and escalation mechanisms.\r\n• Reinforcement: track change load indicators in governance.",
+        "recommendedPrograms": "Mindset & Adaptability – Recommended OCM Tactics:\r\n• Leadership Trust Reset\r\n• Speak‑Up Pulse + Close‑Loop Plan\r\n• EI & Coaching Micro‑Skills Lab\r\n• Issues‑to‑Action Ritual Sprint\r\n• Safety/Trust KPIs in QBR",
+        "phaseIndicator": "Awareness/Desire"
+      }
+    },
+    "Relational & Emotional Intelligence": {
+      "High": {
+        "insight": "Relational & Emotional Intelligence is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects strong interpersonal awareness, empathy, and the ability to manage relationships and tensions constructively.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Relational & Emotional Intelligence\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain a coaching culture and celebrate it.\r\n• Knowledge: build internal coaching capability (train‑the‑trainer).\r\n• Ability: scale routines via communities of practice.\r\n• Reinforcement: link to talent outcomes (mobility, retention).",
+        "recommendedPrograms": "Relational & Emotional Intelligence – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Prioritization": {
+      "Medium": {
+        "insight": "Prioritization is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests priorities are defined, though sequencing or resource alignment may occasionally create strain.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Prioritization\r\nStrategic Alignment focus — standardize planning, OKR and prioritization cadences.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: keep capacity constraints visible and explicit.\r\n• Desire: shared ownership for trade‑offs across functions.\r\n• Knowledge: strengthen scoring discipline and criteria.\r\n• Ability: monthly portfolio health checks.\r\n• Reinforcement: recognize teams that stop low‑value work.",
+        "recommendedPrograms": "Prioritization – Recommended OCM Tactics:\r\n• Narrative Consistency Audit\r\n• OKR/Goal Quality Clinics\r\n• Standard Planning Cadence\r\n• Monthly Capacity & Priority Forum\r\n• Quarterly Work Retirement Review",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Prioritization is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects clear strategic direction, visible trade-offs, and aligned focus across teams.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Prioritization\r\nStrategic Alignment focus — institutionalize strategic discipline and portfolio governance.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain trade‑off discipline.\r\n• Knowledge: codify portfolio scoring and governance.\r\n• Ability: scale governance maturity.\r\n• Reinforcement: link to outcomes and learning cycles.",
+        "recommendedPrograms": "Prioritization – Recommended OCM Tactics:\r\n• Strategy Decision Rule Playbook\r\n• Portfolio Governance Scaling\r\n• Innovation Throughput Metrics\r\n• Monthly Capacity & Priority Forum\r\n• Stakeholder Confidence Tracking",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Workflow Clarity": {
+      "Medium": {
+        "insight": "Workflow Clarity is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests workflows function adequately, though integration or accountability may require refinement.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Workflow Clarity\r\nOperational Discipline focus — tighten operating rhythms and performance routines.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce decision discipline and meeting purpose.\r\n• Desire: strengthen leader participation and ownership.\r\n• Knowledge: improve meeting hygiene and decision documentation.\r\n• Ability: standardize operating rhythm across functions.\r\n• Reinforcement: quarterly governance effectiveness review.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance Effectiveness Review\r\n• Standard Operating Rhythm Rollout\r\n• Kaizen Improvement Sprints\r\n• Commitment Dashboard\r\n• Quarterly Performance Calibration",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Workflow Clarity is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects clearly defined processes, decision pathways, and cross-functional coordination.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Workflow Clarity\r\nOperational Discipline focus — optimize throughput, quality and decision speed at scale.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: keep governance disciplined as complexity grows.\r\n• Knowledge: codify governance playbooks.\r\n• Ability: scale governance practices to new portfolios.\r\n• Reinforcement: optimize decision speed and quality.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance/Execution Playbooks\r\n• Cross‑Team Scaling Initiative\r\n• Decision Speed/Quality Optimization\r\n• Operational Excellence Program\r\n• Enterprise Recognition",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Effective Resource Management": {
+      "Medium": {
+        "insight": "Workflow Clarity is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests workflows function adequately, though integration or accountability may require refinement.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Workflow Clarity\r\nOperational Discipline focus — tighten operating rhythms and performance routines.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce decision discipline and meeting purpose.\r\n• Desire: strengthen leader participation and ownership.\r\n• Knowledge: improve meeting hygiene and decision documentation.\r\n• Ability: standardize operating rhythm across functions.\r\n• Reinforcement: quarterly governance effectiveness review.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance Effectiveness Review\r\n• Standard Operating Rhythm Rollout\r\n• Kaizen Improvement Sprints\r\n• Commitment Dashboard\r\n• Quarterly Performance Calibration",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Workflow Clarity is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects clearly defined processes, decision pathways, and cross-functional coordination.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Workflow Clarity\r\nOperational Discipline focus — optimize throughput, quality and decision speed at scale.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: keep governance disciplined as complexity grows.\r\n• Knowledge: codify governance playbooks.\r\n• Ability: scale governance practices to new portfolios.\r\n• Reinforcement: optimize decision speed and quality.",
+        "recommendedPrograms": "Workflow Clarity – Recommended OCM Tactics:\r\n• Governance/Execution Playbooks\r\n• Cross‑Team Scaling Initiative\r\n• Decision Speed/Quality Optimization\r\n• Operational Excellence Program\r\n• Enterprise Recognition",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Data, AI & Automation Readiness": {
+      "Medium": {
+        "insight": "Data, AI & Automation Readiness is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests data is used in decision-making, though integration or governance may be uneven.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Data, AI & Automation Readiness\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: clarify which KPIs matter and why.\r\n• Desire: make data use a leadership expectation.\r\n• Knowledge: analytics storytelling and interpretation for leaders.\r\n• Ability: standard KPI review cadence across teams.\r\n• Reinforcement: recognize evidence‑based decisions.",
+        "recommendedPrograms": "Data, AI & Automation Readiness – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Data Fluency for Leaders\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Data, AI & Automation Readiness is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects strategic use of data, analytics, and automation to inform direction and improve efficiency.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Data, AI & Automation Readiness\r\nDigital Adoption focus — scale digital advantage via playbooks and communities.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain focus on decision quality.\r\n• Knowledge: advance to predictive/what‑if thinking.\r\n• Ability: embed analytics into portfolio governance.\r\n• Reinforcement: measure outcomes and learning cycles.",
+        "recommendedPrograms": "Data, AI & Automation Readiness – Recommended OCM Tactics:\r\n• Internal Certification + Playbook\r\n• Data Fluency for Leaders\r\n• Scale Automation Patterns\r\n• Outcome Metrics Dashboard\r\n• Onboarding for New Hires",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Digital Communication & Collaboration": {
+      "Medium": {
+        "insight": "Digital Communication & Collaboration is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests digital communication tools are functional, though effectiveness may vary across teams.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Digital Communication & Collaboration\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: reinforce expectations and the ‘why’ as tools evolve.\r\n• Desire: activate champions and create social proof through success stories.\r\n• Knowledge: advanced workflow job aids and microlearning.\r\n• Ability: optimize workflows to eliminate workarounds.\r\n• Reinforcement: adoption dashboard + recognition loop.",
+        "recommendedPrograms": "Digital Communication & Collaboration – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Advanced Workflow Microlearning\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Digital Communication & Collaboration is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects clear, structured digital communication and strong cross-functional collaboration.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Digital Communication & Collaboration\r\nDigital Adoption focus — scale digital advantage via playbooks and communities.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: sustain champions and onboarding for new hires.\r\n• Knowledge: codify best practices and internal certification.\r\n• Ability: scale to adjacent processes and teams.\r\n• Reinforcement: shift to outcome metrics (throughput, quality, cost).",
+        "recommendedPrograms": "Digital Communication & Collaboration – Recommended OCM Tactics:\r\n• Internal Certification + Playbook\r\n• Digital CoE Governance\r\n• Scale Automation Patterns\r\n• Outcome Metrics Dashboard\r\n• Onboarding for New Hires",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Mindset, Confidence and Change Readiness": {
+      "Medium": {
+        "insight": "Mindset, Confidence, and Change Readiness is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests openness to digital change, though consistency or momentum may fluctuate.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — standardize coaching/feedback routines and leader consistency.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: clarify what’s changing vs. stable to reduce uncertainty.\r\n• Desire: empower managers to protect focus and reduce churn.\r\n• Knowledge: enable leaders with change planning tools.\r\n• Ability: standardize readiness checks and change routines.\r\n• Reinforcement: retire low‑value work quarterly.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Coaching Conversations Mastery\r\n• Peer Feedback Circles\r\n• Standard Retrospectives (AARs)\r\n• Manager Sponsor Enablement\r\n• Quarterly Safety Pulse",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Mindset, Confidence, and Change Readiness is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects confidence, curiosity, and proactive engagement with digital transformation.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Mindset, Confidence, and Change Readiness\r\nPsychological Safety focus — institutionalize a high‑trust learning culture.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: maintain discipline on capacity trade‑offs.\r\n• Knowledge: institutionalize change leadership capability.\r\n• Ability: scale readiness practices across the portfolio.\r\n• Reinforcement: use performance + wellbeing indicators together.",
+        "recommendedPrograms": "Mindset, Confidence, and Change Readiness – Recommended OCM Tactics:\r\n• Enterprise Safety/Trust Playbook\r\n• Leader Onboarding Module\r\n• People Leader Community of Practice\r\n• Culture Ambassador Network\r\n• Leading Indicator Dashboard",
+        "phaseIndicator": "Reinforcement"
+      }
+    },
+    "Tool & System Proficiency": {
+      "Medium": {
+        "insight": "Tool & System Proficiency is developing, but consistency varies by leader/team. The constraint is Knowledge/Ability—capability and routines are not yet standardized. Focus now is to translate intent into repeatable practice.",
+        "modelDescription": "This suggests systems are generally used effectively, though advanced capabilities may not be fully leveraged.",
+        "coachingTips": "STANDARDIZE & ACCELERATE: Tool & System Proficiency\r\nDigital Adoption focus — standardize enablement and eliminate workarounds.\r\n\r\nADKAR Focus (Knowledge/Ability trigger):\r\n• Awareness: confirm standardization priorities to reduce variability.\r\n• Desire: align leaders to enforce standards consistently.\r\n• Knowledge: deepen capability in key efficiency features.\r\n• Ability: workflow redesign to embed system use.\r\n• Reinforcement: quarterly drift/tool sprawl audit.",
+        "recommendedPrograms": "Tool & System Proficiency – Recommended OCM Tactics:\r\n• Champion Network + Storytelling\r\n• Advanced Workflow Microlearning\r\n• Workflow Optimization Sprint\r\n• Adoption Analytics Review\r\n• Recognition Loop",
+        "phaseIndicator": "Knowledge/Ability"
+      },
+      "High": {
+        "insight": "Tool & System Proficiency is a relative strength and can be leveraged as a model. Focus shifts to Reinforcement—codify what works, scale it, and protect momentum through governance and recognition.",
+        "modelDescription": "This reflects strong proficiency and strategic use of enterprise tools to support performance and transparency.",
+        "coachingTips": "SCALE & INSTITUTIONALIZE: Tool & System Proficiency\r\nDigital Adoption focus — scale digital advantage via playbooks and communities.\r\n\r\nADKAR Focus (Reinforcement trigger):\r\n• Awareness/Desire: keep standardization benefits visible.\r\n• Knowledge: codify patterns and design standards.\r\n• Ability: scale integrations and advanced workflows.\r\n• Reinforcement: continuous improvement based on analytics.",
+        "recommendedPrograms": "Tool & System Proficiency – Recommended OCM Tactics:\r\n• Internal Certification + Playbook\r\n• Digital CoE Governance\r\n• Scale Automation Patterns\r\n• Outcome Metrics Dashboard\r\n• Onboarding for New Hires",
+        "phaseIndicator": "Reinforcement"
+      }
+    }
+  }
+}
