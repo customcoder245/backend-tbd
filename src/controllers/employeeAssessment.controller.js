@@ -119,20 +119,20 @@ export const submitEmployeeAssessment = async (req, res) => {
     const { scores, classification } = calculateAssessmentScores(responses);
     console.log(`[Employee Assessment Submission] Scores calculated. Classification: ${classification}`);
 
-    // 💡 Add feedback BEFORE assigning to model (Mongoose Mixed types don't track mutations after assignment)
+    // 💡 Add feedback BEFORE assigning to model
     let fbCount = 0;
     for (const domainName in scores.domains) {
       const domainObj = scores.domains[domainName];
       domainObj.subdomainFeedback = {};
+      domainObj.feedback = null;
 
-      let minScore = 101;
+      let minScore = 200;
       let minSubName = null;
 
       for (const subName in domainObj.subdomains) {
         const subScore = domainObj.subdomains[subName];
 
-        // Find lowest subdomain for domain-level insight
-        if (subScore < minScore) {
+        if (subScore <= minScore) {
           minScore = subScore;
           minSubName = subName;
         }
@@ -144,9 +144,11 @@ export const submitEmployeeAssessment = async (req, res) => {
         }
       }
 
-      // 🏆 Rule: Domain-level feedback is based on the LOWEST scoring subdomain
       if (minSubName) {
-        domainObj.feedback = getSubdomainFeedback(minSubName, minScore, 'employee');
+        const primaryFb = getSubdomainFeedback(minSubName, minScore, 'employee');
+        if (primaryFb) {
+          domainObj.feedback = primaryFb;
+        }
       }
     }
     console.log(`[Employee Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: employee`);

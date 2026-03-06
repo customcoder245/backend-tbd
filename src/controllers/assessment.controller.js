@@ -199,20 +199,21 @@ export const submitAssessment = async (req, res) => {
     const { scores, classification } = calculateAssessmentScores(responses);
     console.log(`[Assessment Submission] Scores calculated for assessment ${assessmentId}. Classification: ${classification}`);
 
-    // 💡 Add feedback BEFORE assigning to model (Mongoose Maps don't track mutations after assignment)
+    // 💡 Add feedback BEFORE assigning to model
     let fbCount = 0;
     for (const domainName in scores.domains) {
       const domainObj = scores.domains[domainName];
       domainObj.subdomainFeedback = {};
+      domainObj.feedback = null; // Default
 
-      let minScore = 101;
+      let minScore = 200; // Value higher than max possible score
       let minSubName = null;
 
       for (const subName in domainObj.subdomains) {
         const subScore = domainObj.subdomains[subName];
 
-        // Find lowest subdomain for domain-level insight
-        if (subScore < minScore) {
+        // Find LOWEST subdomain for domain-level insight
+        if (subScore <= minScore) {
           minScore = subScore;
           minSubName = subName;
         }
@@ -224,9 +225,12 @@ export const submitAssessment = async (req, res) => {
         }
       }
 
-      // 🏆 Rule: Domain-level feedback is based on the LOWEST scoring subdomain
+      // Finalize Domain-Level Feedback from the lowest scoring subdomain
       if (minSubName) {
-        domainObj.feedback = getSubdomainFeedback(minSubName, minScore, user.role);
+        const primaryFb = getSubdomainFeedback(minSubName, minScore, user.role);
+        if (primaryFb) {
+          domainObj.feedback = primaryFb;
+        }
       }
     }
     console.log(`[Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: ${user.role}`);

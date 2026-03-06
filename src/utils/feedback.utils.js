@@ -64,10 +64,12 @@ export const getSubdomainFeedback = (subdomainName, score, role) => {
 
     // 🔗 Alias Mapping for inconsistent naming (Question vs Feedback Sheet)
     const aliases = {
-        "mindsetadaptability": ["mindsetconfidenceandchangereadiness", "adaptability"],
-        "mindsetconfidenceandchangereadiness": ["mindsetadaptability", "adaptability"],
-        "mindsetconfidencechangereadiness": ["mindsetadaptability", "adaptability"],
-        "effectiveresourcemanagement": ["workflowclarity", "prioritization"]
+        "mindsetadaptability": ["mindsetconfidenceandchangereadiness", "mindsetconfidenceandchangereadiness", "mindsetconfidencechangereadiness", "adaptability"],
+        "mindsetconfidenceandchangereadiness": ["mindsetadaptability", "mindsetconfidenceandchangereadiness", "mindsetconfidencechangereadiness", "adaptability"],
+        "mindsetconfidencechangereadiness": ["mindsetadaptability", "mindsetconfidenceandchangereadiness", "mindsetconfidencechangereadiness", "adaptability"],
+        "effectiveresourcemanagement": ["workflowclarity", "prioritization", "resourceefficiency"],
+        "datacentriccultureandaiadoption": ["dataaiandautomationreadiness", "datareadiness"],
+        "dataaiandautomationreadiness": ["datacentriccultureandaiadoption", "datareadiness"]
     };
 
     // 2. Subdomain Lookup
