@@ -191,3 +191,81 @@ export const getOrgDetails = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
+// ==================== GET All Organizations (SuperAdmin Only) ====================
+export const getAllOrganizations = async (req, res) => {
+    try {
+        // Fetch all unique orgNames from invitations & users
+        const orgsFromInvites = await Invitation.distinct("orgName");
+        const orgsFromUsers = await User.distinct("orgName");
+
+        const allOrgs = [...new Set([...orgsFromInvites, ...orgsFromUsers])].filter(Boolean).sort();
+
+        res.status(200).json({ organizations: allOrgs });
+    } catch (error) {
+        console.error("getAllOrganizations error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==================== GET Org Filters (Depts, Roles, Members) ====================
+export const getOrgFilters = async (req, res) => {
+    try {
+        const { orgName } = req.params;
+        if (!orgName) return res.status(400).json({ message: "Org name is required" });
+
+        // Fetch unique departments and roles from invitations
+        const depts = await Invitation.distinct("department", { orgName: { $regex: new RegExp("^" + orgName + "$", "i") } });
+        const roles = await Invitation.distinct("role", { orgName: { $regex: new RegExp("^" + orgName + "$", "i") } });
+
+        // Also check User model for any registered users who might have different depts/roles
+        const userDepts = await User.distinct("department", { orgName: { $regex: new RegExp("^" + orgName + "$", "i") } });
+        const userRoles = await User.distinct("role", { orgName: { $regex: new RegExp("^" + orgName + "$", "i") } });
+
+        const allDepts = [...new Set([...depts, ...userDepts])].filter(Boolean).sort();
+        const allRoles = [...new Set([...roles, ...userRoles])].filter(Boolean).sort();
+
+        // Getting members with simple info for selection
+        // We reuse logic similar to getOrgDetails but lighter
+        const membersRes = await getOrgDetails(req, {
+            status: () => ({
+                json: (data) => data
+            })
+        });
+
+        // Small hack to get members since we are in the same controller
+        // Alternatively, just fetch members directly here
+        const invitations = await Invitation.find({
+            orgName: { $regex: new RegExp("^" + orgName + "$", "i") }
+        });
+
+        const registeredUsers = await User.find({
+            orgName: { $regex: new RegExp("^" + orgName + "$", "i") }
+        });
+
+        const members = [];
+        // Use a set to track emails to avoid duplicates
+        const processedEmails = new Set();
+
+        registeredUsers.forEach(u => {
+            const name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email;
+            members.push({ _id: u._id, name, email: u.email, role: u.role, department: u.department });
+            processedEmails.add(u.email.toLowerCase());
+        });
+
+        invitations.forEach(inv => {
+            if (!processedEmails.has(inv.email.toLowerCase())) {
+                members.push({ _id: inv._id, name: inv.email, email: inv.email, role: inv.role, department: inv.department });
+            }
+        });
+
+        res.status(200).json({
+            departments: allDepts,
+            roles: allRoles,
+            members: members.sort((a, b) => a.name.localeCompare(b.name))
+        });
+    } catch (error) {
+        console.error("getOrgFilters error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};

@@ -27,7 +27,11 @@ import {
   getInvitationDetails
 } from "../controllers/invitation.controller.js";
 
-import { getOrgDetails } from "../controllers/organization.controller.js";
+import {
+  getOrgDetails,
+  getAllOrganizations,
+  getOrgFilters
+} from "../controllers/organization.controller.js";
 
 import { getNotifications, markAsRead, markAllAsRead, clearNotifications } from "../controllers/notification.controller.js";
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
@@ -65,6 +69,8 @@ router.patch("/update-profile", protect, upload.fields([{ name: "profileImage", 
 
 // Organization Routes
 router.get("/organization/:orgName", protect, getOrgDetails);
+router.get("/organizations", protect, getAllOrganizations);
+router.get("/organization-filters/:orgName", protect, getOrgFilters);
 
 // Notifications routes
 router.get("/notifications", protect, getNotifications);
