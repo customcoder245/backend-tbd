@@ -7,28 +7,31 @@ const __dirname = path.dirname(__filename);
 
 let feedbackData = {};
 try {
-    const relativePath = "../data/domainSubdomainFeedback.json";
-    const dirPath = path.resolve(__dirname, relativePath);
-    const cwdPath = path.join(process.cwd(), "src/data/domainSubdomainFeedback.json");
+    const pathsToTry = [
+        path.join(process.cwd(), "src", "data", "domainSubdomainFeedback.json"),
+        path.join(process.cwd(), "data", "domainSubdomainFeedback.json"),
+        path.resolve(__dirname, "../../src/data/domainSubdomainFeedback.json"),
+        path.resolve(__dirname, "../data/domainSubdomainFeedback.json")
+    ];
 
     let jsonPath = null;
-
-    if (fs.existsSync(dirPath)) {
-        jsonPath = dirPath;
-    } else if (fs.existsSync(cwdPath)) {
-        jsonPath = cwdPath;
+    for (const p of pathsToTry) {
+        if (fs.existsSync(p)) {
+            jsonPath = p;
+            break;
+        }
     }
 
     if (jsonPath) {
-        console.log(`[Feedback Utils] Loading data from: ${jsonPath}`);
         const rawContent = fs.readFileSync(jsonPath, 'utf8');
         feedbackData = JSON.parse(rawContent);
-        console.log(`[Feedback Utils] Successfully loaded ${Object.keys(feedbackData).length} roles.`);
+        console.log(`[Feedback Utils] SUCCESS: Loaded data from ${jsonPath}`);
     } else {
-        console.error(`[Feedback Utils] JSON file not found. Checked: \n1. ${dirPath}\n2. ${cwdPath}`);
+        console.error(`[Feedback Utils] ERROR: JSON not found. Paths checked: ${pathsToTry.join(', ')}`);
+        console.error(`__dirname: ${__dirname}, cwd: ${process.cwd()}`);
     }
 } catch (error) {
-    console.error(`[Feedback Utils] CRITICAL: Failed to load feedback JSON: ${error.message}`);
+    console.error(`[Feedback Utils] CRITICAL: ${error.message}`);
 }
 
 
@@ -59,17 +62,18 @@ export const getSubdomainFeedback = (subdomainName, score, role) => {
     const normSubdomain = robustNormalize(subdomainName);
 
     // Map roles correctly
-    let normalizedRoleStr = (role || 'leader').toLowerCase().trim();
-    if (normalizedRoleStr === 'superadmin') normalizedRoleStr = 'admin';
-    const normRole = robustNormalize(normalizedRoleStr);
+    let reqRole = (role || 'leader').toLowerCase().trim();
+    if (reqRole === 'superadmin') reqRole = 'admin';
+    const normReqRole = robustNormalize(reqRole);
 
-    // 1. Role Lookup
-    const targetRoleKey = Object.keys(feedbackData).find(k => robustNormalize(k) === normRole) ||
-        Object.keys(feedbackData).find(k => robustNormalize(k) === 'leader');
+    // 1. Role Lookup (Match exactly or find first role if only 1 exists)
+    const targetRoleKey = Object.keys(feedbackData).find(k => robustNormalize(k) === normReqRole) ||
+        Object.keys(feedbackData).find(k => robustNormalize(k) === 'leader') ||
+        Object.keys(feedbackData)[0];
 
     const roleData = feedbackData[targetRoleKey];
     if (!roleData) {
-        console.warn(`[Feedback] No role data for "${normRole}" or fallback "leader"`);
+        console.error(`[Feedback] No role data found in JSON for role: ${reqRole}. Status: ${Object.keys(feedbackData).length} roles in DB.`);
         return null;
     }
 
