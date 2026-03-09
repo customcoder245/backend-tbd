@@ -1,21 +1,33 @@
 import mongoose from "mongoose";
 
+let isConnected = false;
+let connectionPromise = null;
+
 const connectDB = async () => {
-  // If already connected, do not create a new connection or pool
-  if (mongoose.connection.readyState >= 1) {
+  if (isConnected || mongoose.connection.readyState >= 1) {
     console.log("MongoDB is already connected");
     return;
   }
 
+  if (connectionPromise) {
+    console.log("MongoDB connection is already in progress...");
+    await connectionPromise;
+    return;
+  }
+
   try {
-    await mongoose.connect(process.env.MONGODB_URL, {
+    console.log("Initializing new MongoDB connection...");
+    connectionPromise = mongoose.connect(process.env.MONGODB_URL, {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
     });
+
+    await connectionPromise;
+    isConnected = true;
     console.log("MongoDB connected successfully");
   } catch (error) {
     console.error("MongoDB connection failed:", error.message);
-    // Do NOT call process.exit(1) in serverless — it kills the function
+    connectionPromise = null; // reset promise to allow retries
     throw error;
   }
 };

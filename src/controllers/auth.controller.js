@@ -106,7 +106,7 @@ export const verifyEmail = async (req, res) => {
       sameSite: isProduction ? "none" : "lax",
       maxAge: 15 * 60 * 1000,
     });
-    
+
 
     const frontendUrl = process.env.FRONTEND_URL.endsWith("/")
       ? process.env.FRONTEND_URL.slice(0, -1)
@@ -331,7 +331,7 @@ export const login = async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error);
-    res.status(500).json({ message: "Login failed" });
+    res.status(500).json({ message: "Login failed", error: error.message });
   }
 };
 

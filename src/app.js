@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
+import connectDB from "./db/index.js";
+
 // ROUTES
 import authRoutes from "./routes/auth.routes.js";
 import assessmentRoutes from "./routes/assessment.routes.js";
@@ -16,6 +18,20 @@ const app = express();
 // Parse incoming JSON requests
 app.use(express.json());
 app.use(cookieParser());
+
+// Validate DB connection on every request (crucial for Serverless cold starts)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: "Database Connection Failed",
+      error: err.message
+    });
+  }
+});
 
 // Enable CORS
 app.use(
