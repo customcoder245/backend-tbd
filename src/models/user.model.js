@@ -165,5 +165,10 @@ userSchema.methods.generateAccessToken = function () {
   );
 };
 
-export default mongoose.model("User", userSchema);
+userSchema.index({ invitationToken: 1 });
+userSchema.index({ orgName: 1, role: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ emailVerificationToken: 1 });
+userSchema.index({ resetPasswordToken: 1 });
 
+export default mongoose.model("User", userSchema);

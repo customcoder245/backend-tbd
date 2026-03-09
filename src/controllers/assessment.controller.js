@@ -264,12 +264,6 @@ export const submitAssessment = async (req, res) => {
     ]);
     console.log(`[Assessment Submission] Assessment ${assessmentId} saved and snapshot created. Linked to userId: ${userId}`);
 
-    return res.status(200).json({
-      message: "Assessment submitted successfully",
-      submittedAssessment
-    });
-
-
     // --- DYNAMIC NOTIFICATIONS (Fire & Forget to make API fast) ---
     // 1. Notify the user
     createNotification({
@@ -300,7 +294,6 @@ export const submitAssessment = async (req, res) => {
 
     console.log(`[Assessment Submission] Triggered background notifications for assessment ${assessmentId}.`);
 
-    // 6️⃣ Return response
     return res.status(200).json({
       message: "Assessment submitted successfully",
       submittedAssessment
@@ -436,10 +429,45 @@ export const getSuperAdminIntelligence = async (req, res) => {
     const dateFilter = { createdAt: { $gte: period.start, $lte: period.end } };
     const assessmentDateFilter = { submittedAt: { $gte: period.start, $lte: period.end } };
 
-    // 1. Unified Organization Counting
-    const orgsFromInvites = await Invitation.distinct("orgName", dateFilter);
-    const orgsFromAdmins = await User.distinct("orgName", { role: "admin", ...dateFilter });
-    const orgsFromAssessments = await Assessment.distinct("orgName", assessmentDateFilter);
+    // 1. Run all independent queries in parallel for speed
+    const [
+      orgsFromInvites,
+      orgsFromAdmins,
+      orgsFromAssessments,
+      activeOrgCount,
+      usersByRole,
+      employeeInvites,
+      employeeAssessments,
+      inviteCount,
+      adminCount,
+      totalCompleted,
+      completionByRole,
+      recentAssessments,
+      recentInvites
+    ] = await Promise.all([
+      Invitation.distinct("orgName", dateFilter),
+      User.distinct("orgName", { role: "admin", ...dateFilter }),
+      Assessment.distinct("orgName", assessmentDateFilter),
+      Assessment.distinct("orgName", { isCompleted: true, ...assessmentDateFilter }),
+      User.aggregate([
+        { $match: { ...dateFilter, role: { $ne: "superAdmin" } } },
+        { $group: { _id: "$role", count: { $sum: 1 } } }
+      ]),
+      Invitation.find({ role: "employee", ...dateFilter }, "email").lean(),
+      Assessment.find({
+        "userDetails.role": { $regex: /employee/i },
+        ...assessmentDateFilter
+      }, "userDetails.email").lean(),
+      Invitation.countDocuments(dateFilter),
+      User.countDocuments({ role: "admin", ...dateFilter }),
+      Assessment.countDocuments({ isCompleted: true, ...assessmentDateFilter }),
+      Assessment.aggregate([
+        { $match: { isCompleted: true, ...assessmentDateFilter } },
+        { $group: { _id: "$userDetails.role", count: { $sum: 1 } } }
+      ]),
+      Assessment.find({ isCompleted: true, ...assessmentDateFilter }).sort({ submittedAt: -1 }).limit(3).lean(),
+      Invitation.find(dateFilter).sort({ createdAt: -1 }).limit(3).lean()
+    ]);
 
     const allOrgNames = new Set([
       ...orgsFromInvites,
@@ -448,24 +476,9 @@ export const getSuperAdminIntelligence = async (req, res) => {
     ].filter(name => name && typeof name === "string"));
 
     const totalOrgs = allOrgNames.size;
-
-    // Organization Health: Orgs with at least one completed assessment
-    const activeOrgCount = await Assessment.distinct("orgName", { isCompleted: true, ...assessmentDateFilter });
     const healthRate = totalOrgs > 0 ? Math.round((activeOrgCount.length / totalOrgs) * 100) : 0;
 
-    // 2. User Breakdown by Role (EXCLUDING superAdmin)
-    const usersByRole = await User.aggregate([
-      { $match: { ...dateFilter, role: { $ne: "superAdmin" } } },
-      { $group: { _id: "$role", count: { $sum: 1 } } }
-    ]);
-
     const employeeEmails = new Set();
-    const employeeInvites = await Invitation.find({ role: "employee", ...dateFilter }, "email").lean();
-    const employeeAssessments = await Assessment.find({
-      "userDetails.role": { $regex: /employee/i },
-      ...assessmentDateFilter
-    }, "userDetails.email").lean();
-
     employeeInvites.forEach(i => i.email && employeeEmails.add(i.email.toLowerCase()));
     employeeAssessments.forEach(a => a.userDetails?.email && employeeEmails.add(a.userDetails.email.toLowerCase()));
 
@@ -477,17 +490,8 @@ export const getSuperAdminIntelligence = async (req, res) => {
     };
     const totalUsers = Object.values(roleStats).reduce((a, b) => a + b, 0);
 
-    // 3. Absolute Participation Totals (EXCLUDING superAdmin)
-    // SuperAdmins don't take assessments, so we don't count them in totalAssigned
-    const totalAssigned = await Invitation.countDocuments(dateFilter) + await User.countDocuments({ role: "admin", ...dateFilter });
-    const totalCompleted = await Assessment.countDocuments({ isCompleted: true, ...assessmentDateFilter });
+    const totalAssigned = inviteCount + adminCount;
     const totalPending = totalAssigned > totalCompleted ? totalAssigned - totalCompleted : 0;
-
-    // 4. Completion status by role
-    const completionByRole = await Assessment.aggregate([
-      { $match: { isCompleted: true, ...assessmentDateFilter } },
-      { $group: { _id: "$userDetails.role", count: { $sum: 1 } } }
-    ]);
 
     const roleCompletionRates = {
       admin: roleStats.admin > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "admin")?.count || 0) / roleStats.admin) * 100) : 0,
@@ -498,7 +502,7 @@ export const getSuperAdminIntelligence = async (req, res) => {
 
     // 5. Recent Activity
     const activity = [
-      ...(await Assessment.find({ isCompleted: true, ...assessmentDateFilter }).sort({ submittedAt: -1 }).limit(3).lean()).map(a => ({
+      ...recentAssessments.map(a => ({
         id: a._id,
         org: a.orgName || "Direct User",
         action: "Assessment Completed",
@@ -506,7 +510,7 @@ export const getSuperAdminIntelligence = async (req, res) => {
         type: "submission",
         status: "Success"
       })),
-      ...(await Invitation.find(dateFilter).sort({ createdAt: -1 }).limit(3).lean()).map(i => ({
+      ...recentInvites.map(i => ({
         id: i._id,
         org: i.orgName || "External",
         action: `Invite Sent to ${i.name || i.email}`,
@@ -599,11 +603,13 @@ export const getAdminIntelligence = async (req, res) => {
     // Apply date filter to assessments
     const assessmentFilter = { orgName, ...dateFilter };
 
-    // 1. Get all assessments for this org
-    const assessments = await Assessment.find(assessmentFilter).lean();
-
-    // 2. Get registered users
-    const registeredUsers = await User.find(teamFilter).lean();
+    // Run independent queries in parallel
+    const [assessments, registeredUsers, activeInviteCount, recentInvites] = await Promise.all([
+      Assessment.find(assessmentFilter).lean(),
+      User.find(teamFilter).lean(),
+      Invitation.countDocuments({ ...teamFilter, used: false }),
+      Invitation.find({ ...teamFilter, ...dateFilter }).sort({ createdAt: -1 }).limit(5).lean()
+    ]);
 
     // 3. Unique People Discovery
     const peopleMap = new Map();
@@ -649,7 +655,7 @@ export const getAdminIntelligence = async (req, res) => {
 
     const stats = {
       totalMembers: uniquePeople.length,
-      activeInvites: await Invitation.countDocuments({ ...teamFilter, status: "Pending" }),
+      activeInvites: activeInviteCount,
       completedAssessments: completedCount,
       inProgressAssessments: inProgressCount,
       notStartedAssessments: notStartedCount,
@@ -665,11 +671,6 @@ export const getAdminIntelligence = async (req, res) => {
     };
 
     // 5. Activity Stream (Assessments + Invitations) - Weighted by Time Range
-    const recentInvites = await Invitation.find({ ...teamFilter, ...dateFilter })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .lean();
-
     const activityStream = [
       ...assessments.map(a => ({
         id: a._id,

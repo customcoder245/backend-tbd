@@ -39,9 +39,14 @@ const invitationSchema = new Schema(
     updatedAt: { type: Date, default: Date.now }
   },
   {
-    timestamps: true,
-    autoIndex: false
+    timestamps: true
   }
 );
+
+invitationSchema.index({ orgName: 1 });
+invitationSchema.index({ email: 1 });
+invitationSchema.index({ orgName: 1, role: 1 });
+invitationSchema.index({ email: 1, used: 1 });
+invitationSchema.index({ invitedBy: 1 });
 
 export default mongoose.model("Invitation", invitationSchema);

@@ -2,18 +2,23 @@ import Response from "../models/response.model.js";
 import Question from "../models/question.model.js";
 
 /**
- * SAVE RESPONSE (Autosave)
+ * SAVE RESPONSE (Autosave) - Optimized with batch fetching
  */
 export const saveResponse = async (req, res) => {
   try {
     const responses = req.body.responses;
-    console.log("Received responses:", responses);
 
     if (!Array.isArray(responses) || responses.length === 0) {
       return res.status(400).json({ message: "Invalid response data" });
     }
 
-    const savedResponses = [];
+    // Batch fetch all questions at once instead of one-by-one
+    const questionIds = [...new Set(responses.map(r => r.questionId))];
+    const questions = await Question.find({ _id: { $in: questionIds } }).lean();
+    const questionMap = {};
+    questions.forEach(q => { questionMap[q._id.toString()] = q; });
+
+    const bulkOps = [];
     for (let response of responses) {
       const { assessmentId, questionId, questionCode, answer, comment } = response;
 
@@ -21,14 +26,13 @@ export const saveResponse = async (req, res) => {
         return res.status(400).json({ message: "Invalid response data" });
       }
 
-      const question = await Question.findById(questionId);
+      const question = questionMap[questionId.toString()];
       if (!question) {
-        return res.status(404).json({ message: "Question not found" });
+        return res.status(404).json({ message: `Question ${questionId} not found` });
       }
 
       let finalComment = comment;
 
-      // DYNAMIC LOGIC STARTS HERE
       if (question.scale === "SCALE_1_5" || question.questionType === "Calibration") {
         if (answer <= 2 && !comment?.trim()) {
           return res.status(400).json({ message: "Comment is required for 'Never' or 'Rarely' answers." });
@@ -37,7 +41,6 @@ export const saveResponse = async (req, res) => {
         }
       }
       else if (question.scale === "FORCED_CHOICE") {
-        // We get the specific higher value for THIS question (could be A or B)
         const hvOption = question.forcedChoice?.higherValueOption;
 
         if (answer === hvOption && !comment?.trim()) {
@@ -45,7 +48,6 @@ export const saveResponse = async (req, res) => {
             message: `Comment is required for higher value option (${hvOption})`
           });
         } else if (answer !== hvOption) {
-          // If they picked the lower value option, we clear the comment
           finalComment = null;
         }
       }
@@ -72,14 +74,25 @@ export const saveResponse = async (req, res) => {
         subdomainWeight: question.subdomainWeight
       };
 
-      const savedResponse = await Response.findOneAndUpdate(
-        { assessmentId, questionId },
-        { ...fullResponseData },
-        { upsert: true, new: true }
-      );
-
-      savedResponses.push(savedResponse);
+      bulkOps.push({
+        updateOne: {
+          filter: { assessmentId, questionId },
+          update: { $set: fullResponseData },
+          upsert: true
+        }
+      });
     }
+
+    if (bulkOps.length > 0) {
+      await Response.bulkWrite(bulkOps);
+    }
+
+    // Return the saved docs
+    const assessmentIds = [...new Set(responses.map(r => r.assessmentId))];
+    const savedResponses = await Response.find({
+      assessmentId: { $in: assessmentIds },
+      questionId: { $in: questionIds }
+    }).lean();
 
     res.status(200).json(savedResponses);
   } catch (error) {

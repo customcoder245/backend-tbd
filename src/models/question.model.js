@@ -86,4 +86,7 @@ const questionSchema = new Schema(
   { timestamps: true }
 );
 
+questionSchema.index({ stakeholder: 1, isDeleted: 1, order: 1 });
+questionSchema.index({ isDeleted: 1 });
+
 export default mongoose.model("Question", questionSchema);

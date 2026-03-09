@@ -76,5 +76,8 @@ assessmentSchema.index({ userId: 1 });
 assessmentSchema.index({ invitationId: 1 });
 assessmentSchema.index({ isCompleted: 1 });
 assessmentSchema.index({ employeeEmail: 1 });
+assessmentSchema.index({ userId: 1, isCompleted: 1, submittedAt: -1 });
+assessmentSchema.index({ orgName: 1, isCompleted: 1 });
+assessmentSchema.index({ orgName: 1 });
 
 export default mongoose.model("Assessment", assessmentSchema);

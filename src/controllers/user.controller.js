@@ -59,21 +59,17 @@ export const getMe = async (req, res) => {
         let assessmentStatus = "NOT_REQUIRED";
         const userRole = user.role;
         if (["admin", "leader", "manager"].includes(userRole)) {
-            const incomplete = await Assessment.findOne({ userId: user._id, isCompleted: false });
+            const [incomplete, complete] = await Promise.all([
+                Assessment.findOne({ userId: user._id, isCompleted: false }).lean(),
+                Assessment.findOne({ userId: user._id, isCompleted: true }).sort({ submittedAt: -1 }).lean()
+            ]);
             if (incomplete) {
                 assessmentStatus = "PENDING";
+            } else if (!complete) {
+                assessmentStatus = "DUE";
             } else {
-                const complete = await Assessment.findOne({ userId: user._id, isCompleted: true }).sort({ submittedAt: -1 });
-                if (!complete) {
-                    assessmentStatus = "DUE";
-                } else {
-                    const cycleStart = getAssessmentCycleStartDate();
-                    if (complete.submittedAt < cycleStart) {
-                        assessmentStatus = "DUE";
-                    } else {
-                        assessmentStatus = "COMPLETED";
-                    }
-                }
+                const cycleStart = getAssessmentCycleStartDate();
+                assessmentStatus = complete.submittedAt < cycleStart ? "DUE" : "COMPLETED";
             }
         }
 

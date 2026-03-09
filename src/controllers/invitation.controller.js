@@ -202,37 +202,55 @@ export const getInvitations = async (req, res) => {
                 { $sort: { createdAt: -1 } }
             ]);
 
-            const formattedData = await Promise.all(
-                orgStats.map(async (item) => {
-                    try {
-                        const adminUser = await User.findOne({ email: item._id });
-                        const finalOrgName = adminUser?.orgName || item.orgNameFromInvite || "Pending Setup";
+            const adminEmails = orgStats.map(item => item._id);
+            const users = await User.find({ email: { $in: adminEmails } }).lean();
+            const userMap = {};
+            users.forEach(u => { userMap[u.email.toLowerCase()] = u; });
 
-                        let currentStatus = "Pending";
-                        if (item.status) {
-                            currentStatus = "Accept";
-                        } else if (item.expiredAt && new Date(item.expiredAt) < new Date()) {
-                            currentStatus = "Expire";
-                        }
+            // Collect all unique finalOrgNames
+            const finalOrgNames = orgStats.map(item => {
+                const adminUser = userMap[item._id.toLowerCase()];
+                return adminUser?.orgName || item.orgNameFromInvite || "Pending Setup";
+            });
 
-                        const totalUsers = await Invitation.countDocuments({
-                            orgName: finalOrgName
-                        });
+            const uniqueOrgNames = [...new Set(finalOrgNames)];
 
-                        return {
-                            _id: item._id,
-                            orgName: finalOrgName,
-                            email: item._id,
-                            createdAt: item.createdAt,
-                            totalUsers: totalUsers,
-                            status: currentStatus,
-                            role: "admin"
-                        };
-                    } catch (innerErr) {
-                        return { _id: item._id, orgName: "Error", email: item._id, status: "Pending", totalUsers: 0 };
+            // Aggregate counts of invitations by orgName
+            const allCounts = await Invitation.aggregate([
+                { $match: { orgName: { $in: uniqueOrgNames } } },
+                { $group: { _id: "$orgName", count: { $sum: 1 } } }
+            ]);
+
+            const countMap = {};
+            allCounts.forEach(c => { countMap[c._id] = c.count; });
+
+            const formattedData = orgStats.map((item) => {
+                try {
+                    const adminUser = userMap[item._id.toLowerCase()];
+                    const finalOrgName = adminUser?.orgName || item.orgNameFromInvite || "Pending Setup";
+
+                    let currentStatus = "Pending";
+                    if (item.status) {
+                        currentStatus = "Accept";
+                    } else if (item.expiredAt && new Date(item.expiredAt) < new Date()) {
+                        currentStatus = "Expire";
                     }
-                })
-            );
+
+                    const totalUsers = countMap[finalOrgName] || 0;
+
+                    return {
+                        _id: item._id,
+                        orgName: finalOrgName,
+                        email: item._id,
+                        createdAt: item.createdAt,
+                        totalUsers: totalUsers,
+                        status: currentStatus,
+                        role: "admin"
+                    };
+                } catch (innerErr) {
+                    return { _id: item._id, orgName: "Error", email: item._id, status: "Pending", totalUsers: 0 };
+                }
+            });
             return res.status(200).json(formattedData);
 
         } else {
@@ -255,58 +273,78 @@ export const getInvitations = async (req, res) => {
             }
 
             const invitations = await Invitation.find(filter).sort({ createdAt: -1 });
-            const formattedData = (await Promise.all(
-                invitations.map(async (inv) => {
-                    // Double check department for registered users if it wasn't in the invite
-                    if ((role === "leader" || role === "manager") && dept) {
-                        const registeredUser = await User.findOne({
-                            $or: [
-                                { invitationToken: inv.token1 },
-                                { invitationToken: inv.token },
-                                { email: inv.email }
-                            ]
-                        });
+            // Optimization: Fetch all registered users and assessments for the current invitations at once
+            const emails = invitations.map(inv => inv.email.toLowerCase());
+            const tokens = invitations.flatMap(inv => [inv.token, inv.token1]).filter(Boolean);
+            const invIds = invitations.map(inv => inv._id);
 
-                        if (registeredUser && registeredUser.department && registeredUser.department !== dept) {
-                            return null;
-                        }
+            const [registeredUsers, assessments] = await Promise.all([
+                User.find({
+                    $or: [
+                        { invitationToken: { $in: tokens } },
+                        { email: { $in: emails } }
+                    ]
+                }).lean(),
+                Assessment.find({
+                    $or: [
+                        { invitationId: { $in: invIds } }
+                    ]
+                }).lean()
+            ]);
+
+            const userMap = {};
+            for (const u of registeredUsers) {
+                if (u.invitationToken) userMap[u.invitationToken] = u;
+                if (u.email) userMap[u.email.toLowerCase()] = u;
+            }
+
+            const assessmentByInvOrEmail = {};
+            for (const a of assessments) {
+                if (a.invitationId) {
+                    if (!assessmentByInvOrEmail[a.invitationId.toString()]) assessmentByInvOrEmail[a.invitationId.toString()] = [];
+                    assessmentByInvOrEmail[a.invitationId.toString()].push(a);
+                }
+            }
+
+            const formattedData = invitations.map((inv) => {
+                // Double check department for registered users if it wasn't in the invite
+                if ((role === "leader" || role === "manager") && dept) {
+                    const registeredUser = userMap[inv.token1] || userMap[inv.token] || userMap[inv.email.toLowerCase()];
+
+                    if (registeredUser && registeredUser.department && registeredUser.department !== dept) {
+                        return null;
                     }
+                }
 
-                    let name = "—";
-                    let currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
+                let name = "—";
+                let currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
 
-                    const registeredUser = await User.findOne({
-                        $or: [
-                            { invitationToken: inv.token1 },
-                            { invitationToken: inv.token },
-                            { email: inv.email }
-                        ]
-                    });
+                const registeredUser = userMap[inv.token1] || userMap[inv.token] || userMap[inv.email.toLowerCase()];
 
-                    if (registeredUser) {
-                        if (registeredUser.firstName || registeredUser.lastName) {
-                            name = `${registeredUser.firstName || ""} ${registeredUser.lastName || ""}`.trim();
-                        } else {
-                            name = "Registered (Pending Info)";
-                        }
+                if (registeredUser) {
+                    if (registeredUser.firstName || registeredUser.lastName) {
+                        name = `${registeredUser.firstName || ""} ${registeredUser.lastName || ""}`.trim();
                     } else {
-                        const assessment = await Assessment.findOne({ invitationId: inv._id });
-                        if (assessment && assessment.userDetails) {
-                            const details = assessment.userDetails;
-                            name = `${details.firstName || ""} ${details.lastName || ""}`.trim() || "Completed (Anonymous)";
-                        }
+                        name = "Registered (Pending Info)";
                     }
+                } else {
+                    const assessList = assessmentByInvOrEmail[inv._id.toString()] || [];
+                    const assessment = assessList[0];
+                    if (assessment && assessment.userDetails) {
+                        const details = assessment.userDetails;
+                        name = `${details.firstName || ""} ${details.lastName || ""}`.trim() || "Completed (Anonymous)";
+                    }
+                }
 
-                    return {
-                        _id: inv._id,
-                        name: name,
-                        email: inv.email,
-                        role: inv.role,
-                        createdAt: inv.createdAt,
-                        status: currentStatus
-                    };
-                })
-            )).filter(d => d !== null);
+                return {
+                    _id: inv._id,
+                    name: name,
+                    email: inv.email,
+                    role: inv.role,
+                    createdAt: inv.createdAt,
+                    status: currentStatus
+                };
+            }).filter(d => d !== null);
             return res.status(200).json(formattedData);
         }
     } catch (error) {
