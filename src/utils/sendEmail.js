@@ -1,13 +1,25 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 
-// Email configuration
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_APP_PASSWORD,
+// Force prioritize IPv4 for network requests (fixes Gmail connection timeouts on many networks)
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
+let transporter;
+
+const getTransporter = () => {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD,
+      }
+    });
   }
-});
+  return transporter;
+};
 
 const LOGO_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775850/talent-by-design/email-assets/logo.png';
 const FOOTER_LOGO_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775853/talent-by-design/email-assets/footer-logo.png';
@@ -272,11 +284,12 @@ const getEmailWrapper = (firstName, content) => `<!DOCTYPE html PUBLIC "-//W3C//
 
 const sendEmail = async (mailOptions) => {
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const info = await getTransporter().sendMail(mailOptions);
     console.log('Email sent:', info.response);
   } catch (error) {
-    console.error('Error sending email:', error);
-    throw new Error('Failed to send email.');
+    console.error('>>> [EMAIL FAIL]:', error.message);
+    console.error(error.stack);
+    throw new Error(`Failed to send email: ${error.message}`);
   }
 };
 

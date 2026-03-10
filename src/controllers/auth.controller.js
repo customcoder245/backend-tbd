@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
 import Assessment from "../models/assessment.model.js";
+import Question from "../models/question.model.js";
 import { sendVerificationEmail, sendResetEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
 import { createNotification, notifySuperAdmins } from "../utils/notification.utils.js";
@@ -175,6 +176,28 @@ export const completeProfile = async (req, res) => {
     }
 
     await user.save();
+
+    // --- MULTI-TENANT: Copy Master Question Template for new Admins ---
+    if (user.role === "admin" && user.orgName) {
+      try {
+        const masterQuestions = await Question.find({ orgName: null, isDeleted: false });
+        if (masterQuestions.length > 0) {
+          const tenantQuestions = masterQuestions.map(mq => {
+            const qObj = mq.toObject();
+            delete qObj._id;
+            delete qObj.createdAt;
+            delete qObj.updatedAt;
+            qObj.orgName = user.orgName;
+            return qObj;
+          });
+          await Question.insertMany(tenantQuestions);
+          console.log(`Cloned ${tenantQuestions.length} master questions for organization: ${user.orgName}`);
+        }
+      } catch (copyError) {
+        console.error(`Error cloning master questions for ${user.orgName}:`, copyError);
+        // We don't block profile completion if cloning fails, but it's a critical error
+      }
+    }
 
     if (invitation) {
       invitation.used = true;

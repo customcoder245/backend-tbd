@@ -6,20 +6,23 @@ import {
   getQuestionsByStakeholder,
   getAllQuestions,
   getQuestionById,
-  reorderQuestions
+  reorderQuestions,
+  cloneTemplate
 } from "../controllers/question.controller.js";
+import { protect, flexibleProtect } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-// Admin CRUD routes
-router.get("/all", getAllQuestions);                  // Get all questions with filters
-router.get("/:id", getQuestionById);                  // Get single question by ID
-router.post("/multiple", createMultipleQuestions);     // Multiple question creation 
-router.put("/reorder", reorderQuestions);              // Batch reorder questions (Drag & Drop)
-router.put("/:id", updateQuestion);                   // Update question
-router.delete("/:id", deleteQuestion);                // Soft delete question
+// Admin CRUD routes (Protected)
+router.get("/all", protect, getAllQuestions);                  // Get all questions with filters
+router.get("/:id", protect, getQuestionById);                  // Get single question by ID
+router.post("/multiple", protect, createMultipleQuestions);     // Multiple question creation 
+router.post("/clone", protect, cloneTemplate);                 // Clone master template to organization
+router.put("/reorder", protect, reorderQuestions);              // Batch reorder questions (Drag & Drop)
+router.put("/:id", protect, updateQuestion);                   // Update question
+router.delete("/:id", protect, deleteQuestion);                // Soft delete question
 
 // User / Assessment route
-router.get("/", getQuestionsByStakeholder);           // Get questions by stakeholder (for assessments)
+router.get("/", flexibleProtect, getQuestionsByStakeholder);           // Get questions by stakeholder (Assessment)
 
 export default router;

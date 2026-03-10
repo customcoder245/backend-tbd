@@ -29,7 +29,7 @@ const getAbbreviation = (text) => {
     .join("");
 };
 
-const generateQuestionCode = async (stakeholder, domain, subdomain, questionType, offset = 0) => {
+const generateQuestionCode = async (stakeholder, domain, subdomain, questionType, orgName = null, offset = 0) => {
   const dAbbr = domainAbbr[domain] || getAbbreviation(domain);
   const sAbbr = getAbbreviation(subdomain);
   const rolePref = stakeholderPrefix[stakeholder.toLowerCase()] || (stakeholder ? stakeholder[0].toUpperCase() : "X");
@@ -37,9 +37,9 @@ const generateQuestionCode = async (stakeholder, domain, subdomain, questionType
 
   const prefix = `${dAbbr}-${sAbbr}-${rolePref}${tSuff}`;
 
-  // Find questions with this prefix to get the next number
+  // Find questions with this prefix to get the next number within the organization
   const regex = new RegExp(`^${prefix}(\\d+)$`);
-  const questions = await Question.find({ questionCode: regex }, { questionCode: 1 }).lean();
+  const questions = await Question.find({ questionCode: regex, orgName }, { questionCode: 1 }).lean();
 
   let maxNum = 0;
   questions.forEach(q => {
@@ -58,7 +58,11 @@ const generateQuestionCode = async (stakeholder, domain, subdomain, questionType
  */
 export const createMultipleQuestions = async (req, res) => {
   try {
-    const questions = req.body; // The request body is now an object, not an array
+    const role = req.user.role?.toLowerCase();
+    const userOrg = req.user.orgName;
+    let orgName = (role === "superadmin" && req.body.orgName !== undefined) ? req.body.orgName : userOrg;
+    if (orgName === "") orgName = null; // Normalize empty string to null for Master Template
+    const questions = req.body.questions || req.body;
 
     // Ensure questions are provided
     if (Object.keys(questions).length === 0) {
@@ -92,7 +96,7 @@ export const createMultipleQuestions = async (req, res) => {
 
       if (prefixBaseMax[prefix] === undefined) {
         const regex = new RegExp(`^${prefix}(\\d+)$`);
-        const existingDocs = await Question.find({ questionCode: regex }, { questionCode: 1 }).lean();
+        const existingDocs = await Question.find({ questionCode: regex, orgName }, { questionCode: 1 }).lean();
         let maxOfPrefix = 0;
         existingDocs.forEach(doc => {
           const match = doc.questionCode.match(regex);
@@ -175,8 +179,8 @@ export const createMultipleQuestions = async (req, res) => {
         // Final Code = Base found in DB at start + Count in current batch + 1
         const generatedCode = `${prefix}${prefixBaseMax[prefix] + countInBatch + 1}`;
 
-        // Prevent duplicate questionCode (double check)
-        const existingCode = await Question.findOne({ questionCode: generatedCode });
+        // Prevent duplicate questionCode within the same organization
+        const existingCode = await Question.findOne({ questionCode: generatedCode, orgName });
         if (existingCode) {
           return res.status(409).json({
             message: `Question with code ${generatedCode} already exists`
@@ -190,6 +194,7 @@ export const createMultipleQuestions = async (req, res) => {
           subdomain,
           questionType,
           questionCode: generatedCode,
+          orgName,
           questionStem,
           scale,
           insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
@@ -210,6 +215,85 @@ export const createMultipleQuestions = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: "Error creating questions",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * CLONE MASTER TEMPLATE TO ORGANIZATION (SuperAdmin/Admin)
+ */
+export const cloneTemplate = async (req, res) => {
+  try {
+    const role = req.user.role?.toLowerCase();
+    const userOrg = req.user.orgName;
+    let targetOrg = (role === "superadmin" && req.body.orgName !== undefined) ? req.body.orgName : userOrg;
+
+    if (!targetOrg) {
+      return res.status(400).json({ success: false, message: "Organization name is required." });
+    }
+
+    // 1. Check if already initialized
+    const existingCount = await Question.countDocuments({ orgName: targetOrg });
+    if (existingCount > 0) {
+      return res.status(400).json({ success: false, message: `Organization "${targetOrg}" already has questions. Clone aborted.` });
+    }
+
+    // 2. Fetch masters
+    const masters = await Question.find({
+      $or: [{ orgName: null }, { orgName: "" }, { orgName: { $exists: false } }],
+      isDeleted: false
+    }).lean();
+
+    if (masters.length === 0) {
+      return res.status(404).json({ success: false, message: "Master template is empty." });
+    }
+
+    // 3. Map to new organization
+    const seenCodes = new Set();
+    const tenantQuestions = [];
+
+    masters.forEach(mq => {
+      if (!mq.questionCode || seenCodes.has(mq.questionCode)) return;
+      seenCodes.add(mq.questionCode);
+
+      const qObj = { ...mq };
+      delete qObj._id;
+      delete qObj.__v;
+      delete qObj.createdAt;
+      delete qObj.updatedAt;
+      qObj.orgName = targetOrg;
+      tenantQuestions.push(qObj);
+    });
+
+    // 4. Batch insert
+    try {
+      const result = await Question.insertMany(tenantQuestions, {
+        ordered: false,          // Skip any duplicates without failing entire batch
+        validateBeforeSave: false // Ensure speed and robustness
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully initialized ${targetOrg} with ${result.length} questions.`,
+        count: result.length
+      });
+    } catch (insertError) {
+      const insertedCount = insertError.insertedDocs?.length || 0;
+      if (insertedCount > 0) {
+        return res.status(200).json({
+          success: true,
+          message: `Partial success: Cloned ${insertedCount} questions to ${targetOrg}.`,
+          count: insertedCount
+        });
+      }
+      throw insertError;
+    }
+  } catch (error) {
+    console.error("Clone Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred during organization initialization.",
       error: error.message
     });
   }
@@ -261,8 +345,21 @@ export const updateQuestion = async (req, res) => {
       }
     }
 
-    const oldQuestion = await Question.findById(id);
+    const role = req.user.role?.toLowerCase();
+    const userOrg = req.user.orgName;
+    const queryOrgName = req.query.orgName !== undefined ? req.query.orgName : req.body.orgName;
+    let orgName = (role === "superadmin" && queryOrgName !== undefined) ? queryOrgName : userOrg;
+    if (orgName === "") orgName = null;
+
+    const orgFilter = (orgName === null || orgName === "")
+      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
+      : { orgName };
+
+    console.log(`updateQuestion: id=${id}, orgName=${orgName}, filter=${JSON.stringify(orgFilter)}`);
+
+    const oldQuestion = await Question.findOne({ _id: id, ...orgFilter });
     if (!oldQuestion) {
+      console.error(`updateQuestion: Question not found for id=${id} and filter=${JSON.stringify(orgFilter)}`);
       return res.status(404).json({ message: "Question not found" });
     }
 
@@ -277,8 +374,8 @@ export const updateQuestion = async (req, res) => {
       );
     }
 
-    const updatedQuestion = await Question.findByIdAndUpdate(
-      id,
+    const updatedQuestion = await Question.findOneAndUpdate(
+      { _id: id, ...orgFilter },
       {
         questionType,
         questionStem,
@@ -316,8 +413,19 @@ export const deleteQuestion = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const deletedQuestion = await Question.findByIdAndUpdate(
-      id,
+    const role = req.user.role?.toLowerCase();
+    const userOrg = req.user.orgName;
+    let orgName = (role === "superadmin" && req.query.orgName !== undefined) ? req.query.orgName : userOrg;
+    if (orgName === "") orgName = null;
+
+    const orgFilter = (orgName === null || orgName === "")
+      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
+      : { orgName };
+
+    console.log(`deleteQuestion: id=${id}, orgName=${orgName}, filter=${JSON.stringify(orgFilter)}`);
+
+    const deletedQuestion = await Question.findOneAndUpdate(
+      { _id: id, ...orgFilter },
       { isDeleted: true },
       { new: true }
     );
@@ -344,6 +452,14 @@ export const deleteQuestion = async (req, res) => {
  */
 export const getQuestionsByStakeholder = async (req, res) => {
   try {
+    const user = req.user || req.guest;
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const role = user.role?.toLowerCase();
+    const userOrg = user.orgName;
+    let orgName = (role === "superadmin" && req.query.orgName !== undefined) ? req.query.orgName : userOrg;
+    if (orgName === "") orgName = null;
     const { stakeholder } = req.query;
 
     if (!stakeholder) {
@@ -352,15 +468,33 @@ export const getQuestionsByStakeholder = async (req, res) => {
       });
     }
 
-    const questions = await Question.find({
-      stakeholder,
-      isDeleted: false
-    }).sort({ order: 1 }); // Sort by order for the quiz
+    // 1. Try to find questions for the specific organization first
+    let questions = [];
+    if (orgName && orgName !== "") {
+      questions = await Question.find({
+        stakeholder,
+        orgName,
+        isDeleted: false
+      }).sort({ order: 1 });
+      console.log(`getQuestionsByStakeholder: Found ${questions.length} questions for organization "${orgName}"`);
+    }
+
+    // 2. Fallback: If no organization questions found (or no orgName), fetch from Master Template
+    if (questions.length === 0) {
+      console.log(`getQuestionsByStakeholder: No organization questions found. Falling back to Master Template.`);
+      const masterFilter = { $or: [{ orgName: null }, { orgName: "" }, { orgName: { $exists: false } }] };
+      questions = await Question.find({
+        stakeholder,
+        ...masterFilter,
+        isDeleted: false
+      }).sort({ order: 1 });
+    }
 
     return res.status(200).json({
       data: questions
     });
   } catch (error) {
+    console.error("Error in getQuestionsByStakeholder:", error);
     return res.status(500).json({
       message: "Error fetching questions",
       error: error.message
@@ -374,10 +508,28 @@ export const getQuestionsByStakeholder = async (req, res) => {
  */
 export const getAllQuestions = async (req, res) => {
   try {
+    if (!req.user) {
+      console.error("getAllQuestions: req.user is missing! Ensure protect middleware is working.");
+      return res.status(401).json({ success: false, message: "Unauthorized: Missing user context" });
+    }
+
+    const role = req.user.role?.toLowerCase();
+    const userOrg = req.user.orgName;
+    let orgName = (role === "superadmin" && req.query.orgName !== undefined) ? req.query.orgName : userOrg;
+
+    // Normalize empty strings and undefined to null for filter logic
+    if (orgName === "" || orgName === undefined) orgName = null;
+
     const { stakeholder, domain, subdomain } = req.query;
 
+    const orgFilter = (orgName === null)
+      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
+      : { orgName };
+
+    console.log(`getAllQuestions: role=${role}, userOrg=${userOrg}, targetOrg=${orgName}, filter=${JSON.stringify(orgFilter)}`);
+
     // Build filter object
-    const filter = { isDeleted: false };
+    const filter = { isDeleted: false, ...orgFilter };
 
     if (stakeholder) {
       filter.stakeholder = stakeholder;
@@ -391,7 +543,9 @@ export const getAllQuestions = async (req, res) => {
       filter.subdomain = subdomain;
     }
 
-    const questions = await Question.find(filter).sort({ stakeholder: 1, order: 1 }); // Sort by stakeholder and then order
+    const questions = await Question.find(filter).sort({ stakeholder: 1, order: 1 });
+
+    console.log(`getAllQuestions: Found ${questions.length} questions for filter:`, JSON.stringify(filter));
 
     return res.status(200).json({
       success: true,
@@ -399,6 +553,7 @@ export const getAllQuestions = async (req, res) => {
       count: questions.length
     });
   } catch (error) {
+    console.error("Error in getAllQuestions:", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching questions",
@@ -412,9 +567,19 @@ export const getAllQuestions = async (req, res) => {
  */
 export const getQuestionById = async (req, res) => {
   try {
+    const role = req.user.role?.toLowerCase();
+    const userOrg = req.user.orgName;
+    let orgName = (role === "superadmin" && req.query.orgName !== undefined) ? req.query.orgName : userOrg;
+    if (orgName === "" || orgName === undefined) orgName = null;
     const { id } = req.params;
 
-    const question = await Question.findById(id);
+    const orgFilter = (orgName === null || orgName === "")
+      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
+      : { orgName };
+
+    console.log(`getQuestionById: id=${id}, orgName=${orgName}, filter=${JSON.stringify(orgFilter)}`);
+
+    const question = await Question.findOne({ _id: id, ...orgFilter });
 
     if (!question || question.isDeleted) {
       return res.status(404).json({
@@ -442,13 +607,22 @@ export const getQuestionById = async (req, res) => {
  */
 export const reorderQuestions = async (req, res) => {
   try {
-    const updates = req.body;
+    const role = req.user.role?.toLowerCase();
+    const userOrg = req.user.orgName;
+    let orgName = (role === "superadmin" && req.body.orgName !== undefined) ? req.body.orgName : userOrg;
+    if (orgName === "") orgName = null;
+    const updates = req.body.updates || req.body;
     console.log(`Reorder request: received ${Array.isArray(updates) ? updates.length : "invalid"} items`);
 
     if (!Array.isArray(updates)) {
       return res.status(400).json({ message: "Updates must be an array of objects with id and order properties" });
     }
 
+    const orgFilter = (orgName === null || orgName === "")
+      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
+      : { orgName };
+
+    console.log(`reorderQuestions: orgName=${orgName}, filter=${JSON.stringify(orgFilter)}, updatesCount=${updates.length}`);
     const bulkOps = updates
       .filter(u => (u._id || u.id) && (u.order !== undefined || u.subdomain))
       .map(u => {
@@ -458,7 +632,7 @@ export const reorderQuestions = async (req, res) => {
 
         return {
           updateOne: {
-            filter: { _id: u._id || u.id },
+            filter: { _id: u._id || u.id, ...orgFilter },
             update: { $set: updateDoc }
           }
         };
