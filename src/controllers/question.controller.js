@@ -111,6 +111,7 @@ export const createMultipleQuestions = async (req, res) => {
 
     // 2. Track counts for the current batch
     const batchPrefixCounts = {};
+    const maxOrderPerSubdomain = {}; // Tracks { "stakeholder-subdomain": maxOrder }
 
     // Iterate over the object of questions
     for (const key in questions) {
@@ -187,7 +188,20 @@ export const createMultipleQuestions = async (req, res) => {
           });
         }
 
-        // Create the new question with the calculated subdomainWeight
+        // Get Max Order for stakeholder and subdomain safely
+        const orderKey = `${stakeholder}-${subdomain}`;
+        if (maxOrderPerSubdomain[orderKey] === undefined) {
+          const highestOrderQuestion = await Question.findOne({
+            stakeholder,
+            subdomain,
+            orgName,
+            isDeleted: false
+          }).sort('-order').lean();
+          maxOrderPerSubdomain[orderKey] = highestOrderQuestion && highestOrderQuestion.order != null ? highestOrderQuestion.order : 0;
+        }
+        maxOrderPerSubdomain[orderKey] += 1;
+
+        // Create the new question with the calculated subdomainWeight and append to the end
         const question = new Question({
           stakeholder,
           domain,
@@ -199,7 +213,8 @@ export const createMultipleQuestions = async (req, res) => {
           scale,
           insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
           forcedChoice: scale === "FORCED_CHOICE" ? forcedChoice : null,
-          subdomainWeight: (domain === "People Potential" ? 0.35 : (domain === "Operational Steadiness" ? 0.25 : 0.20))
+          subdomainWeight: (domain === "People Potential" ? 0.35 : (domain === "Operational Steadiness" ? 0.25 : 0.20)),
+          order: maxOrderPerSubdomain[orderKey]
         });
 
         // Save the question to the database
