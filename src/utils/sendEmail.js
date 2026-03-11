@@ -1,9 +1,9 @@
-import nodemailer from 'nodemailer';
-import dns from 'dns';
+import nodemailer from "nodemailer";
+import dns from "dns";
 
 // Force prioritize IPv4 for network requests (fixes Gmail connection timeouts on many networks)
 if (dns.setDefaultResultOrder) {
-  dns.setDefaultResultOrder('ipv4first');
+  dns.setDefaultResultOrder("ipv4first");
 }
 
 let transporter;
@@ -11,25 +11,35 @@ let transporter;
 const getTransporter = () => {
   if (!transporter) {
     transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_APP_PASSWORD,
-      }
+      },
     });
   }
   return transporter;
 };
 
-const LOGO_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775850/talent-by-design/email-assets/logo.png';
-const FOOTER_LOGO_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775853/talent-by-design/email-assets/footer-logo.png';
-const FB_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775855/talent-by-design/email-assets/fb.png';
-const INSTA_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775857/talent-by-design/email-assets/insta.png';
-const TWITTER_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775859/talent-by-design/email-assets/twitter.png';
-const LINKEDIN_ICON_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775861/talent-by-design/email-assets/linkedin.png';
-const HERO_IMAGE_URL = 'https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775862/talent-by-design/email-assets/hero-banner.png';
+const LOGO_URL =
+  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775850/talent-by-design/email-assets/logo.png";
+const FOOTER_LOGO_URL =
+  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775853/talent-by-design/email-assets/footer-logo.png";
+const FB_ICON_URL =
+  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775855/talent-by-design/email-assets/fb.png";
+const INSTA_ICON_URL =
+  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775857/talent-by-design/email-assets/insta.png";
+const TWITTER_ICON_URL =
+  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775859/talent-by-design/email-assets/twitter.png";
+const LINKEDIN_ICON_URL =
+  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775861/talent-by-design/email-assets/linkedin.png";
+const HERO_IMAGE_URL =
+  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775862/talent-by-design/email-assets/hero-banner.png";
 
-const getEmailWrapper = (firstName, content) => `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+const getEmailWrapper = (
+  firstName,
+  content,
+) => `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -130,7 +140,7 @@ const getEmailWrapper = (firstName, content) => `<!DOCTYPE html PUBLIC "-//W3C//
                           line-height: 40px;
                         "
                       >
-                        Hi ${firstName || 'there'}!
+                        Hi ${firstName || "there"}!
                       </h1>
                     </td>
                     <td align="right" valign="bottom" style="padding: 0;">
@@ -285,9 +295,9 @@ const getEmailWrapper = (firstName, content) => `<!DOCTYPE html PUBLIC "-//W3C//
 const sendEmail = async (mailOptions) => {
   try {
     const info = await getTransporter().sendMail(mailOptions);
-    console.log('Email sent:', info.response);
+    console.log("Email sent:", info.response);
   } catch (error) {
-    console.error('>>> [EMAIL FAIL]:', error.message);
+    console.error(">>> [EMAIL FAIL]:", error.message);
     console.error(error.stack);
     throw new Error(`Failed to send email: ${error.message}`);
   }
@@ -296,18 +306,22 @@ const sendEmail = async (mailOptions) => {
 export const sendInvitationEmail = async (email, link, role, orgName) => {
   if (!email || !link) return;
 
-  const isEmployee = role === 'employee';
-  const title = isEmployee ? "Your Assessment Invitation" : "You're Invited to Join";
+  const isEmployee = role === "employee";
+  const title = isEmployee
+    ? "Your Assessment Invitation"
+    : "You're Invited to Join";
   const buttonText = isEmployee ? "Start Assessment" : "Complete Registration";
 
-  // You have been invited to join <strong>${orgName || 'the platform'}</strong> on Talent By Design. 
+  // You have been invited to join <strong>${orgName || 'the platform'}</strong> on Talent By Design.
   const content = `
     <p style="font-size: 16px; margin-bottom: 16px;">
 
       You have been invited to participate in <strong> Talent By Design's POD-360™ </strong> Workplace Assessment.  We thank you in advance for your time and look forward to supporting you along your journey
-      ${isEmployee
-      ? "We're excited to have you complete your confidential professional assessment."
-      : "You have been assigned administrative access to help manage your organization's talent growth."}
+      ${
+        isEmployee
+          ? "We're excited to have you complete your confidential professional assessment."
+          : "You have been assigned administrative access to help manage your organization's talent growth."
+      }
     </p>
     <div style="margin: 40px 0;">
       <a href="${link}" style="display: inline-block; padding: 12px 28px; background: rgba(68, 140, 210, 0.05); color: #448cd2; text-decoration: none; border-radius: 32px; font-size: 16px; font-weight: 600; border: 1px solid #448cd2; cursor: pointer;">
@@ -323,7 +337,7 @@ export const sendInvitationEmail = async (email, link, role, orgName) => {
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: title,
-    html: getEmailWrapper('', content)
+    html: getEmailWrapper("", content),
   });
 };
 
@@ -338,7 +352,7 @@ export const sendVerificationEmail = async (user, link) => {
     <p style="font-size: 16px; margin-bottom: 16px;">
       We're thrilled to have you join our community. To finalize your account setup and ensure the security of your information, please verify your email address by clicking the button below:
     </p>
-    <div style="text-align: center; margin: 40px 0;">
+    <div style="margin: 40px 0;">
       <a href="${link}" style="display: inline-block; padding: 12px 28px; background: rgba(68, 140, 210, 0.05); color: #448cd2; text-decoration: none; border-radius: 32px; font-size: 16px; font-weight: 600; border: 1px solid #448cd2; cursor: pointer;">
         Verify Email Address
       </a>
@@ -352,7 +366,7 @@ export const sendVerificationEmail = async (user, link) => {
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to: user.email,
     subject: "Verify your email address",
-    html: getEmailWrapper(user.firstName || '', content)
+    html: getEmailWrapper(user.firstName || "", content),
   });
 };
 
@@ -367,7 +381,7 @@ export const sendResetEmail = async (to, link) => {
     <p style="font-size: 16px; margin-bottom: 16px;">
       We received a request to reset the password for your Talent By Design account. No changes have been made yet. You can reset your password by clicking the link below:
     </p>
-    <div style="text-align: center; margin: 40px 0;">
+    <div style="margin: 40px 0;">
       <a href="${link}" style="display: inline-block; padding: 12px 28px; background: rgba(68, 140, 210, 0.05); color: #448cd2; text-decoration: none; border-radius: 32px; font-size: 16px; font-weight: 600; border: 1px solid #448cd2; cursor: pointer;">
         Reset Password
       </a>
@@ -381,7 +395,7 @@ export const sendResetEmail = async (to, link) => {
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to,
     subject: title,
-    html: getEmailWrapper('', content)
+    html: getEmailWrapper("", content),
   });
 };
 
@@ -392,7 +406,7 @@ export const sendNotificationEmail = async (user, title, message) => {
     <p style="font-size: 16px; margin-bottom: 24px;">
       ${message}
     </p>
-    <div style="text-align: center; margin: 32px 0;">
+    <div style="margin: 32px 0;">
       <a href="${process.env.FRONTEND_URL}/dashboard" style="display: inline-block; padding: 10px 24px; background: rgba(68, 140, 210, 0.05); color: #448cd2; text-decoration: none; border-radius: 32px; font-size: 14px; font-weight: 600; border: 1px solid #448cd2; cursor: pointer;">
         Go to Dashboard
       </a>
@@ -406,6 +420,6 @@ export const sendNotificationEmail = async (user, title, message) => {
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to: user.email,
     subject: title,
-    html: getEmailWrapper(user.firstName || '', content)
+    html: getEmailWrapper(user.firstName || "", content),
   });
 };
