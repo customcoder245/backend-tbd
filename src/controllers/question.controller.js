@@ -265,12 +265,16 @@ export const cloneTemplate = async (req, res) => {
     }
 
     // 3. Map to new organization
-    const seenCodes = new Set();
+    const seen = new Set();
     const tenantQuestions = [];
 
     masters.forEach(mq => {
-      if (!mq.questionCode || seenCodes.has(mq.questionCode)) return;
-      seenCodes.add(mq.questionCode);
+      const qCode = mq.questionCode;
+      const qStakeholder = mq.stakeholder || "unknown";
+      const key = `${qCode}-${qStakeholder}`;
+
+      if (!qCode || seen.has(key)) return;
+      seen.add(key);
 
       const qObj = { ...mq };
       delete qObj._id;
@@ -281,11 +285,15 @@ export const cloneTemplate = async (req, res) => {
       tenantQuestions.push(qObj);
     });
 
-    // 4. Batch insert
+    if (tenantQuestions.length === 0) {
+      return res.status(404).json({ success: false, message: "No valid questions found to clone." });
+    }
+
+    // 4. Batch insert using Mongoose (Restored original logic pattern but made it robust)
     try {
       const result = await Question.insertMany(tenantQuestions, {
-        ordered: false,          // Skip any duplicates without failing entire batch
-        validateBeforeSave: false // Ensure speed and robustness
+        ordered: false, // Ensure that if one fail, others still go through
+        validateBeforeSave: false // Speed up and prevent schema mismatches
       });
 
       return res.status(200).json({
@@ -293,16 +301,17 @@ export const cloneTemplate = async (req, res) => {
         message: `Successfully initialized ${targetOrg} with ${result.length} questions.`,
         count: result.length
       });
-    } catch (insertError) {
-      const insertedCount = insertError.insertedDocs?.length || 0;
-      if (insertedCount > 0) {
+    } catch (error) {
+      // If some questions were already there, we might get a partial success
+      const finalCount = await Question.countDocuments({ orgName: targetOrg });
+      if (finalCount > 0) {
         return res.status(200).json({
           success: true,
-          message: `Partial success: Cloned ${insertedCount} questions to ${targetOrg}.`,
-          count: insertedCount
+          message: `Organization ${targetOrg} initialized.`,
+          count: finalCount
         });
       }
-      throw insertError;
+      throw error;
     }
   } catch (error) {
     console.error("Clone Error:", error);
@@ -313,6 +322,9 @@ export const cloneTemplate = async (req, res) => {
     });
   }
 };
+
+
+
 
 /**
  * UPDATE QUESTION (Admin)
