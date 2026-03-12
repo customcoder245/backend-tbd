@@ -20,6 +20,7 @@ const notificationSchema = new mongoose.Schema({
     },
     link: {
         type: String,
+        
         default: null
     },
     isRead: {
