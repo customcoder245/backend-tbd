@@ -7,9 +7,13 @@ import {
   getAllQuestions,
   getQuestionById,
   reorderQuestions,
-  cloneTemplate
+  cloneTemplate,
+  uploadQuestions,
+  deleteOrganizationQuestions,
+  downloadTemplate
 } from "../controllers/question.controller.js";
 import { protect, flexibleProtect } from "../middlewares/auth.middleware.js";
+import { upload, excelUpload } from "../middlewares/multer.middleware.js";
 
 const router = express.Router();
 
@@ -17,9 +21,12 @@ const router = express.Router();
 router.get("/all", protect, getAllQuestions);                  // Get all questions with filters
 router.get("/:id", protect, getQuestionById);                  // Get single question by ID
 router.post("/multiple", protect, createMultipleQuestions);     // Multiple question creation 
+router.get("/template/download", protect, downloadTemplate);       // Download Excel template
 router.post("/clone", protect, cloneTemplate);                 // Clone master template to organization
+router.post("/upload", protect, excelUpload.single("file"), uploadQuestions); // Upload questions from Excel (no size limit)
 router.put("/reorder", protect, reorderQuestions);              // Batch reorder questions (Drag & Drop)
 router.put("/:id", protect, updateQuestion);                   // Update question
+router.delete("/organization/all", protect, deleteOrganizationQuestions); // Delete all questions for an organization
 router.delete("/:id", protect, deleteQuestion);                // Soft delete question
 
 // User / Assessment route

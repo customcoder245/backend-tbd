@@ -1,4 +1,12 @@
 import Question from "../models/question.model.js";
+import xlsx from "xlsx";
+import ExcelJS from "exceljs";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const domainAbbr = {
   "People Potential": "PP",
@@ -671,6 +679,276 @@ export const reorderQuestions = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error reordering questions",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * UPLOAD QUESTIONS FROM EXCEL (Admin)
+ */
+export const uploadQuestions = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+
+    const role = req.user.role?.toLowerCase();
+    const userOrg = req.user.orgName;
+    let orgName = (role === "superadmin" && req.body.orgName !== undefined) ? req.body.orgName : userOrg;
+    if (orgName === "") orgName = null;
+
+    // Read excel file
+    const workbook = xlsx.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(sheet);
+
+    if (data.length === 0) {
+      return res.status(400).json({ success: false, message: "Excel file is empty" });
+    }
+
+    // Process questions
+    const createdQuestions = [];
+    const prefixBaseMax = {};
+    const batchPrefixCounts = {};
+    const maxOrderPerSubdomain = {};
+
+    for (const row of data) {
+      const stakeholder = row.stakeholder?.toLowerCase();
+      const domain = row.domain;
+      const subdomain = row.subdomain;
+      const questionType = row.questionType;
+      const questionStem = row.questionStem;
+      const scale = row.scale;
+      const insightPrompt = row.insightPrompt;
+
+      const forcedChoice = (scale === "FORCED_CHOICE" && row["forcedChoice.optionA.label"]) ? {
+        optionA: {
+          label: row["forcedChoice.optionA.label"],
+          insightPrompt: row["forcedChoice.optionA.insightPrompt"] || ""
+        },
+        optionB: {
+          label: row["forcedChoice.optionB.label"],
+          insightPrompt: row["forcedChoice.optionB.insightPrompt"] || ""
+        },
+        higherValueOption: row["forcedChoice.higherValueOption"] || "A"
+      } : null;
+
+      if (!stakeholder || !domain || !subdomain || !questionType || !questionStem || !scale) {
+        continue; // Skip rows with missing mandatory fields
+      }
+
+      // Generate Code
+      const dAbbr = domainAbbr[domain] || getAbbreviation(domain);
+      const sAbbr = getAbbreviation(subdomain);
+      const rolePref = stakeholderPrefix[stakeholder] || stakeholder[0].toUpperCase();
+      const tSuff = typeSuffix[questionType] || "";
+      const prefix = `${dAbbr}-${sAbbr}-${rolePref}${tSuff}`;
+
+      if (prefixBaseMax[prefix] === undefined) {
+        const regex = new RegExp(`^${prefix}(\\d+)$`);
+        const existingDocs = await Question.find({ questionCode: regex, orgName }, { questionCode: 1 }).lean();
+        let maxOfPrefix = 0;
+        existingDocs.forEach(doc => {
+          const match = doc.questionCode.match(regex);
+          if (match) {
+            const num = parseInt(match[1]);
+            if (num > maxOfPrefix) maxOfPrefix = num;
+          }
+        });
+        prefixBaseMax[prefix] = maxOfPrefix;
+      }
+
+      const countInBatch = batchPrefixCounts[prefix] || 0;
+      batchPrefixCounts[prefix] = countInBatch + 1;
+      const generatedCode = `${prefix}${prefixBaseMax[prefix] + countInBatch + 1}`;
+
+      // Order management
+      const orderKey = `${stakeholder}-${subdomain}`;
+      if (maxOrderPerSubdomain[orderKey] === undefined) {
+        const highestOrderQuestion = await Question.findOne({
+          stakeholder,
+          subdomain,
+          orgName,
+          isDeleted: false
+        }).sort('-order').lean();
+        maxOrderPerSubdomain[orderKey] = highestOrderQuestion && highestOrderQuestion.order != null ? highestOrderQuestion.order : 0;
+      }
+      maxOrderPerSubdomain[orderKey] += 1;
+
+      createdQuestions.push({
+        stakeholder,
+        domain,
+        subdomain,
+        questionType,
+        questionCode: generatedCode,
+        orgName,
+        questionStem,
+        scale,
+        insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
+        forcedChoice: scale === "FORCED_CHOICE" ? forcedChoice : null,
+        subdomainWeight: (domain === "People Potential" ? 0.35 : (domain === "Operational Steadiness" ? 0.25 : 0.20)),
+        order: maxOrderPerSubdomain[orderKey]
+      });
+    }
+
+    if (createdQuestions.length === 0) {
+      return res.status(400).json({ success: false, message: "No valid questions found in Excel file" });
+    }
+
+    const savedQuestions = await Question.insertMany(createdQuestions);
+
+    // Clean up file
+    fs.unlinkSync(req.file.path);
+
+    return res.status(201).json({
+      success: true,
+      message: `${savedQuestions.length} questions uploaded successfully`,
+      data: savedQuestions
+    });
+
+  } catch (error) {
+    if (req.file) fs.unlinkSync(req.file.path);
+    console.error("Upload Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error uploading questions",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * DELETE ALL QUESTIONS FOR AN ORGANIZATION (SuperAdmin/Admin)
+ */
+export const deleteOrganizationQuestions = async (req, res) => {
+  try {
+    const role = req.user.role?.toLowerCase();
+    const userOrg = req.user.orgName;
+    const { orgName: targetOrg } = req.body;
+
+    let orgName = (role === "superadmin" && targetOrg !== undefined) ? targetOrg : userOrg;
+
+    if (orgName === "") orgName = null;
+
+    const orgFilter = (orgName === null)
+      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
+      : { orgName };
+
+    // Perform hard delete
+    const result = await Question.deleteMany({ orgName });
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully deleted all questions for organization "${orgName || "Master Template"}".`,
+      count: result.deletedCount
+    });
+  } catch (error) {
+    console.error("Delete All Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while deleting questions.",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * DOWNLOAD EXCEL TEMPLATE (Admin)
+ */
+export const downloadTemplate = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Question Template");
+
+    // Define Columns with Widths
+    worksheet.columns = [
+      { header: "stakeholder", key: "stakeholder", width: 15 },
+      { header: "domain", key: "domain", width: 25 },
+      { header: "subdomain", key: "subdomain", width: 30 },
+      { header: "questionType", key: "questionType", width: 20 },
+      { header: "questionStem", key: "questionStem", width: 50 },
+      { header: "scale", key: "scale", width: 20 },
+      { header: "insightPrompt", key: "insightPrompt", width: 40 },
+      { header: "forcedChoice.optionA.label", key: "optionALabel", width: 35 },
+      { header: "forcedChoice.optionA.insightPrompt", key: "optionAInsight", width: 35 },
+      { header: "forcedChoice.optionB.label", key: "optionBLabel", width: 35 },
+      { header: "forcedChoice.optionB.insightPrompt", key: "optionBInsight", width: 35 },
+      { header: "forcedChoice.higherValueOption", key: "higherValue", width: 25 },
+    ];
+
+    // Style the Header Row
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF1A3652' } // Brand Navy Blue
+      };
+      cell.font = {
+        color: { argb: 'FFFFFFFF' }, // White
+        bold: true,
+        size: 11
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    });
+    headerRow.height = 25;
+
+    // Add Sample Data
+    worksheet.addRows([
+      {
+        stakeholder: "employee",
+        domain: "People Potential",
+        subdomain: "Mindset & Adaptability",
+        questionType: "Self-Rating",
+        questionStem: "I’m open to changing how I work when priorities or information change.",
+        scale: "SCALE_1_5",
+        insightPrompt: "What makes it difficult to adjust how you work when priorities or information change?",
+      },
+      {
+        stakeholder: "leader",
+        domain: "People Potential",
+        subdomain: "Psychological Health & Safety",
+        questionType: "Forced-Choice",
+        questionStem: "Which statement best reflects your team?",
+        scale: "FORCED_CHOICE",
+        insightPrompt: "",
+        optionALabel: "We discuss priorities and adjust expectations.",
+        optionAInsight: "",
+        optionBLabel: "I’m expected to cope without changes or support.",
+        optionBInsight: "What are the impacts and what could be different if you had more support?",
+        higherValue: "B"
+      }
+    ]);
+
+    // Style Data Rows for clarity
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        row.alignment = { vertical: 'middle', wrapText: true };
+      }
+    });
+
+    const tempFilePath = path.join(__dirname, "../../tmp-template.xlsx");
+    await workbook.xlsx.writeFile(tempFilePath);
+
+    res.download(tempFilePath, "Question_Upload_Template.xlsx", (err) => {
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+    });
+
+  } catch (error) {
+    console.error("Download Template Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error generating colorful template",
       error: error.message
     });
   }

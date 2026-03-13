@@ -17,10 +17,16 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
+  const allowedTypes = [
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+    "application/vnd.ms-excel" // .xls
+  ];
 
   if (!allowedTypes.includes(file.mimetype)) {
-    return cb(new Error("Only PNG and JPEG images are allowed"), false);
+    return cb(new Error("Only images (PNG, JPEG) and Excel files are allowed"), false);
   }
 
   cb(null, true);
@@ -32,6 +38,26 @@ export const upload = multer({
   limits: {
     fileSize: MAX_SIZE
   }
+});
+
+// ✅ EXCEL UPLOAD — No size limit
+const excelFilter = (req, file, cb) => {
+  const allowedTypes = [
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+    "application/vnd.ms-excel" // .xls
+  ];
+
+  if (!allowedTypes.includes(file.mimetype)) {
+    return cb(new Error("Only Excel files (.xlsx, .xls) are allowed"), false);
+  }
+
+  cb(null, true);
+};
+
+export const excelUpload = multer({
+  storage,
+  fileFilter: excelFilter
+  // No limits — no file size restriction
 });
 
 
