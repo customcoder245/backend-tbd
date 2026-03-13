@@ -17,6 +17,7 @@ import { upload, excelUpload } from "../middlewares/multer.middleware.js";
 
 const router = express.Router();
 
+
 // Admin CRUD routes (Protected)
 router.get("/all", protect, getAllQuestions);                  // Get all questions with filters
 router.get("/:id", protect, getQuestionById);                  // Get single question by ID
