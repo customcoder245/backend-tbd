@@ -20,10 +20,11 @@ const notificationSchema = new mongoose.Schema({
     },
     link: {
         type: String,
+        // info, success, warning, error
         default: null
     },
     isRead: {
-        type: Boolean,
+        type: Boolean,// info, success, warning, error
         default: false
     }
 }, { timestamps: true });

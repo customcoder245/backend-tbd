@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import './config/env.config.js';
 import dns from 'dns';
 import connectDB from "./db/index.js";
 import { app } from './app.js';
@@ -6,10 +6,7 @@ import cron from 'node-cron';
 import User from './models/user.model.js';
 import mongoose from 'mongoose';
 
-dotenv.config({
-    path: './.env',
-    quiet: true
-});
+
 
 // Use Google DNS override only in development to fix local 'querySrv ECONNREFUSED' issues
 if (process.env.NODE_ENV !== 'production') {
