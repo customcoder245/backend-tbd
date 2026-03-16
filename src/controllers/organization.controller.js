@@ -233,31 +233,86 @@ export const getOrgFilters = async (req, res) => {
 
         const orgRegex = { $regex: new RegExp("^" + orgName + "$", "i") };
 
-        // Run all independent queries in parallel
         const [depts, roles, userDepts, userRoles, invitations, registeredUsers] = await Promise.all([
             Invitation.distinct("department", { orgName: orgRegex }),
             Invitation.distinct("role", { orgName: orgRegex }),
             User.distinct("department", { orgName: orgRegex }),
             User.distinct("role", { orgName: orgRegex }),
             Invitation.find({ orgName: orgRegex }).select("email role department").lean(),
-            User.find({ orgName: orgRegex }).select("firstName lastName email role department").lean()
+            User.find({ orgName: orgRegex }).select("firstName lastName email role department profileImage").lean()
         ]);
 
         const allDepts = [...new Set([...depts, ...userDepts])].filter(Boolean).sort();
         const allRoles = [...new Set([...roles, ...userRoles])].filter(Boolean).sort();
+
+        // Check assessment completion for all members
+        const invIds = invitations.map(i => i._id);
+        const invEmails = invitations.map(i => i.email);
+        const userIds = registeredUsers.map(u => u._id);
+        const userEmails = registeredUsers.map(u => u.email);
+
+        const assessments = await Assessment.find({
+            $or: [
+                { invitationId: { $in: invIds } },
+                { employeeEmail: { $in: [...invEmails, ...userEmails] } },
+                { userId: { $in: userIds } }
+            ],
+            isCompleted: true
+        }).select("userId employeeEmail invitationId userDetails").lean();
+
+        // Create lookups for names and status
+        const completedEmails = new Set();
+        const completedUserIds = new Set();
+        const completedInvIds = new Set();
+        const nameFallbackLookups = new Map(); // email -> name
+
+        assessments.forEach(a => {
+            if (a.employeeEmail) completedEmails.add(a.employeeEmail.toLowerCase());
+            if (a.userId) completedUserIds.add(a.userId.toString());
+            if (a.invitationId) completedInvIds.add(a.invitationId.toString());
+
+            // If assessment has userDetails with name info, use it as fallback
+            if (a.userDetails?.firstName) {
+                const fullName = `${a.userDetails.firstName} ${a.userDetails.lastName || ""}`.trim();
+                if (fullName) {
+                    if (a.employeeEmail) nameFallbackLookups.set(a.employeeEmail.toLowerCase(), fullName);
+                }
+            }
+        });
 
         const members = [];
         const processedEmails = new Set();
 
         registeredUsers.forEach(u => {
             const name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email;
-            members.push({ _id: u._id, name, email: u.email, role: u.role, department: u.department });
+            const hasCompleted = completedUserIds.has(u._id.toString()) || completedEmails.has(u.email.toLowerCase());
+            members.push({
+                _id: u._id,
+                name,
+                email: u.email,
+                role: u.role,
+                department: u.department,
+                profileImage: u.profileImage,
+                assessmentStatus: hasCompleted ? "Completed" : "Pending"
+            });
             processedEmails.add(u.email.toLowerCase());
         });
 
         invitations.forEach(inv => {
-            if (!processedEmails.has(inv.email.toLowerCase())) {
-                members.push({ _id: inv._id, name: inv.email, email: inv.email, role: inv.role, department: inv.department });
+            const emailLower = inv.email.toLowerCase();
+            if (!processedEmails.has(emailLower)) {
+                const hasCompleted = completedInvIds.has(inv._id.toString()) || completedEmails.has(emailLower);
+                // Try to get name from fallback (assessment) if invitation doesn't have it
+                const resolvedName = nameFallbackLookups.get(emailLower) || inv.email;
+
+                members.push({
+                    _id: inv._id,
+                    name: resolvedName,
+                    email: inv.email,
+                    role: inv.role,
+                    department: inv.department,
+                    assessmentStatus: hasCompleted ? "Completed" : "Pending"
+                });
             }
         });
 

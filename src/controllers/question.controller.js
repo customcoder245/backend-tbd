@@ -57,7 +57,7 @@ const generateQuestionCode = async (stakeholder, domain, subdomain, questionType
       if (num > maxNum) maxNum = num;
     }
   });
-
+ 
   return `${prefix}${maxNum + 1 + offset}`;
 };
 
