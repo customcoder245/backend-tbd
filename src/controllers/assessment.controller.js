@@ -355,9 +355,9 @@ export const getSuperAdminStats = async (req, res) => {
       { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
     ]);
 
-    // 3. Aggregate Admins (Emails per org)
-    const adminStats = await User.aggregate([
-      { $match: { role: "admin", orgName: { $exists: true, $ne: null } } },
+    // 3. Aggregate Users (Emails per org) - All roles
+    const userStats = await User.aggregate([
+      { $match: { orgName: { $exists: true, $ne: null } } },
       { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
     ]);
 
@@ -378,8 +378,8 @@ export const getSuperAdminStats = async (req, res) => {
       }
     });
 
-    // Add Admins
-    adminStats.forEach(a => {
+    // Add Users
+    userStats.forEach(a => {
       if (!a._id) return;
       const org = getOrg(a._id);
       if (a.emails && Array.isArray(a.emails)) {
@@ -445,22 +445,21 @@ export const getSuperAdminIntelligence = async (req, res) => {
       recentAssessments,
       recentInvites
     ] = await Promise.all([
-      Invitation.distinct("orgName", dateFilter),
-      User.distinct("orgName", { role: "admin", ...dateFilter }),
-      Assessment.distinct("orgName", assessmentDateFilter),
+      Invitation.distinct("orgName"),
+      User.distinct("orgName"),
+      Assessment.distinct("orgName"),
       Assessment.distinct("orgName", { isCompleted: true, ...assessmentDateFilter }),
       User.aggregate([
-        { $match: { ...dateFilter, role: { $ne: "superAdmin" } } },
+        { $match: { role: { $ne: "superAdmin" } } },
         { $group: { _id: "$role", count: { $sum: 1 } } }
       ]),
-      Invitation.find({ role: "employee", ...dateFilter }, "email").lean(),
+      Invitation.find({ role: "employee" }, "email").lean(),
       Assessment.find({
-        "userDetails.role": { $regex: /employee/i },
-        ...assessmentDateFilter
+        "userDetails.role": { $regex: /employee/i }
       }, "userDetails.email").lean(),
-      Invitation.countDocuments(dateFilter),
-      User.countDocuments({ role: "admin", ...dateFilter }),
-      Assessment.countDocuments({ isCompleted: true, ...assessmentDateFilter }),
+      Invitation.countDocuments(),
+      User.countDocuments({ role: "admin" }),
+      Assessment.countDocuments({ isCompleted: true }),
       Assessment.aggregate([
         { $match: { isCompleted: true, ...assessmentDateFilter } },
         { $group: { _id: "$userDetails.role", count: { $sum: 1 } } }

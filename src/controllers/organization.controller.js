@@ -18,30 +18,27 @@ export const getOrgDetails = async (req, res) => {
             return res.status(403).json({ message: "Access denied. Employees do not have permission to view organization details." });
         }
 
-        // Fetch all invitations for this organization (case-insensitive)
-        const invitations = await Invitation.find({
-            orgName: { $regex: new RegExp("^" + orgName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + "$", "i") }
-        }).sort({ createdAt: -1 });
+        // Regex escaping for safe lookups
+        const safeOrgName = orgName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const orgRegex = { $regex: new RegExp("^" + safeOrgName + "$", "i") };
+
+        // Fetch all invitations and registered users for this organization
+        const [invitations, registeredUsers] = await Promise.all([
+            Invitation.find({ orgName: orgRegex }).sort({ createdAt: -1 }),
+            User.find({ orgName: orgRegex }).lean()
+        ]);
 
         const formattedMembers = [];
-        const emails = invitations.map(inv => inv.email.toLowerCase());
-        const tokens = invitations.flatMap(inv => [inv.token, inv.token1]).filter(Boolean);
+        const invEmails = invitations.map(inv => inv.email.toLowerCase());
         const invIds = invitations.map(inv => inv._id);
 
-        const [registeredUsers, assessments] = await Promise.all([
-            User.find({
-                $or: [
-                    { invitationToken: { $in: tokens } },
-                    { email: { $in: emails } }
-                ]
-            }).lean(),
-            Assessment.find({
-                $or: [
-                    { invitationId: { $in: invIds } },
-                    { employeeEmail: { $in: invitations.map(inv => new RegExp("^" + inv.email.replace(/[-\/\\^$*+?.()|[\\]{}]/g, '\\\\$&') + "$", "i")) } }
-                ]
-            }).sort({ submittedAt: -1 }).lean()
-        ]);
+        const assessments = await Assessment.find({
+            $or: [
+                { invitationId: { $in: invIds } },
+                { employeeEmail: { $in: invEmails } },
+                { userId: { $in: registeredUsers.map(u => u._id) } }
+            ]
+        }).sort({ submittedAt: -1 }).lean();
 
         const userMap = {};
         for (const u of registeredUsers) {
@@ -67,67 +64,85 @@ export const getOrgDetails = async (req, res) => {
             }
         }
 
-        for (const inv of invitations) {
-            if (requesterRole === "leader" && !["leader", "manager", "employee"].includes(inv.role.toLowerCase())) continue;
-            if (requesterRole === "manager" && !["manager", "employee"].includes(inv.role.toLowerCase())) continue;
+        const processedEmails = new Set();
 
-            let name = "—";
-            let currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
+        // 1. First Pass: Registered Users
+        for (const u of registeredUsers) {
+            const roleLower = u.role?.toLowerCase() || "";
+            // Hierarchy filter
+            if (requesterRole === "leader" && !["leader", "manager", "employee"].includes(roleLower)) continue;
+            if (requesterRole === "manager" && !["manager", "employee"].includes(roleLower)) continue;
+            if (requesterDept && u.department && u.department !== requesterDept && (requesterRole === "leader" || requesterRole === "manager")) continue;
+
+            let name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email;
             let assessmentStatus = "Not Started";
             let lastScore = 0;
             let classification = null;
 
-            const registeredUser = userMap[inv.token1] || userMap[inv.token] || userMap[inv.email.toLowerCase()];
+            const userAssesses = assessmentByUserId[u._id.toString()] || [];
+            const completeAsses = userAssesses.find(a => a.isCompleted);
 
-            if (requesterRole === "leader" || requesterRole === "manager") {
-                const invDept = inv.department;
-                const userDept = registeredUser?.department;
-                if (requesterDept) {
-                    const memberDept = userDept || invDept;
-                    if (memberDept && memberDept !== requesterDept) continue;
-                }
+            if (completeAsses) {
+                assessmentStatus = "Completed";
+                lastScore = Math.round(completeAsses.scores?.overall || u.lastAssessmentScore || 0);
+                classification = completeAsses.classification || u.lastAssessmentClassification;
+                const cycleStart = getAssessmentCycleStartDate();
+                if (completeAsses.submittedAt < cycleStart) assessmentStatus = "Due";
+            } else {
+                const incomplete = userAssesses.find(a => !a.isCompleted);
+                if (incomplete) assessmentStatus = "In Progress";
             }
 
-            if (registeredUser) {
-                if (registeredUser.firstName || registeredUser.lastName) {
-                    name = `${registeredUser.firstName || ""} ${registeredUser.lastName || ""}`.trim();
-                } else {
-                    name = "Registered (Pending Info)";
+            formattedMembers.push({
+                _id: u._id,
+                firstName: u.firstName || "—",
+                lastName: u.lastName || "",
+                name: name,
+                email: u.email,
+                role: u.role,
+                createdAt: u.createdAt,
+                status: (u.isEmailVerified && u.profileCompleted) ? "Accept" : "Pending",
+                assessmentStatus,
+                lastScore,
+                classification
+            });
+            processedEmails.add(u.email.toLowerCase());
+        }
+
+        // 2. Second Pass: Invited but not registered members
+        for (const inv of invitations) {
+            const emailLower = inv.email.toLowerCase();
+            if (processedEmails.has(emailLower)) continue;
+
+            const roleLower = inv.role?.toLowerCase() || "";
+            // Hierarchy filter
+            if (requesterRole === "leader" && !["leader", "manager", "employee"].includes(roleLower)) continue;
+            if (requesterRole === "manager" && !["manager", "employee"].includes(roleLower)) continue;
+            if (requesterDept && inv.department && inv.department !== requesterDept && (requesterRole === "leader" || requesterRole === "manager")) continue;
+
+            let name = "—";
+            let currentStatus = (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
+            let assessmentStatus = "Not Started";
+            let lastScore = 0;
+            let classification = null;
+
+            const assessList1 = assessmentByInvOrEmail[inv._id.toString()] || [];
+            const assessList2 = assessmentByInvOrEmail[emailLower] || [];
+            const assessList = [...assessList1, ...assessList2];
+            assessList.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+            const assessment = assessList[0];
+
+            if (assessment) {
+                if (assessment.userDetails) {
+                    const details = assessment.userDetails;
+                    name = `${details.firstName || ""} ${details.lastName || ""}`.trim() || "Member";
                 }
-
-                const userAssesses = assessmentByUserId[registeredUser._id.toString()] || [];
-                const completeAsses = userAssesses.find(a => a.isCompleted);
-
-                if (completeAsses) {
+                if (assessment.isCompleted) {
                     assessmentStatus = "Completed";
-                    lastScore = Math.round(completeAsses.scores?.overall || registeredUser.lastAssessmentScore || 0);
-                    classification = completeAsses.classification || registeredUser.lastAssessmentClassification;
-                    const cycleStart = getAssessmentCycleStartDate();
-                    if (completeAsses.submittedAt < cycleStart) assessmentStatus = "Due";
+                    lastScore = Math.round(assessment.scores?.overall || 0);
+                    classification = assessment.classification;
                 } else {
-                    const incomplete = userAssesses.find(a => !a.isCompleted);
-                    if (incomplete) assessmentStatus = "In Progress";
-                }
-            } else {
-                const assessList1 = assessmentByInvOrEmail[inv._id.toString()] || [];
-                const assessList2 = assessmentByInvOrEmail[inv.email.toLowerCase()] || [];
-                const assessList = [...assessList1, ...assessList2];
-                // Taking the first one since it's already sorted by submittedAt DESC in DB, but we concatenated two lists, so let's resort
-                assessList.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-                const assessment = assessList[0];
-
-                if (assessment) {
-                    if (assessment.userDetails) {
-                        const details = assessment.userDetails;
-                        name = `${details.firstName || ""} ${details.lastName || ""}`.trim() || "Member";
-                    }
-                    if (assessment.isCompleted) {
-                        assessmentStatus = "Completed";
-                        lastScore = Math.round(assessment.scores?.overall || 0);
-                        classification = assessment.classification;
-                    } else {
-                        assessmentStatus = "In Progress";
-                    }
+                    assessmentStatus = "In Progress";
                 }
             }
 
@@ -231,7 +246,8 @@ export const getOrgFilters = async (req, res) => {
         const { orgName } = req.params;
         if (!orgName) return res.status(400).json({ message: "Org name is required" });
 
-        const orgRegex = { $regex: new RegExp("^" + orgName + "$", "i") };
+        const safeOrgName = orgName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const orgRegex = { $regex: new RegExp("^" + safeOrgName + "$", "i") };
 
         const [depts, roles, userDepts, userRoles, invitations, registeredUsers] = await Promise.all([
             Invitation.distinct("department", { orgName: orgRegex }),
@@ -242,84 +258,115 @@ export const getOrgFilters = async (req, res) => {
             User.find({ orgName: orgRegex }).select("firstName lastName email role department profileImage").lean()
         ]);
 
-        const allDepts = [...new Set([...depts, ...userDepts])].filter(Boolean).sort();
-        const allRoles = [...new Set([...roles, ...userRoles])].filter(Boolean).sort();
-
-        // Check assessment completion for all members
-        const invIds = invitations.map(i => i._id);
-        const invEmails = invitations.map(i => i.email);
-        const userIds = registeredUsers.map(u => u._id);
-        const userEmails = registeredUsers.map(u => u.email);
-
+        // Find all completed assessments for this organization to catch ghost members and fill missing data
+        // Include stakeholder field to ensure role fallback works for non-registered users
         const assessments = await Assessment.find({
-            $or: [
-                { invitationId: { $in: invIds } },
-                { employeeEmail: { $in: [...invEmails, ...userEmails] } },
-                { userId: { $in: userIds } }
-            ],
+            orgName: orgRegex,
             isCompleted: true
-        }).select("userId employeeEmail invitationId userDetails").lean();
+        }).select("userId employeeEmail invitationId userDetails scores classification stakeholder").lean();
 
-        // Create lookups for names and status
+        // Create lookups and extract unique departments/roles from assessments
         const completedEmails = new Set();
         const completedUserIds = new Set();
         const completedInvIds = new Set();
         const nameFallbackLookups = new Map(); // email -> name
+        const deptFallbackLookups = new Map(); // email -> department
+        const roleFallbackLookups = new Map(); // email -> role
+
+        const extraDepts = new Set();
+        const extraRoles = new Set();
 
         assessments.forEach(a => {
-            if (a.employeeEmail) completedEmails.add(a.employeeEmail.toLowerCase());
-            if (a.userId) completedUserIds.add(a.userId.toString());
-            if (a.invitationId) completedInvIds.add(a.invitationId.toString());
+            const email = a.employeeEmail?.toLowerCase() || a.userDetails?.email?.toLowerCase();
+            if (email) {
+                completedEmails.add(email);
+                if (a.userDetails?.department) {
+                    deptFallbackLookups.set(email, a.userDetails.department);
+                    extraDepts.add(a.userDetails.department);
+                }
+                if (a.userDetails?.role) {
+                    roleFallbackLookups.set(email, a.userDetails.role);
+                    extraRoles.add(a.userDetails.role);
+                } else if (a.stakeholder) {
+                    roleFallbackLookups.set(email, a.stakeholder);
+                    extraRoles.add(a.stakeholder);
+                }
 
-            // If assessment has userDetails with name info, use it as fallback
-            if (a.userDetails?.firstName) {
-                const fullName = `${a.userDetails.firstName} ${a.userDetails.lastName || ""}`.trim();
-                if (fullName) {
-                    if (a.employeeEmail) nameFallbackLookups.set(a.employeeEmail.toLowerCase(), fullName);
+                if (a.userDetails?.firstName) {
+                    const fullName = `${a.userDetails.firstName} ${a.userDetails.lastName || ""}`.trim();
+                    if (fullName) nameFallbackLookups.set(email, fullName);
                 }
             }
+            if (a.userId) completedUserIds.add(a.userId.toString());
+            if (a.invitationId) completedInvIds.add(a.invitationId.toString());
         });
+
+        const allDepts = [...new Set([...depts, ...userDepts, ...extraDepts])].filter(Boolean).sort();
+        const allRoles = [...new Set([...roles, ...userRoles, ...extraRoles])].filter(Boolean).sort();
 
         const members = [];
         const processedEmails = new Set();
 
+        // 1. Registered Users - Prioritize assessment data for department/role
         registeredUsers.forEach(u => {
-            const name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email;
-            const hasCompleted = completedUserIds.has(u._id.toString()) || completedEmails.has(u.email.toLowerCase());
+            const emailLower = u.email.toLowerCase();
+            const name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || nameFallbackLookups.get(emailLower) || u.email;
+            const hasCompleted = completedUserIds.has(u._id.toString()) || completedEmails.has(emailLower);
+
             members.push({
                 _id: u._id,
                 name,
                 email: u.email,
-                role: u.role,
-                department: u.department,
+                role: roleFallbackLookups.get(emailLower) || u.role,
+                department: deptFallbackLookups.get(emailLower) || u.department,
                 profileImage: u.profileImage,
                 assessmentStatus: hasCompleted ? "Completed" : "Pending"
             });
-            processedEmails.add(u.email.toLowerCase());
+            processedEmails.add(emailLower);
         });
 
+        // 2. Invitations - Prioritize assessment data for department/role
         invitations.forEach(inv => {
             const emailLower = inv.email.toLowerCase();
             if (!processedEmails.has(emailLower)) {
                 const hasCompleted = completedInvIds.has(inv._id.toString()) || completedEmails.has(emailLower);
-                // Try to get name from fallback (assessment) if invitation doesn't have it
                 const resolvedName = nameFallbackLookups.get(emailLower) || inv.email;
 
                 members.push({
                     _id: inv._id,
                     name: resolvedName,
                     email: inv.email,
-                    role: inv.role,
-                    department: inv.department,
+                    role: roleFallbackLookups.get(emailLower) || inv.role,
+                    department: deptFallbackLookups.get(emailLower) || inv.department,
                     assessmentStatus: hasCompleted ? "Completed" : "Pending"
                 });
+                processedEmails.add(emailLower);
+            }
+        });
+
+        // 3. Catch Ghost Members (Assessed but no User/Inv record)
+        assessments.forEach(a => {
+            const email = a.employeeEmail?.toLowerCase() || a.userDetails?.email?.toLowerCase();
+            if (email && !processedEmails.has(email)) {
+                const fullName = nameFallbackLookups.get(email) || email;
+                members.push({
+                    _id: a._id, // Use assessment ID as fallback ID
+                    name: fullName,
+                    email: email,
+                    role: a.userDetails?.role || a.stakeholder || "employee",
+                    department: a.userDetails?.department || "",
+                    assessmentStatus: "Completed"
+                });
+                processedEmails.add(email);
             }
         });
 
         res.status(200).json({
             departments: allDepts,
             roles: allRoles,
-            members: members.sort((a, b) => a.name.localeCompare(b.name))
+            members: members
+                .filter(m => m.assessmentStatus === "Completed")
+                .sort((a, b) => a.name.localeCompare(b.name))
         });
     } catch (error) {
         console.error("getOrgFilters error:", error);
