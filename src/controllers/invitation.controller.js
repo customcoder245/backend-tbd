@@ -7,14 +7,29 @@ import { createNotification } from "../utils/notification.utils.js";
 import fs from "fs";
 import csv from "csv-parser";
 
+// ================= Email Format Validation =================
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 // ================= Send Invitation =================
 export const sendInvitation = async (req, res) => {
     try {
-        const { email, role } = req.body;
+        console.log(">>> [SERVER RECEIVED INVITE REQ]:", JSON.stringify(req.body, null, 2));
+        let { email, role } = req.body;
+
+        if (email && typeof email === "string") {
+            email = email.trim().toLowerCase();
+        }
+
         const inviterId = req.user.userId;
 
         if (!email || !role) {
+            console.error(">>> [INVITE FAIL]: Missing email or role in request body", req.body);
             return res.status(400).json({ message: "Email and role are required" });
+        }
+
+        // --- EMAIL FORMAT VALIDATION ---
+        if (!EMAIL_REGEX.test(email)) {
+            return res.status(400).json({ message: "Invalid email address format" });
         }
 
         const inviter = await User.findById(inviterId);
@@ -94,12 +109,22 @@ export const sendInvitation = async (req, res) => {
 
         const link = `${baseUrl}auth/invite/${token}`;
 
-        await sendInvitationEmail(email, link, role, inviter.orgName);
+        // Send the email — if this fails we ROLLBACK the saved invitation
+        // so the user can retry without getting "already invited" errors
+        try {
+            await sendInvitationEmail(email, link, role, inviter.orgName);
+        } catch (emailError) {
+            console.error(">>> [EMAIL SEND FAIL] Rolling back invitation:", emailError.message);
+            await Invitation.deleteOne({ _id: invitation._id });
+            return res.status(500).json({
+                message: "Failed to send invitation email. Please check your email configuration and try again."
+            });
+        }
 
         res.status(200).json({ message: "Invitation sent successfully" });
     } catch (error) {
         console.error("Send invitation error:", error);
-        res.status(500).json({ message: "Server error" });
+        res.status(500).json({ message: "Server error: " + error.message });
     }
 };
 
@@ -388,6 +413,8 @@ export const deleteInvitation = async (req, res) => {
 };
 
 export const createAndSendInvite = async (email, role, inviter, department) => {
+    if (!EMAIL_REGEX.test(email)) throw new Error("INVALID_EMAIL");
+
     const existingUser = await User.findOne({ email });
     if (existingUser) throw new Error("USER_EXISTS");
 
@@ -507,7 +534,9 @@ export const sendBulkInvitations = async (req, res) => {
                         await createAndSendInvite(email, role, inviter, department);
                         success++;
                     } catch (err) {
-                        if (err.message === "USER_EXISTS") {
+                        if (err.message === "INVALID_EMAIL") {
+                            failed.push({ email, reason: "Invalid email address format" });
+                        } else if (err.message === "USER_EXISTS") {
                             failed.push({ email, reason: "Already registered" });
                         } else if (err.message === "ALREADY_INVITED") {
                             failed.push({ email, reason: "Already invited" });

@@ -313,12 +313,25 @@ const sendEmail = async (mailOptions) => {
 
 
 export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {
-  const email = typeof emailOrUser === "string" ? emailOrUser : emailOrUser?.email;
+  // 1. Extract email string
+  let targetEmail = typeof emailOrUser === "string" ? emailOrUser : emailOrUser?.email;
 
-  if (!email || !link) {
-    console.warn(">>> [SEND INVITATION]: Missing email or link", { email, link });
-    return;
+  // 2. Clear logs and be explicit
+  console.log(">>> [PRE-FLIGHT EMAIL CHECK]:", {
+    to: targetEmail,
+    role: role,
+    org: orgName
+  });
+
+  if (!targetEmail) {
+    throw new Error("sendInvitationEmail: No recipient email provided");
   }
+
+  if (!link) {
+    throw new Error("sendInvitationEmail: No invitation link provided");
+  }
+
+  const email = targetEmail.trim();
 
   const isEmployee = role === "employee";
   const title = isEmployee
