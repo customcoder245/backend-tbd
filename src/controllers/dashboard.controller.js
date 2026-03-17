@@ -95,26 +95,31 @@ const getLatestReportData = async (req, res, targetRole) => {
         }
 
         // ─── REPORT LOOKUP: Multi-strategy fallback ───────────────────────────────
-        let report = null;
+        let reports = [];
 
         // Strategy 1: Direct userId match
-        report = await SubmittedAssessment.findOne({ userId }).sort({ submittedAt: -1 }).lean();
-        console.log(`[Dashboard] Strategy 1 (userId): ${report ? 'FOUND' : 'not found'} for userId=${userId}`);
+        reports = await SubmittedAssessment.find({ userId }).sort({ submittedAt: 1 }).lean();
+        console.log(`[Dashboard] Strategy 1 (userId): FOUND ${reports.length} reports for userId=${userId}`);
 
         // Strategy 2: Email match (case-insensitive regex)
-        if (!report && targetUser?.email) {
+        if (reports.length === 0 && targetUser?.email) {
             const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-            report = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 }).lean();
-            console.log(`[Dashboard] Strategy 2 (email regex): ${report ? 'FOUND' : 'not found'} for email=${targetUser.email}`);
-            if (report) SubmittedAssessment.updateOne({ _id: report._id }, { $set: { userId } }).catch(() => { });
+            reports = await SubmittedAssessment.find({ "userDetails.email": emailRegex }).sort({ submittedAt: 1 }).lean();
+            console.log(`[Dashboard] Strategy 2 (email regex): FOUND ${reports.length} reports for email=${targetUser.email}`);
+            if (reports.length > 0) {
+                SubmittedAssessment.updateMany({ "userDetails.email": emailRegex }, { $set: { userId } }).catch(() => { });
+            }
         }
 
-        if (!report) {
-            console.log(`[Dashboard] No report found for userId=${userId}, email=${targetUser?.email}`);
+        if (reports.length === 0) {
+            console.log(`[Dashboard] No reports found for userId=${userId}, email=${targetUser?.email}`);
             return res.status(404).json({ message: "No completed assessment found for this user.", hasReport: false });
         }
 
-        const domainScoresArray = Object.values(report.scores.domains || {});
+        const latestReport = reports[reports.length - 1];
+        const firstReport = reports[0];
+
+        const domainScoresArray = Object.values(latestReport.scores.domains || {});
         const avgScore = domainScoresArray.length > 0
             ? domainScoresArray.reduce((acc, d) => acc + (d.score || 0), 0) / domainScoresArray.length : 0;
 
@@ -122,7 +127,13 @@ const getLatestReportData = async (req, res, targetRole) => {
         if (avgScore > 75) aiInsight = { title: "Excellence Sustained", description: `Score of ${Math.round(avgScore)}% — high-performance zone.`, type: "success" };
         else if (avgScore < 50 && avgScore > 0) aiInsight = { title: "Opportunity for Shift", description: `Baseline score of ${Math.round(avgScore)}%. Focus on development.`, type: "warning" };
 
-        res.status(200).json({ report, user: targetUser || report.userDetails, aiInsight, hasReport: true });
+        res.status(200).json({
+            report: latestReport,
+            firstReport: firstReport,
+            user: targetUser || latestReport.userDetails,
+            aiInsight,
+            hasReport: true
+        });
     } catch (error) {
         console.error(`Error fetching ${targetRole} report:`, error);
         res.status(500).json({ message: "Error fetching report data", error: error.message });

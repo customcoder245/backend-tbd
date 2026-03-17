@@ -10,12 +10,20 @@ let transporter;
 
 const getTransporter = () => {
   if (!transporter) {
+    // This allows you to switch between Gmail (low limit) 
+    // and professional services like Resend/SendGrid (high limit)
+    // without changing any code, just based on your .env variables.
     transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: process.env.EMAIL_HOST || "smtp.gmail.com",
+      port: parseInt(process.env.EMAIL_PORT) || 465,
+      secure: process.env.EMAIL_SECURE !== "false", // default to true (port 465)
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_APP_PASSWORD,
       },
+      tls: {
+        rejectUnauthorized: false
+      }
     });
   }
   return transporter;
@@ -303,6 +311,7 @@ const sendEmail = async (mailOptions) => {
   }
 };
 
+
 export const sendInvitationEmail = async (email, link, role, orgName) => {
   if (!email || !link) return;
 
@@ -317,11 +326,10 @@ export const sendInvitationEmail = async (email, link, role, orgName) => {
     <p style="font-size: 16px; margin-bottom: 16px;">
 
       You have been invited to participate in <strong> Talent By Design's POD-360™ </strong> Workplace Assessment.  We thank you in advance for your time and look forward to supporting you along your journey
-      ${
-        isEmployee
-          ? "We're excited to have you complete your confidential professional assessment."
-          : "You have been assigned administrative access to help manage your organization's talent growth."
-      }
+      ${isEmployee
+      ? "We're excited to have you complete your confidential professional assessment."
+      : "You have been assigned administrative access to help manage your organization's talent growth."
+    }
     </p>
     <div style="margin: 40px 0;">
       <a href="${link}" style="display: inline-block; padding: 12px 28px; background: rgba(68, 140, 210, 0.05); color: #448cd2; text-decoration: none; border-radius: 32px; font-size: 16px; font-weight: 600; border: 1px solid #448cd2; cursor: pointer;">

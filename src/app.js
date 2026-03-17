@@ -19,20 +19,7 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-// Validate DB connection on every request (crucial for Serverless cold starts)
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: "Database Connection Failed",
-      error: err.message
-    });
-  }
-});
-
+// Cors moved here for cleaner flow
 const allowedOrigin = process.env.FRONTEND_URL || "*";
 
 // Enable CORS

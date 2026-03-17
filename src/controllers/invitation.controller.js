@@ -53,7 +53,12 @@ export const sendInvitation = async (req, res) => {
 
         const existingInvite = await Invitation.findOne({ email, used: false });
         if (existingInvite) {
-            return res.status(400).json({ message: "User has already been invited" });
+            const isExpired = new Date(existingInvite.expiredAt) < new Date();
+            if (!isExpired) {
+                return res.status(400).json({ message: "A pending invitation already exists for this email." });
+            }
+            // If expired, remove it so we can create a fresh one
+            await Invitation.deleteOne({ _id: existingInvite._id });
         }
 
         // Employees get 7 days (they take the assessment directly, no registration needed)
@@ -444,12 +449,18 @@ export const sendBulkInvitations = async (req, res) => {
             ? ["admin"]
             : ["leader", "manager", "employee"];
 
+        // Helper function to get case-insensitive values from CSV row
+        const getVal = (r, keys) => {
+            const found = Object.keys(r).find(k => keys.includes(k.toLowerCase()));
+            return found ? r[found] : null;
+        };
+
         fs.createReadStream(req.file.path)
             .pipe(csv())
             .on("data", row => {
-                const email = row.email?.trim().toLowerCase();
-                const role = row.role?.trim().toLowerCase();
-                const department = row.department?.trim();
+                const email = getVal(row, ["email", "e-mail", "mail"])?.trim().toLowerCase();
+                const role = getVal(row, ["role", "type"])?.trim().toLowerCase();
+                const department = getVal(row, ["department", "dept"])?.trim();
 
                 if (email && role) {
                     invitations.push({ email, role, department });
