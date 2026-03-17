@@ -24,6 +24,7 @@ const connectDB = async () => {
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
   }).then((conn) => {
+    isConnected = true;
     console.log("MongoDB connected successfully");
     return conn;
   }).catch((error) => {

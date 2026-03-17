@@ -113,10 +113,9 @@ export const verifyEmail = async (req, res) => {
     });
 
 
-    const frontendUrlEnv = process.env.FRONTEND_URL || "";
-    const frontendUrl = frontendUrlEnv.endsWith("/")
-      ? frontendUrlEnv.slice(0, -1)
-      : frontendUrlEnv;
+    const frontendUrl = (process.env.FRONTEND_URL || "").endsWith("/")
+      ? (process.env.FRONTEND_URL || "").slice(0, -1)
+      : (process.env.FRONTEND_URL || "");
 
     res.redirect(`${frontendUrl}/profile-info?verifyToken=${token}`);
   } catch (error) {
@@ -290,7 +289,8 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email });
+    // Use lean() for performance if we don't need mongoose methods here
+    const user = await User.findOne({ email }).lean();
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
@@ -326,26 +326,25 @@ export const login = async (req, res) => {
 
     res.cookie("accessToken", accessToken, cookieOptions);
 
-    // --- ASSESSMENT STATUS CHECK ---
-    // For employee/admin/leader/manager roles, check if they have a pending assessment
+    // --- OPTIMIZED ASSESSMENT STATUS CHECK ---
     let assessmentStatus = "NONE";
     const rolesWithAssessment = ["employee", "admin", "leader", "manager"];
+
     if (rolesWithAssessment.includes(user.role?.toLowerCase())) {
+      // Use lean() and projection to reduce payload
       const completedAssessment = await Assessment.findOne({
         userId: user._id,
         isCompleted: true
-      }).sort({ submittedAt: -1 });
+      })
+        .select("submittedAt")
+        .sort({ submittedAt: -1 })
+        .lean();
 
       if (!completedAssessment) {
         assessmentStatus = "PENDING";
       } else {
-        // Check if it's due again using central config
         const cycleStart = getAssessmentCycleStartDate();
-        if (completedAssessment.submittedAt < cycleStart) {
-          assessmentStatus = "DUE";
-        } else {
-          assessmentStatus = "COMPLETED";
-        }
+        assessmentStatus = completedAssessment.submittedAt < cycleStart ? "DUE" : "COMPLETED";
       }
     }
 

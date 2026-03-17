@@ -29,7 +29,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Cors moved here for cleaner flow
-const allowedOrigin = process.env.FRONTEND_URL || "*";
+const allowedOrigin = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "*";
 
 // Enable CORS
 app.use(

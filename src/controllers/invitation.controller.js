@@ -16,69 +16,59 @@ export const sendInvitation = async (req, res) => {
         console.log(">>> [SERVER RECEIVED INVITE REQ]:", JSON.stringify(req.body, null, 2));
         let { email, role } = req.body;
 
-        if (email && typeof email === "string") {
-            email = email.trim().toLowerCase();
-        }
-
-        const inviterId = req.user.userId;
-
         if (!email || !role) {
-            console.error(">>> [INVITE FAIL]: Missing email or role in request body", req.body);
             return res.status(400).json({ message: "Email and role are required" });
         }
 
-        // --- EMAIL FORMAT VALIDATION ---
+        email = email.trim().toLowerCase();
+
         if (!EMAIL_REGEX.test(email)) {
             return res.status(400).json({ message: "Invalid email address format" });
         }
 
-        const inviter = await User.findById(inviterId);
+        const inviterId = req.user.userId;
+
+        // --- OPTIMIZATION: Parallelize all checks ---
+        const [inviter, existingUser, existingInvite] = await Promise.all([
+            User.findById(inviterId).select("role orgName adminId department").lean(),
+            User.findOne({ email }).select("_id").lean(),
+            Invitation.findOne({ email, used: false }).lean()
+        ]);
+
         if (!inviter) {
             return res.status(404).json({ message: "Inviter not found" });
         }
 
-        // --- HIERARCHY CHECK ---
-        const inviterRole = inviter.role?.toLowerCase();
-        const targetRole = role?.toLowerCase();
-
-        if (inviterRole === "superadmin") {
-            if (targetRole !== "admin") {
-                return res.status(403).json({ message: "SuperAdmins can only invite Admins." });
-            }
-        } else if (inviterRole === "admin") {
-            if (!["leader", "manager", "employee"].includes(targetRole)) {
-                return res.status(403).json({ message: "Admins can only invite Leader, Manager, or Employee roles." });
-            }
-        } else if (inviterRole === "leader") {
-            if (!["manager", "employee"].includes(targetRole)) {
-                return res.status(403).json({ message: "Leaders can only invite Managers and Employees." });
-            }
-        } else if (inviterRole === "manager") {
-            if (targetRole !== "employee") {
-                return res.status(403).json({ message: "Managers can only invite Employees." });
-            }
-        } else {
-            return res.status(403).json({ message: "You do not have permission to send invitations." });
-        }
-
-        const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json({ message: "User with this email already exists" });
         }
 
-        const existingInvite = await Invitation.findOne({ email, used: false });
+        // --- HIERARCHY CHECK ---
+        const inviterRole = inviter.role?.toLowerCase();
+        const targetRole = role.toLowerCase();
+        const rolePermissions = {
+            superadmin: ["admin"],
+            admin: ["leader", "manager", "employee"],
+            leader: ["manager", "employee"],
+            manager: ["employee"]
+        };
+
+        if (!rolePermissions[inviterRole]?.includes(targetRole)) {
+            return res.status(403).json({
+                message: `As a ${inviterRole}, you cannot invite a ${targetRole}.`
+            });
+        }
+
         if (existingInvite) {
             const isExpired = new Date(existingInvite.expiredAt) < new Date();
             if (!isExpired) {
                 return res.status(400).json({ message: "A pending invitation already exists for this email." });
             }
-            // If expired, remove it so we can create a fresh one
             await Invitation.deleteOne({ _id: existingInvite._id });
         }
 
-        // Employees get 7 days (they take the assessment directly, no registration needed)
-        // Admins/Leaders/Managers get 1 hour (they register quickly)
-        const isEmployee = role === "employee";
+        // --- PREPARE TOKEN & EXPIRY ---
+        const isEmployee = targetRole === "employee";
         const tokenExpiry = isEmployee ? "7d" : "1h";
         const dbExpiry = isEmployee
             ? Date.now() + 3 * 24 * 60 * 60 * 1000
@@ -101,24 +91,21 @@ export const sendInvitation = async (req, res) => {
             department: inviter.department || null,
             expiredAt: dbExpiry,
         });
+
         await invitation.save();
 
         const backendUrl = process.env.BACKEND_URL || "";
-        const baseUrl = backendUrl.endsWith("/")
-            ? backendUrl
-            : `${backendUrl}/`;
-
+        const baseUrl = backendUrl.endsWith("/") ? backendUrl : `${backendUrl}/`;
         const link = `${baseUrl}auth/invite/${token}`;
 
-        // Send the email — if this fails we ROLLBACK the saved invitation
-        // so the user can retry without getting "already invited" errors
+        // --- SEND EMAIL WITH ROLLBACK ---
         try {
             await sendInvitationEmail(email, link, role, inviter.orgName);
         } catch (emailError) {
             console.error(">>> [EMAIL SEND FAIL] Rolling back invitation:", emailError.message);
             await Invitation.deleteOne({ _id: invitation._id });
             return res.status(500).json({
-                message: "Failed to send invitation email. Please check your email configuration and try again."
+                message: "Failed to send invitation email. Please check your configuration."
             });
         }
 
@@ -136,11 +123,10 @@ export const acceptInvitation = async (req, res) => {
 
         const invitation = await Invitation.findOne({
             $or: [{ token: token }, { token1: token }],
-        });
+        }).select("role used expiredAt").lean();
 
         if (!invitation) {
-            const frontendUrl = process.env.FRONTEND_URL || "";
-            return res.redirect(`${frontendUrl}/login?error=invalid_token`);
+            return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_token`);
         }
 
         if (invitation.used) {
@@ -151,28 +137,30 @@ export const acceptInvitation = async (req, res) => {
             return res.redirect(`${process.env.FRONTEND_URL}/login?error=expired_token`);
         }
 
-        const frontendUrl = process.env.FRONTEND_URL.endsWith("/")
-            ? process.env.FRONTEND_URL.slice(0, -1)
-            : process.env.FRONTEND_URL;
+        const frontendUrl = (process.env.FRONTEND_URL || "").endsWith("/")
+            ? (process.env.FRONTEND_URL || "").slice(0, -1)
+            : (process.env.FRONTEND_URL || "");
 
         // ✅ EMPLOYEE: Skip registration, go straight to assessment
         if (invitation.role === "employee") {
             return res.redirect(`${frontendUrl}/start-assessment?token=${token}`);
         }
 
-        // ✅ ADMIN / LEADER / MANAGER: Normal registration flow
+        // ✅ ADMIN / LEADER / MANAGER: Set cookie and redirect to register
         const isProduction = process.env.NODE_ENV === "production";
         res.cookie("invitationToken", token, {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? "none" : "lax",
             maxAge: 60 * 60 * 1000,
+            path: "/"
         });
 
         res.redirect(`${frontendUrl}/register?token=${token}`);
     } catch (error) {
         console.error("Accept invitation error:", error);
-        res.redirect(`${process.env.FRONTEND_URL}/login`);
+        const fallbackUrl = process.env.FRONTEND_URL || "";
+        res.redirect(`${fallbackUrl}/login`);
     }
 };
 
@@ -183,7 +171,7 @@ export const getInvitationDetails = async (req, res) => {
 
         const invitation = await Invitation.findOne({
             $or: [{ token: token }, { token1: token }],
-        });
+        }).select("email role orgName used expiredAt").lean();
 
         if (!invitation) {
             return res.status(404).json({ message: "Invitation not found" });
@@ -235,11 +223,11 @@ export const getInvitations = async (req, res) => {
             ]);
 
             const adminEmails = orgStats.map(item => item._id);
-            const users = await User.find({ email: { $in: adminEmails } }).lean();
+            const users = await User.find({ email: { $in: adminEmails } }).select("email orgName").lean();
+
             const userMap = {};
             users.forEach(u => { userMap[u.email.toLowerCase()] = u; });
 
-            // Collect all unique finalOrgNames
             const finalOrgNames = orgStats.map(item => {
                 const adminUser = userMap[item._id.toLowerCase()];
                 return adminUser?.orgName || item.orgNameFromInvite || "Pending Setup";
@@ -247,7 +235,6 @@ export const getInvitations = async (req, res) => {
 
             const uniqueOrgNames = [...new Set(finalOrgNames)];
 
-            // Aggregate counts of invitations by orgName
             const allCounts = await Invitation.aggregate([
                 { $match: { orgName: { $in: uniqueOrgNames } } },
                 { $group: { _id: "$orgName", count: { $sum: 1 } } }
@@ -257,38 +244,26 @@ export const getInvitations = async (req, res) => {
             allCounts.forEach(c => { countMap[c._id] = c.count; });
 
             const formattedData = orgStats.map((item) => {
-                try {
-                    const adminUser = userMap[item._id.toLowerCase()];
-                    const finalOrgName = adminUser?.orgName || item.orgNameFromInvite || "Pending Setup";
+                const adminUser = userMap[item._id.toLowerCase()];
+                const finalOrgName = adminUser?.orgName || item.orgNameFromInvite || "Pending Setup";
 
-                    let currentStatus = "Pending";
-                    if (item.status) {
-                        currentStatus = "Accept";
-                    } else if (item.expiredAt && new Date(item.expiredAt) < new Date()) {
-                        currentStatus = "Expire";
-                    }
+                let currentStatus = item.status ? "Accept" :
+                    (item.expiredAt && new Date(item.expiredAt) < new Date() ? "Expire" : "Pending");
 
-                    const totalUsers = countMap[finalOrgName] || 0;
-
-                    return {
-                        _id: item._id,
-                        orgName: finalOrgName,
-                        email: item._id,
-                        createdAt: item.createdAt,
-                        totalUsers: totalUsers,
-                        status: currentStatus,
-                        role: "admin"
-                    };
-                } catch (innerErr) {
-                    return { _id: item._id, orgName: "Error", email: item._id, status: "Pending", totalUsers: 0 };
-                }
+                return {
+                    _id: item._id,
+                    orgName: finalOrgName,
+                    email: item._id,
+                    createdAt: item.createdAt,
+                    totalUsers: countMap[finalOrgName] || 0,
+                    status: currentStatus,
+                    role: "admin"
+                };
             });
             return res.status(200).json(formattedData);
 
         } else {
-            const requester = await User.findById(userId);
-            const dept = requester?.department;
-
+            const dept = req.user.department;
             const filter = { orgName: userOrg };
 
             if (role === "leader") {
@@ -297,15 +272,13 @@ export const getInvitations = async (req, res) => {
             } else if (role === "manager") {
                 filter.role = "employee";
                 if (dept) filter.department = dept;
-            } else if (role === "admin") {
-                // admin sees all in org
-            } else {
-                // employee or other, only see what they invited (though they shouldn't usually invite)
+            } else if (role !== "admin") {
                 filter.invitedBy = userId;
             }
 
-            const invitations = await Invitation.find(filter).sort({ createdAt: -1 });
-            // Optimization: Fetch all registered users and assessments for the current invitations at once
+            const invitations = await Invitation.find(filter).sort({ createdAt: -1 }).lean();
+            if (invitations.length === 0) return res.status(200).json([]);
+
             const emails = invitations.map(inv => inv.email.toLowerCase());
             const tokens = invitations.flatMap(inv => [inv.token, inv.token1]).filter(Boolean);
             const invIds = invitations.map(inv => inv._id);
@@ -316,70 +289,55 @@ export const getInvitations = async (req, res) => {
                         { invitationToken: { $in: tokens } },
                         { email: { $in: emails } }
                     ]
-                }).lean(),
-                Assessment.find({
-                    $or: [
-                        { invitationId: { $in: invIds } }
-                    ]
-                }).lean()
+                }).select("email invitationToken firstName lastName department").lean(),
+                Assessment.find({ invitationId: { $in: invIds } }).select("invitationId userDetails").lean()
             ]);
 
             const userMap = {};
-            for (const u of registeredUsers) {
+            registeredUsers.forEach(u => {
                 if (u.invitationToken) userMap[u.invitationToken] = u;
                 if (u.email) userMap[u.email.toLowerCase()] = u;
-            }
+            });
 
-            const assessmentByInvOrEmail = {};
-            for (const a of assessments) {
-                if (a.invitationId) {
-                    if (!assessmentByInvOrEmail[a.invitationId.toString()]) assessmentByInvOrEmail[a.invitationId.toString()] = [];
-                    assessmentByInvOrEmail[a.invitationId.toString()].push(a);
-                }
-            }
+            const assessmentMap = {};
+            assessments.forEach(a => {
+                if (a.invitationId) assessmentMap[a.invitationId.toString()] = a;
+            });
 
+            const now = new Date();
             const formattedData = invitations.map((inv) => {
-                // Double check department for registered users if it wasn't in the invite
-                if ((role === "leader" || role === "manager") && dept) {
-                    const registeredUser = userMap[inv.token1] || userMap[inv.token] || userMap[inv.email.toLowerCase()];
+                const regUser = userMap[inv.token1] || userMap[inv.token] || userMap[inv.email.toLowerCase()];
 
-                    if (registeredUser && registeredUser.department && registeredUser.department !== dept) {
-                        return null;
-                    }
+                if ((role === "leader" || role === "manager") && dept) {
+                    if (regUser && regUser.department && regUser.department !== dept) return null;
                 }
 
                 let name = "—";
-                let currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending");
+                const currentStatus = inv.used ? "Accept" : (new Date(inv.expiredAt) < now ? "Expire" : "Pending");
 
-                const registeredUser = userMap[inv.token1] || userMap[inv.token] || userMap[inv.email.toLowerCase()];
-
-                if (registeredUser) {
-                    if (registeredUser.firstName || registeredUser.lastName) {
-                        name = `${registeredUser.firstName || ""} ${registeredUser.lastName || ""}`.trim();
-                    } else {
-                        name = "Registered (Pending Info)";
-                    }
+                if (regUser) {
+                    name = `${regUser.firstName || ""} ${regUser.lastName || ""}`.trim() || "Registered (Pending Info)";
                 } else {
-                    const assessList = assessmentByInvOrEmail[inv._id.toString()] || [];
-                    const assessment = assessList[0];
-                    if (assessment && assessment.userDetails) {
-                        const details = assessment.userDetails;
-                        name = `${details.firstName || ""} ${details.lastName || ""}`.trim() || "Completed (Anonymous)";
+                    const assessment = assessmentMap[inv._id.toString()];
+                    if (assessment?.userDetails) {
+                        name = `${assessment.userDetails.firstName || ""} ${assessment.userDetails.lastName || ""}`.trim() || "Completed (Anonymous)";
                     }
                 }
 
                 return {
                     _id: inv._id,
-                    name: name,
+                    name,
                     email: inv.email,
                     role: inv.role,
                     createdAt: inv.createdAt,
                     status: currentStatus
                 };
-            }).filter(d => d !== null);
+            }).filter(Boolean);
+
             return res.status(200).json(formattedData);
         }
     } catch (error) {
+        console.error("Get invitations error:", error);
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -461,119 +419,90 @@ export const createAndSendInvite = async (email, role, inviter, department) => {
 export const sendBulkInvitations = async (req, res) => {
     try {
         const { userId, role: inviterRole } = req.user;
+        if (!req.file) return res.status(400).json({ message: "CSV file is required" });
 
-        if (!req.file) {
-            return res.status(400).json({ message: "CSV file is required" });
-        }
-
-        const inviter = await User.findById(userId);
+        const inviter = await User.findById(userId).select("role orgName adminId department").lean();
         if (!inviter) {
+            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
             return res.status(404).json({ message: "Inviter not found" });
         }
 
-        const invitations = [];
+        const rawInvitations = [];
         const failed = [];
-        let success = 0;
-
-        const allowedRoles = inviterRole.toLowerCase() === "superadmin"
-            ? ["admin"]
-            : ["leader", "manager", "employee"];
-
-        // Helper function to get case-insensitive values from CSV row
+        const allowedRoles = inviterRole.toLowerCase() === "superadmin" ? ["admin"] : ["leader", "manager", "employee"];
         const getVal = (r, keys) => {
             const found = Object.keys(r).find(k => keys.includes(k.toLowerCase()));
             return found ? r[found] : null;
         };
 
-        fs.createReadStream(req.file.path)
-            .pipe(csv())
-            .on("data", row => {
-                const email = getVal(row, ["email", "e-mail", "mail"])?.trim().toLowerCase();
-                const role = getVal(row, ["role", "type"])?.trim().toLowerCase();
-                const department = getVal(row, ["department", "dept"])?.trim();
+        // Parse CSV
+        await new Promise((resolve, reject) => {
+            fs.createReadStream(req.file.path)
+                .pipe(csv())
+                .on("data", row => {
+                    const email = getVal(row, ["email", "e-mail", "mail"])?.trim().toLowerCase();
+                    const role = getVal(row, ["role", "type"])?.trim().toLowerCase();
+                    const department = getVal(row, ["department", "dept"])?.trim();
+                    if (email && role) rawInvitations.push({ email, role, department });
+                    else failed.push({ email: email || "missing", reason: `Missing ${!email ? 'email' : 'role'}` });
+                })
+                .on("end", resolve)
+                .on("error", reject);
+        });
 
-                if (email && role) {
-                    invitations.push({ email, role, department });
-                } else if (email || role) {
-                    failed.push({
-                        email: email || "missing",
-                        reason: `Missing ${!email ? 'email' : 'role'}`
-                    });
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+        if (rawInvitations.length === 0) {
+            return res.status(400).json({ message: "No valid invitations found in CSV.", failed });
+        }
+
+        // --- BATCH PROCESS ---
+        const emails = rawInvitations.map(i => i.email);
+        const [existingUsers, existingInvites] = await Promise.all([
+            User.find({ email: { $in: emails } }).select("email").lean(),
+            Invitation.find({ email: { $in: emails }, used: false }).select("email").lean()
+        ]);
+
+        const existingUserEmails = new Set(existingUsers.map(u => u.email.toLowerCase()));
+        const existingInviteEmails = new Set(existingInvites.map(i => i.email.toLowerCase()));
+
+        const rolePermissions = {
+            superadmin: ["admin"],
+            admin: ["leader", "manager", "employee"],
+            leader: ["manager", "employee"],
+            manager: ["employee"]
+        };
+
+        let successCount = 0;
+        const processInvitations = rawInvitations.map(async ({ email, role, department }) => {
+            try {
+                if (!allowedRoles.includes(role) || !rolePermissions[inviterRole.toLowerCase()]?.includes(role)) {
+                    failed.push({ email, reason: "Permission denied or invalid role" });
+                    return;
                 }
-            })
-            .on("end", async () => {
-                if (invitations.length === 0) {
-                    if (req.file && fs.existsSync(req.file.path)) {
-                        fs.unlinkSync(req.file.path);
-                    }
-                    return res.status(400).json({
-                        message: "No valid invitations found in CSV. Please check the format.",
-                        success: 0,
-                        failedCount: failed.length,
-                        failed
-                    });
+                if (existingUserEmails.has(email)) {
+                    failed.push({ email, reason: "Already registered" });
+                    return;
                 }
-
-                for (const { email, role, department } of invitations) {
-                    try {
-                        if (!allowedRoles.includes(role)) {
-                            failed.push({
-                                email,
-                                reason: `Invalid role: '${role}'. Allowed: ${allowedRoles.join(", ")}`
-                            });
-                            continue;
-                        }
-
-                        // Hierarchy re-check for leader/manager
-                        if (inviterRole.toLowerCase() === "leader" && !["manager", "employee"].includes(role)) {
-                            failed.push({ email, reason: "Permission denied for this role" });
-                            continue;
-                        }
-                        if (inviterRole.toLowerCase() === "manager" && role !== "employee") {
-                            failed.push({ email, reason: "Permission denied for this role" });
-                            continue;
-                        }
-
-                        await createAndSendInvite(email, role, inviter, department);
-                        success++;
-                    } catch (err) {
-                        if (err.message === "INVALID_EMAIL") {
-                            failed.push({ email, reason: "Invalid email address format" });
-                        } else if (err.message === "USER_EXISTS") {
-                            failed.push({ email, reason: "Already registered" });
-                        } else if (err.message === "ALREADY_INVITED") {
-                            failed.push({ email, reason: "Already invited" });
-                        } else {
-                            failed.push({ email, reason: err.message || "Failed to send invitation" });
-                        }
-                    }
+                if (existingInviteEmails.has(email)) {
+                    failed.push({ email, reason: "Pending invite exists" });
+                    return;
                 }
 
-                fs.unlinkSync(req.file.path);
+                await createAndSendInvite(email, role, inviter, department);
+                successCount++;
+            } catch (err) {
+                failed.push({ email, reason: err.message || "Failed" });
+            }
+        });
 
-                res.json({
-                    success,
-                    failedCount: failed.length,
-                    failed
-                });
-            })
-            .on("error", (error) => {
-                if (fs.existsSync(req.file.path)) {
-                    fs.unlinkSync(req.file.path);
-                }
-                res.status(400).json({
-                    message: "Failed to parse CSV file. Please check the format.",
-                    error: error.message
-                });
-            });
+        // Use Promise.all with chunks or parallel if small enough
+        await Promise.all(processInvitations);
+
+        res.json({ success: successCount, failedCount: failed.length, failed });
 
     } catch (err) {
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
-        res.status(500).json({
-            message: "Bulk invite failed. Please try again.",
-            error: err.message
-        });
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        res.status(500).json({ message: "Bulk invite failed", error: err.message });
     }
 };
