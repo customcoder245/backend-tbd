@@ -13,7 +13,16 @@ import responseRoutes from "./routes/response.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 
 const app = express();
-// Trigger restart.
+
+// Ensures database is connected before handling any request (Crucial for Vercel)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ message: "Database connection failed", error: err.message });
+  }
+});
 
 // Parse incoming JSON requests
 app.use(express.json());

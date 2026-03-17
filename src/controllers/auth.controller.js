@@ -66,9 +66,13 @@ export const register = async (req, res) => {
 
     await user.save();
 
-    const baseUrl = process.env.BACKEND_URL.endsWith("/")
-      ? process.env.BACKEND_URL
-      : `${process.env.BACKEND_URL}/`;
+    const backendUrl = process.env.BACKEND_URL || "";
+    if (!backendUrl) {
+      console.error(">>> [ERROR]: BACKEND_URL is missing in environment variables.");
+    }
+    const baseUrl = backendUrl.endsWith("/")
+      ? backendUrl
+      : `${backendUrl}/`;
 
     const verificationLink = `${baseUrl}auth/verify-email/${verificationToken}`;
 
@@ -109,9 +113,10 @@ export const verifyEmail = async (req, res) => {
     });
 
 
-    const frontendUrl = process.env.FRONTEND_URL.endsWith("/")
-      ? process.env.FRONTEND_URL.slice(0, -1)
-      : process.env.FRONTEND_URL;
+    const frontendUrlEnv = process.env.FRONTEND_URL || "";
+    const frontendUrl = frontendUrlEnv.endsWith("/")
+      ? frontendUrlEnv.slice(0, -1)
+      : frontendUrlEnv;
 
     res.redirect(`${frontendUrl}/profile-info?verifyToken=${token}`);
   } catch (error) {
@@ -298,9 +303,15 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error(">>> [FATAL ERROR]: JWT_SECRET is missing in environment variables.");
+      return res.status(500).json({ message: "Server configuration error: JWT_SECRET missing" });
+    }
+
     const accessToken = jwt.sign(
       { userId: user._id, role: user.role, orgName: user.orgName },
-      process.env.JWT_SECRET,
+      jwtSecret,
       { expiresIn: "24h" }
     );
 

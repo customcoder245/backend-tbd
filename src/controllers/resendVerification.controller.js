@@ -31,9 +31,10 @@ export const resendVerificationEmail = async (req, res) => {
       await user.save();  // Save the updated user object
 
       // Step 5: Send the new verification email with the new token
-      const baseUrl = process.env.BACKEND_URL.endsWith("/")
-        ? process.env.BACKEND_URL
-        : `${process.env.BACKEND_URL}/`;
+      const backendUrl = process.env.BACKEND_URL || "";
+      const baseUrl = backendUrl.endsWith("/")
+        ? backendUrl
+        : `${backendUrl}/`;
 
       const verifyLink = `${baseUrl}auth/verify-email/${newToken}`;
       await sendVerificationEmail({ email: user.email }, verifyLink);

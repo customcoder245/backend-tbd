@@ -103,9 +103,10 @@ export const sendInvitation = async (req, res) => {
         });
         await invitation.save();
 
-        const baseUrl = process.env.BACKEND_URL.endsWith("/")
-            ? process.env.BACKEND_URL
-            : `${process.env.BACKEND_URL}/`;
+        const backendUrl = process.env.BACKEND_URL || "";
+        const baseUrl = backendUrl.endsWith("/")
+            ? backendUrl
+            : `${backendUrl}/`;
 
         const link = `${baseUrl}auth/invite/${token}`;
 
@@ -138,7 +139,8 @@ export const acceptInvitation = async (req, res) => {
         });
 
         if (!invitation) {
-            return res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid_token`);
+            const frontendUrl = process.env.FRONTEND_URL || "";
+            return res.redirect(`${frontendUrl}/login?error=invalid_token`);
         }
 
         if (invitation.used) {
@@ -446,9 +448,10 @@ export const createAndSendInvite = async (email, role, inviter, department) => {
 
     await invitation.save();
 
-    const baseUrl = process.env.BACKEND_URL.endsWith("/")
-        ? process.env.BACKEND_URL
-        : `${process.env.BACKEND_URL}/`;
+    const backendUrl = process.env.BACKEND_URL || "";
+    const baseUrl = backendUrl.endsWith("/")
+        ? backendUrl
+        : `${backendUrl}/`;
 
     const link = `${baseUrl}auth/invite/${token}`;
 
