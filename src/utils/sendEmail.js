@@ -312,8 +312,13 @@ const sendEmail = async (mailOptions) => {
 };
 
 
-export const sendInvitationEmail = async (email, link, role, orgName) => {
-  if (!email || !link) return;
+export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {
+  const email = typeof emailOrUser === "string" ? emailOrUser : emailOrUser?.email;
+
+  if (!email || !link) {
+    console.warn(">>> [SEND INVITATION]: Missing email or link", { email, link });
+    return;
+  }
 
   const isEmployee = role === "employee";
   const title = isEmployee
