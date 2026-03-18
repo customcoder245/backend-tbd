@@ -388,37 +388,33 @@ export const updateQuestion = async (req, res) => {
       }
     }
 
-    const role = req.user.role?.toLowerCase();
-    const userOrg = req.user.orgName;
-    const queryOrgName = req.query.orgName !== undefined ? req.query.orgName : req.body.orgName;
-    let orgName = (role === "superadmin" && queryOrgName !== undefined) ? queryOrgName : userOrg;
-    if (orgName === "") orgName = null;
+    const role = (req.user.role || "").toLowerCase();
+    const isSuperAdmin = role === "superadmin" || role === "super_admin";
 
-    const orgFilter = (orgName === null || orgName === "")
-      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
-      : { orgName };
-
-    console.log(`updateQuestion: id=${id}, orgName=${orgName}, filter=${JSON.stringify(orgFilter)}`);
-
-    const oldQuestion = await Question.findOne({ _id: id, ...orgFilter });
+    const oldQuestion = await Question.findById(id);
     if (!oldQuestion) {
-      console.error(`updateQuestion: Question not found for id=${id} and filter=${JSON.stringify(orgFilter)}`);
       return res.status(404).json({ message: "Question not found" });
     }
 
-    // Re-generate questionCode if questionType changes
+    // Authorization Check
+    if (!isSuperAdmin && oldQuestion.orgName && oldQuestion.orgName !== req.user.orgName) {
+      return res.status(403).json({ message: "Unauthorized: You don't have access to this organization's questions" });
+    }
+
+    // Re-generate questionCode if questionType changes (use question's own orgName context)
     let generatedCode = oldQuestion.questionCode;
     if (questionType && questionType !== oldQuestion.questionType) {
       generatedCode = await generateQuestionCode(
         oldQuestion.stakeholder,
         oldQuestion.domain,
         oldQuestion.subdomain,
-        questionType
+        questionType,
+        oldQuestion.orgName
       );
     }
 
-    const updatedQuestion = await Question.findOneAndUpdate(
-      { _id: id, ...orgFilter },
+    const updatedQuestion = await Question.findByIdAndUpdate(
+      id,
       {
         questionType,
         questionStem,
@@ -426,23 +422,25 @@ export const updateQuestion = async (req, res) => {
         questionCode: generatedCode,
         insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
         forcedChoice: scale === "FORCED_CHOICE" ? forcedChoice : null,
-        order: order !== undefined ? Number(order) : oldQuestion.order // Update order if provided
+        order: order !== undefined ? Number(order) : oldQuestion.order
       },
       { new: true, runValidators: true }
     );
-
-    if (!updatedQuestion) {
-      return res.status(404).json({
-        message: "Question not found"
-      });
-    }
 
     return res.status(200).json({
       message: "Question updated successfully",
       data: updatedQuestion
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Question code already exists for this stakeholder and organization"
+      });
+    }
+    console.error("Error in updateQuestion:", error);
     return res.status(500).json({
+      success: false,
       message: "Error updating question",
       error: error.message
     });
@@ -464,33 +462,27 @@ export const deleteQuestion = async (req, res) => {
       });
     }
 
-    const role = req.user.role?.toLowerCase();
-    const userOrg = req.user.orgName;
-    let orgName = (role === "superadmin" && req.query.orgName !== undefined) ? req.query.orgName : userOrg;
-    if (orgName === "") orgName = null;
+    const role = (req.user.role || "").toLowerCase();
+    const isSuperAdmin = role === "superadmin" || role === "super_admin";
 
-    const orgFilter = (orgName === null || orgName === "")
-      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
-      : { orgName };
-
-    console.log(`deleteQuestion: id=${id}, orgName=${orgName}, filter=${JSON.stringify(orgFilter)}`);
-
-    const deletedQuestion = await Question.findOneAndUpdate(
-      { _id: id, ...orgFilter },
-      { isDeleted: true },
-      { new: true }
-    );
-
-    if (!deletedQuestion) {
-      return res.status(404).json({
-        message: "Question not found"
-      });
+    const question = await Question.findById(id);
+    if (!question) {
+      return res.status(404).json({ message: "Question not found" });
     }
+
+    // Auth Check
+    if (!isSuperAdmin && question.orgName && question.orgName !== req.user.orgName) {
+      return res.status(403).json({ message: "Unauthorized access" });
+    }
+
+    question.isDeleted = true;
+    await question.save();
 
     return res.status(200).json({
       message: "Question deleted successfully"
     });
   } catch (error) {
+    console.error("Error in deleteQuestion:", error);
     return res.status(500).json({
       message: "Error deleting question",
       error: error.message
@@ -620,7 +612,7 @@ export const getQuestionById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validate ObjectId format to prevent Mongoose Casting error (500)
+    // Validate ObjectId format
     if (!id || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return res.status(400).json({
         success: false,
@@ -628,24 +620,21 @@ export const getQuestionById = async (req, res) => {
       });
     }
 
-    const role = req.user.role?.toLowerCase();
-    const userOrg = req.user.orgName;
-    let orgName = (role === "superadmin" && req.query.orgName !== undefined) ? req.query.orgName : userOrg;
-    if (orgName === "" || orgName === undefined) orgName = null;
-
-    const orgFilter = (orgName === null || orgName === "")
-      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
-      : { orgName };
-
-    console.log(`getQuestionById: id=${id}, orgName=${orgName}, filter=${JSON.stringify(orgFilter)}`);
-
-    const question = await Question.findOne({ _id: id, ...orgFilter });
+    const question = await Question.findById(id);
 
     if (!question || question.isDeleted) {
       return res.status(404).json({
         success: false,
         message: "Question not found"
       });
+    }
+
+    const role = (req.user.role || "").toLowerCase();
+    const isSuperAdmin = role === "superadmin" || role === "super_admin";
+
+    // Auth Check
+    if (!isSuperAdmin && question.orgName && question.orgName !== req.user.orgName) {
+      return res.status(403).json({ success: false, message: "Unauthorized access" });
     }
 
     return res.status(200).json({
