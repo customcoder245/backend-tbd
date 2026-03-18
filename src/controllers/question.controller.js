@@ -57,7 +57,7 @@ const generateQuestionCode = async (stakeholder, domain, subdomain, questionType
       if (num > maxNum) maxNum = num;
     }
   });
- 
+
   return `${prefix}${maxNum + 1 + offset}`;
 };
 
@@ -342,6 +342,14 @@ export const updateQuestion = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Validate ObjectId format
+    if (!id || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid question ID format"
+      });
+    }
+
     const {
       questionType,
       questionStem,
@@ -447,6 +455,14 @@ export const updateQuestion = async (req, res) => {
 export const deleteQuestion = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Validate ObjectId format
+    if (!id || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid question ID format"
+      });
+    }
 
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
@@ -602,11 +618,20 @@ export const getAllQuestions = async (req, res) => {
  */
 export const getQuestionById = async (req, res) => {
   try {
+    const { id } = req.params;
+
+    // Validate ObjectId format to prevent Mongoose Casting error (500)
+    if (!id || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid question ID format"
+      });
+    }
+
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
     let orgName = (role === "superadmin" && req.query.orgName !== undefined) ? req.query.orgName : userOrg;
     if (orgName === "" || orgName === undefined) orgName = null;
-    const { id } = req.params;
 
     const orgFilter = (orgName === null || orgName === "")
       ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
@@ -628,6 +653,7 @@ export const getQuestionById = async (req, res) => {
       data: question
     });
   } catch (error) {
+    console.error("Error in getQuestionById:", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching question",

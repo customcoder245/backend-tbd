@@ -20,9 +20,9 @@ const router = express.Router();
 
 // Admin CRUD routes (Protected)
 router.get("/all", protect, getAllQuestions);                  // Get all questions with filters
+router.get("/template/download", protect, downloadTemplate);       // Download Excel template
 router.get("/:id", protect, getQuestionById);                  // Get single question by ID
 router.post("/multiple", protect, createMultipleQuestions);     // Multiple question creation 
-router.get("/template/download", protect, downloadTemplate);       // Download Excel template
 router.post("/clone", protect, cloneTemplate);                 // Clone master template to organization
 router.post("/upload", protect, excelUpload.single("file"), uploadQuestions); // Upload questions from Excel (no size limit)
 router.put("/reorder", protect, reorderQuestions);              // Batch reorder questions (Drag & Drop)
