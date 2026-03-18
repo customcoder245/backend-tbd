@@ -66,7 +66,7 @@ const getLatestReportData = async (req, res, targetRole) => {
             return res.status(200).json({
                 report,
                 user: report.userDetails,
-                aiInsight: {
+                aiInsight: report.customAiInsight || {
                     title: avgScore > 75 ? "Excellence Sustained" : avgScore < 50 ? "Opportunity for Shift" : "Performance Trajectory",
                     description: `Average score of ${Math.round(avgScore)}% across all domains.`,
                     type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
@@ -131,7 +131,6 @@ const getLatestReportData = async (req, res, targetRole) => {
             report: latestReport,
             firstReport: firstReport,
             user: targetUser || latestReport.userDetails,
-            aiInsight,
             hasReport: true
         });
     } catch (error) {
@@ -236,8 +235,8 @@ export const getDomainDetailedReport = async (req, res) => {
 
         // 1. Insights Pod (Domain analysis)
         const insightsPod = {
-            title: insightTitleLabel,
-            subtitle: "Overall analysis based on your responses",
+            title: feedback.pod360Title || insightTitleLabel,
+            subtitle: feedback.pod360Description || "Overall analysis based on your responses",
             mainText: feedback.insight || `No specific insights available for ${subdomain || domain} yet.`,
             modelDescription: feedback.modelDescription || "",
             phase: feedback.phaseIndicator || ""
@@ -250,7 +249,7 @@ export const getDomainDetailedReport = async (req, res) => {
             actionItems = feedback.coachingTips
                 .split(/\r?\n|•/)
                 .map(line => line.trim())
-                .filter(line => line.length > 5 && !line.toUpperCase().includes("ADKAR FOCUS") && !line.toUpperCase().includes("STABILIZE & REBUILD") && !line.toUpperCase().includes("STANDARDIZE & ACCELERATE") && !line.toUpperCase().includes("SCALE & INSTITUTIONALIZE"));
+                .filter(line => line.length > 2);
         }
 
         const subdomainScore = (subdomain && domainData.subdomains && domainData.subdomains[subdomain])
@@ -260,7 +259,7 @@ export const getDomainDetailedReport = async (req, res) => {
         const objectivesPod = {
             title: "Objectives And Key Results",
             subtitle: "Develop essential leadership and EI skills",
-            items: actionItems.slice(0, 5), // Return top 5 clean items as KRs
+            items: actionItems, // Return all items as KRs
             progress: Math.round(subdomainScore) || 0
         };
 
@@ -270,7 +269,7 @@ export const getDomainDetailedReport = async (req, res) => {
             recommendations = feedback.recommendedPrograms
                 .split(/\r?\n|•/)
                 .map(line => line.trim())
-                .filter(line => line.length > 3 && !line.toUpperCase().includes("OCM TACTICS") && !line.toUpperCase().includes("RECOMMENDED"));
+                .filter(line => line.length > 2);
         }
 
         const recommendationsPod = {
@@ -286,7 +285,15 @@ export const getDomainDetailedReport = async (req, res) => {
             pods: {
                 insights: insightsPod,
                 objectives: objectivesPod,
-                recommendations: recommendationsPod
+                recommendations: recommendationsPod,
+                rawFeedback: {
+                    insight: feedback.insight || "",
+                    coachingTips: feedback.coachingTips || "",
+                    recommendedPrograms: feedback.recommendedPrograms || "",
+                    pod360Title: feedback.pod360Title || "",
+                    pod360Description: feedback.pod360Description || "",
+                    modelDescription: feedback.modelDescription || ""
+                }
             },
             subdomains: domainData.subdomains || {}
         });
@@ -294,5 +301,96 @@ export const getDomainDetailedReport = async (req, res) => {
     } catch (error) {
         console.error("Error in getDomainDetailedReport:", error);
         res.status(500).json({ message: "Error fetching detailed report", error: error.message });
+    }
+};
+
+/**
+ * 🆕 Update Detailed Domain Report API (NEW API)
+ * Updates feedback cards for a single domain (Insight, OKRs, Recommendations)
+ * Only usable by Super Admin
+ */
+export const updateDomainDetailedReport = async (req, res) => {
+    try {
+        const { userId: queryUserId, email: queryEmailPayload, domain, subdomain, insight, coachingTips, recommendedPrograms, pod360Title, pod360Description, modelDescription } = req.body;
+        const loggedInUserId = req.user.userId;
+        const userId = queryUserId || loggedInUserId;
+
+        if (!domain) {
+            return res.status(400).json({ message: "Domain name is required" });
+        }
+
+        const requester = await User.findById(loggedInUserId);
+        if (requester?.role?.toLowerCase() !== "superadmin" && requester?.role?.toLowerCase() !== "super_admin") {
+            return res.status(403).json({ message: "Only Super Admin can update the report details." });
+        }
+
+        let targetUser = null;
+        if (mongoose.Types.ObjectId.isValid(userId)) {
+            targetUser = await User.findById(userId);
+        }
+
+        let queryEmail = queryEmailPayload;
+        let isGuest = false;
+        if (!targetUser && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
+            const invite = await Invitation.findById(queryUserId);
+            if (invite) {
+                queryEmail = invite.email;
+                isGuest = true;
+            }
+        }
+
+        let assessment = null;
+        if (isGuest || queryEmail) {
+            const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`, 'i');
+            assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 });
+        } else {
+            assessment = await SubmittedAssessment.findOne({ userId }).sort({ submittedAt: -1 });
+            if (!assessment && targetUser?.email) {
+                const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`, 'i');
+                assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 });
+            }
+        }
+
+        if (!assessment || !assessment.scores || !assessment.scores.domains) {
+            return res.status(404).json({ message: "No scores found for this user." });
+        }
+
+        let domainData = assessment.scores.domains[domain];
+        if (!domainData) {
+            return res.status(404).json({ message: `No data found for domain: ${domain}` });
+        }
+
+        if (subdomain) {
+            if (!domainData.subdomainFeedback) domainData.subdomainFeedback = {};
+            if (!domainData.subdomainFeedback[subdomain]) domainData.subdomainFeedback[subdomain] = {};
+            domainData.subdomainFeedback[subdomain].insight = insight;
+            domainData.subdomainFeedback[subdomain].coachingTips = coachingTips;
+            domainData.subdomainFeedback[subdomain].recommendedPrograms = recommendedPrograms;
+            domainData.subdomainFeedback[subdomain].pod360Title = pod360Title;
+            domainData.subdomainFeedback[subdomain].pod360Description = pod360Description;
+            domainData.subdomainFeedback[subdomain].modelDescription = modelDescription;
+        } else {
+            if (!domainData.feedback) domainData.feedback = {};
+            domainData.feedback.insight = insight;
+            domainData.feedback.coachingTips = coachingTips;
+            domainData.feedback.recommendedPrograms = recommendedPrograms;
+            domainData.feedback.pod360Title = pod360Title;
+            domainData.feedback.pod360Description = pod360Description;
+            domainData.feedback.modelDescription = modelDescription;
+        }
+        if (pod360Title || pod360Description) {
+            if (!assessment.customAiInsight) assessment.customAiInsight = {};
+            if (pod360Title) assessment.customAiInsight.title = pod360Title;
+            if (pod360Description) assessment.customAiInsight.description = pod360Description;
+            assessment.markModified('customAiInsight');
+        }
+
+        assessment.markModified('scores');
+        await assessment.save();
+
+        res.status(200).json({ message: "Report details updated successfully." });
+    } catch (error) {
+        console.error("Error in updateDomainDetailedReport:", error);
+        res.status(500).json({ message: "Error updating detailed report", error: error.message });
     }
 };
