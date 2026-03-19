@@ -5,7 +5,8 @@ import {
     LeaderReport,
     AdminReport,
     getDomainDetailedReport,
-    updateDomainDetailedReport
+    updateDomainDetailedReport,
+    exportPdfReport
 } from "../controllers/dashboard.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 
@@ -22,5 +23,6 @@ router.get("/admin", AdminReport);
 // 🆕 Detailed Domain Analysis (Insights, OKRs, Recommendations)
 router.get("/detailed-insight", getDomainDetailedReport);
 router.put("/detailed-insight", updateDomainDetailedReport);
+router.get("/export-pdf", exportPdfReport);
 
 export default router;

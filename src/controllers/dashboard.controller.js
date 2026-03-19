@@ -3,11 +3,13 @@ import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
 import mongoose from "mongoose";
 
+import PDFReportService from "../services/pdfReport.service.js";
+
 /**
  * Shared helper to fetch the latest report for a user
- * Supports BOTH registered users (has User record) AND guest employees (invited, no account)
+ * Returns DATA instead of response if returnData is true
  */
-const getLatestReportData = async (req, res, targetRole) => {
+const getLatestReportData = async (req, res, targetRole, returnData = false) => {
     try {
         const { userId: queryUserId, email: queryEmailPayload } = req.query;
         const loggedInUserId = req.user.userId;
@@ -63,7 +65,7 @@ const getLatestReportData = async (req, res, targetRole) => {
             const avgScore = domainScoresArray.length > 0
                 ? domainScoresArray.reduce((acc, d) => acc + (d.score || 0), 0) / domainScoresArray.length : 0;
 
-            return res.status(200).json({
+            const responseData = {
                 report,
                 user: report.userDetails,
                 aiInsight: report.customAiInsight || {
@@ -72,7 +74,10 @@ const getLatestReportData = async (req, res, targetRole) => {
                     type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
                 },
                 hasReport: true
-            });
+            };
+
+            if (returnData) return responseData;
+            return res.status(200).json(responseData);
         }
 
         // --- REGISTERED USER PATH ---
@@ -225,32 +230,69 @@ export const getDomainDetailedReport = async (req, res) => {
 
         // Check for specific subdomain feedback, otherwise fallback to domain-level feedback
         let feedback = {};
-        if (subdomain && domainData.subdomainFeedback && domainData.subdomainFeedback[subdomain]) {
-            feedback = domainData.subdomainFeedback[subdomain];
+        if (subdomain && domainData.subdomainFeedback) {
+            // Try exact match first
+            if (domainData.subdomainFeedback[subdomain]) {
+                feedback = domainData.subdomainFeedback[subdomain];
+            } else {
+                // Try case-insensitive match
+                const subKey = Object.keys(domainData.subdomainFeedback).find(
+                    k => k.toLowerCase().trim() === subdomain.toLowerCase().trim()
+                );
+                if (subKey) {
+                    feedback = domainData.subdomainFeedback[subKey];
+                } else {
+                    feedback = domainData.feedback || {};
+                }
+            }
         } else {
             feedback = domainData.feedback || {};
         }
 
         const insightTitleLabel = subdomain ? `Insight for ${subdomain}` : `Insight for ${domain}`;
 
+        const filterBulletedLines = (text) => {
+            if (!text) return "";
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            const hasBullets = lines.some(line => line.includes('•'));
+
+            if (!hasBullets) {
+                return lines.join('\n');
+            }
+
+            return lines
+                .filter(line => line.includes('•'))
+                .map(line => line.replace(/•/g, '').trim())
+                .filter(line => line.length > 0)
+                .join('\n');
+        };
+
+        const getBulletedItems = (text) => {
+            if (!text) return [];
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            const hasBullets = lines.some(line => line.includes('•'));
+
+            if (!hasBullets) {
+                return lines;
+            }
+
+            return lines
+                .filter(line => line.includes('•'))
+                .map(line => line.replace(/•/g, '').trim())
+                .filter(line => line.length > 0);
+        };
+
         // 1. Insights Pod (Domain analysis)
         const insightsPod = {
             title: feedback.pod360Title || insightTitleLabel,
             subtitle: feedback.pod360Description || "Overall analysis based on your responses",
-            mainText: feedback.insight || `No specific insights available for ${subdomain || domain} yet.`,
-            modelDescription: feedback.modelDescription || "",
+            mainText: filterBulletedLines(feedback.insight) || `No specific insights available for ${subdomain || domain} yet.`,
+            modelDescription: filterBulletedLines(feedback.modelDescription) || "",
             phase: feedback.phaseIndicator || ""
         };
 
         // 2. Objectives (OKRs) Pod - Derived from coaching tips
-        let actionItems = [];
-        if (feedback.coachingTips) {
-            // Split string by newlines or bullets to create list items
-            actionItems = feedback.coachingTips
-                .split(/\r?\n|•/)
-                .map(line => line.trim())
-                .filter(line => line.length > 2);
-        }
+        const actionItems = getBulletedItems(feedback.coachingTips);
 
         const subdomainScore = (subdomain && domainData.subdomains && domainData.subdomains[subdomain])
             ? domainData.subdomains[subdomain]
@@ -264,13 +306,7 @@ export const getDomainDetailedReport = async (req, res) => {
         };
 
         // 3. Recommended Offering Pod
-        let recommendations = [];
-        if (feedback.recommendedPrograms) {
-            recommendations = feedback.recommendedPrograms
-                .split(/\r?\n|•/)
-                .map(line => line.trim())
-                .filter(line => line.length > 2);
-        }
+        const recommendations = getBulletedItems(feedback.recommendedPrograms);
 
         const recommendationsPod = {
             title: "Talent By Design Recommended Offering",
@@ -392,5 +428,38 @@ export const updateDomainDetailedReport = async (req, res) => {
     } catch (error) {
         console.error("Error in updateDomainDetailedReport:", error);
         res.status(500).json({ message: "Error updating detailed report", error: error.message });
+    }
+};
+
+/**
+ * 🆕 EXPORT PDF REPORT (NEW API)
+ * Generates a professional 7-page PDF report for a user
+ */
+export const exportPdfReport = async (req, res) => {
+    try {
+        const { userId: queryUserId, email: queryEmailPayload } = req.query;
+        // Use existing report fetching logic but get data instead of JSON response
+        const data = await getLatestReportData(req, res, "employee", true);
+
+        if (!data || !data.hasReport) {
+            return res.status(404).json({ message: "No report found to export." });
+        }
+
+        const userName = `${data.user?.firstName || ""} ${data.user?.lastName || ""}`.trim() || data.user?.email || "Participant";
+        const sanitizedUserName = userName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const fileName = `POD360_Report_${sanitizedUserName}_${new Date().toISOString().substring(0, 10)}.pdf`;
+
+        // Set response headers for PDF download
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+        // Generate PDF and stream directly to response
+        await PDFReportService.generateReport(data, res);
+
+    } catch (error) {
+        console.error("PDF Export Error:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: "Failed to generate PDF report", error: error.message });
+        }
     }
 };
