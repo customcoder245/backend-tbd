@@ -121,6 +121,8 @@ export const submitEmployeeAssessment = async (req, res) => {
 
     // 💡 Add feedback BEFORE assigning to model
     let fbCount = 0;
+    const stakeholderRole = assessment.stakeholder || "employee";
+
     for (const domainName in scores.domains) {
       const domainObj = scores.domains[domainName];
       domainObj.subdomainFeedback = {};
@@ -137,21 +139,28 @@ export const submitEmployeeAssessment = async (req, res) => {
           minSubName = subName;
         }
 
-        const subFb = getSubdomainFeedback(subName, subScore, 'employee');
+        const subFb = getSubdomainFeedback(subName, subScore, stakeholderRole);
         if (subFb) {
           fbCount++;
           domainObj.subdomainFeedback[subName] = subFb;
         }
       }
 
+      // Finalize Domain-Level Feedback from the lowest scoring subdomain
       if (minSubName) {
-        const primaryFb = getSubdomainFeedback(minSubName, minScore, 'employee');
-        if (primaryFb) {
-          domainObj.feedback = primaryFb;
+        let domainFb = getSubdomainFeedback(minSubName, minScore, stakeholderRole);
+        if (!domainFb) {
+          // Fallback: If lowest subdomain has no entry, pick ANY available feedback from the other subdomains in this domain
+          const availableSubs = Object.keys(domainObj.subdomainFeedback);
+          if (availableSubs.length > 0) {
+            domainFb = domainObj.subdomainFeedback[availableSubs[0]];
+            console.log(`[Feedback Fallback] Used "${availableSubs[0]}" insight for domain "${domainName}" because "${minSubName}" was missing.`);
+          }
         }
+        domainObj.feedback = domainFb || null;
       }
     }
-    console.log(`[Employee Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: employee`);
+    console.log(`[Employee Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: ${stakeholderRole}`);
 
     // Assign the fully-built scores object (with feedback already included)
     assessment.scores = scores;
