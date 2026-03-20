@@ -2,7 +2,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import ejs from 'ejs';
 import pdf from 'html-pdf';
-import User from '../models/user.model.js';
 import { getReportData } from '../services/reportService.js';
 
 // Manually define __dirname in ES modules (for correct module paths)
@@ -11,47 +10,74 @@ const __dirname = path.dirname(__filename);
 
 export const generateReportPdf = async (req, res) => {
     try {
-        const { userId, selectedDomain, selectedSubdomain } = req.body;
+        const userId = req.body.userId || req.user?.userId || req.guest?.invitationId;
+        const email = req.body.email || req.guest?.email;
+        const selectedDomain = req.body.selectedDomain || req.body.domain;
+        const selectedSubdomain = req.body.selectedSubdomain || req.body.subdomain;
+        const selectedTopics =
+            req.body.selectedTopics ||
+            req.body.topics ||
+            req.body.reportSections ||
+            [];
 
-        // Fetch user data
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+        if (!userId && !email) {
+            return res.status(400).json({ message: 'userId or email is required' });
         }
 
-        // Fetch report data
-        const reportData = await getReportData(userId, selectedDomain, selectedSubdomain);
+        if (selectedTopics && !Array.isArray(selectedTopics)) {
+            return res.status(400).json({ message: 'selectedTopics must be an array when provided' });
+        }
+
+        const reportData = await getReportData({
+            userId,
+            email,
+            loggedInUserId: req.user?.userId,
+            selectedDomain,
+            selectedSubdomain,
+            selectedTopics
+        });
+
         if (!reportData) {
             return res.status(404).json({ message: 'Report data not found' });
         }
 
-        // Prepare data for the template
         const templateData = {
-            userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User',
-            overallScore: reportData.overallScore,
-            detailedInsights: reportData.insights,
-            objectives: reportData.keyResults,
+            userName: `${reportData.user?.firstName || ''} ${reportData.user?.lastName || ''}`.trim() || 'User',
+            userEmail: reportData.user?.email || '',
+            department: reportData.user?.department || '',
+            role: reportData.user?.role || '',
+            organization: reportData.user?.orgName || '',
+            overallScore: reportData.overallScore ?? 'N/A',
+            overallClassification: reportData.overallClassification || 'N/A',
+            generatedAt: reportData.generatedAt,
+            aiInsight: reportData.aiInsight,
+            domainSummary: reportData.domainSummary || [],
+            sections: reportData.sections || []
         };
 
-        // Correct template path using path.resolve
-        const templatePath = path.resolve(__dirname, '..', 'views', 'report_template.ejs'); // Ensure we get the correct path to views
-        console.log("Resolved Template Path:", templatePath); // Log to check the path
+        const templatePath = path.resolve(__dirname, '..', 'views', 'report_template.ejs');
+        console.log('Resolved Template Path:', templatePath);
 
-        // Render the EJS template with the data
         ejs.renderFile(templatePath, templateData, {}, (err, html) => {
             if (err) {
-                console.error("Error rendering template:", err);
+                console.error('Error rendering template:', err);
                 return res.status(500).json({ message: 'Error rendering template', error: err });
             }
 
-            // Convert HTML to PDF
-            pdf.create(html, { format: 'A4' }).toBuffer((err, buffer) => {
+            pdf.create(html, {
+                format: 'A4',
+                border: {
+                    top: '12mm',
+                    right: '10mm',
+                    bottom: '12mm',
+                    left: '10mm'
+                }
+            }).toBuffer((err, buffer) => {
                 if (err) {
-                    console.error("Error generating PDF:", err);
+                    console.error('Error generating PDF:', err);
                     return res.status(500).json({ message: 'Error generating PDF', error: err });
                 }
 
-                // Send PDF as a response
                 res.setHeader('Content-Type', 'application/pdf');
                 res.setHeader('Content-Disposition', 'attachment; filename=report.pdf');
                 res.send(buffer);

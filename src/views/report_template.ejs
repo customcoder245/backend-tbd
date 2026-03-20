@@ -1,52 +1,271 @@
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Performance Report</title>
+    <meta charset="UTF-8">
+    <title>POD360 Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #172033;
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.45;
+            background: #ffffff;
+        }
+
+        .page {
+            width: 100%;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #11284a 0%, #1f6aa5 100%);
+            color: #ffffff;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: 26px;
+        }
+
+        .hero p {
+            margin: 4px 0;
+        }
+
+        .metrics {
+            margin-top: 18px;
+        }
+
+        .metric {
+            display: inline-block;
+            width: 31%;
+            vertical-align: top;
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 10px;
+            padding: 12px;
+            margin-right: 2%;
+            box-sizing: border-box;
+        }
+
+        .metric:last-child {
+            margin-right: 0;
+        }
+
+        .metric-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            opacity: 0.85;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 6px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            margin: 18px 0 10px;
+            color: #103a63;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 18px;
+        }
+
+        .summary-table th,
+        .summary-table td {
+            border: 1px solid #d7e2ee;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .summary-table th {
+            background: #eef5fb;
+            color: #103a63;
+        }
+
+        .insight-box {
+            background: #f6f9fc;
+            border-left: 5px solid #1f6aa5;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+
+        .card {
+            border: 1px solid #d7e2ee;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 18px;
+            page-break-inside: avoid;
+        }
+
+        .card h3 {
+            margin: 0 0 6px;
+            font-size: 17px;
+            color: #103a63;
+        }
+
+        .card h4 {
+            margin: 14px 0 6px;
+            font-size: 13px;
+            color: #17375f;
+        }
+
+        .muted {
+            color: #5d6b82;
+        }
+
+        ul {
+            margin: 8px 0 0 18px;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #eaf3fb;
+            color: #103a63;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-right: 6px;
+        }
+
+        .subdomain-grid {
+            margin-top: 10px;
+        }
+
+        .subdomain-item {
+            display: inline-block;
+            width: 48%;
+            margin: 0 2% 8px 0;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f8fbfe;
+            border: 1px solid #e1ebf5;
+            box-sizing: border-box;
+        }
+
+        .subdomain-item:nth-child(2n) {
+            margin-right: 0;
+        }
+    </style>
 </head>
 <body>
-  <h1>Performance Report for <%= userName %></h1>
-  <p><strong>Overall Score:</strong> <%= overallScore %></p>
-  
-  <h3>Detailed Insights</h3>
-  <ul>
-    <% detailedInsights.forEach(function(insight) { %>
-      <li><%= insight %></li>
-    <% }) %>
-  </ul>
-  
-  <h3>Objectives</h3>
-  <ul>
-    <% objectives.forEach(function(objective) { %>
-      <li><%= objective %></li>
-    <% }) %>
-  </ul>
-</body>
-</html> -->
+    <div class="page">
+        <div class="hero">
+            <h1>POD360 Report</h1>
+            <p><strong><%= userName %></strong></p>
+            <% if (userEmail) { %><p><%= userEmail %></p><% } %>
+            <p>
+                <% if (department) { %><span><%= department %></span><% } %>
+                <% if (role) { %><span> | <%= role %></span><% } %>
+                <% if (organization) { %><span> | <%= organization %></span><% } %>
+            </p>
 
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-label">Overall Score</div>
+                    <div class="metric-value"><%= overallScore %>%</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Classification</div>
+                    <div class="metric-value" style="font-size: 20px;"><%= overallClassification %></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Generated</div>
+                    <div class="metric-value" style="font-size: 15px;"><%= new Date(generatedAt).toLocaleDateString('en-GB') %></div>
+                </div>
+            </div>
+        </div>
 
+        <div class="insight-box">
+            <div class="pill">AI Insight</div>
+            <h3 style="margin: 10px 0 6px;"><%= aiInsight?.title || 'Performance Trajectory' %></h3>
+            <p style="margin: 0;"><%= aiInsight?.description || '' %></p>
+        </div>
 
+        <% if (domainSummary && domainSummary.length > 0) { %>
+            <h2 class="section-title">Domain Summary</h2>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Domain</th>
+                        <th>Score</th>
+                        <th>Classification</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% domainSummary.forEach(function(domain) { %>
+                        <tr>
+                            <td><%= domain.name %></td>
+                            <td><%= domain.score %>%</td>
+                            <td><%= domain.classification %></td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        <% } %>
 
+        <% sections.forEach(function(section) { %>
+            <div class="card">
+                <div class="pill"><%= section.classification %></div>
+                <% if (section.phase) { %><div class="pill"><%= section.phase %></div><% } %>
+                <h3><%= section.title %></h3>
+                <p class="muted" style="margin: 0 0 10px;">Score: <strong><%= section.score %>%</strong></p>
 
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Performance Report</title>
-</head>
-<body>
-    <h1>Report for <%= userName %></h1>
-    <h3>Overall Score: <%= overallScore %></h3>
-    <h4>Insights:</h4>
-    <ul>
-        <% detailedInsights.forEach(function(insight) { %>
-            <li><%= insight %></li>
+                <h4><%= section.podTitle %></h4>
+                <p style="margin: 0 0 8px;"><%= section.podSubtitle %></p>
+                <p style="margin: 0;"><%= section.insight %></p>
+
+                <% if (section.modelDescription) { %>
+                    <h4>Model Description</h4>
+                    <p style="margin: 0;"><%= section.modelDescription %></p>
+                <% } %>
+
+                <% if (section.objectives && section.objectives.length > 0) { %>
+                    <h4>Objectives and Key Results</h4>
+                    <ul>
+                        <% section.objectives.forEach(function(item) { %>
+                            <li><%= item %></li>
+                        <% }) %>
+                    </ul>
+                <% } %>
+
+                <% if (section.recommendations && section.recommendations.length > 0) { %>
+                    <h4>Recommended Programs</h4>
+                    <ul>
+                        <% section.recommendations.forEach(function(item) { %>
+                            <li><%= item %></li>
+                        <% }) %>
+                    </ul>
+                <% } %>
+
+                <% if (section.subdomains && section.subdomains.length > 0) { %>
+                    <h4>Subdomain Scores</h4>
+                    <div class="subdomain-grid">
+                        <% section.subdomains.forEach(function(subdomain) { %>
+                            <div class="subdomain-item">
+                                <strong><%= subdomain.name %></strong><br />
+                                <span><%= subdomain.score %>% | <%= subdomain.classification %></span>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } %>
+            </div>
         <% }) %>
-    </ul>
-    <h4>Key Results:</h4>
-    <ul>
-        <% objectives.forEach(function(objective) { %>
-            <li><%= objective %></li>
-        <% }) %>
-    </ul>
+    </div>
 </body>
 </html>
