@@ -1,11 +1,13 @@
 import path from 'path';
+import { fileURLToPath } from 'url';
 import ejs from 'ejs';
 import pdf from 'html-pdf';
 import User from '../models/user.model.js';
 import { getReportData } from '../services/reportService.js';
 
 // Manually define __dirname in ES modules (for correct module paths)
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const generateReportPdf = async (req, res) => {
     try {
@@ -25,7 +27,7 @@ export const generateReportPdf = async (req, res) => {
 
         // Prepare data for the template
         const templateData = {
-            userName: user.name,
+            userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User',
             overallScore: reportData.overallScore,
             detailedInsights: reportData.insights,
             objectives: reportData.keyResults,
