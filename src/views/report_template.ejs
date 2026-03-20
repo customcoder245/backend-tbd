@@ -1,0 +1,52 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Performance Report</title>
+</head>
+<body>
+  <h1>Performance Report for <%= userName %></h1>
+  <p><strong>Overall Score:</strong> <%= overallScore %></p>
+  
+  <h3>Detailed Insights</h3>
+  <ul>
+    <% detailedInsights.forEach(function(insight) { %>
+      <li><%= insight %></li>
+    <% }) %>
+  </ul>
+  
+  <h3>Objectives</h3>
+  <ul>
+    <% objectives.forEach(function(objective) { %>
+      <li><%= objective %></li>
+    <% }) %>
+  </ul>
+</body>
+</html> -->
+
+
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Performance Report</title>
+</head>
+<body>
+    <h1>Report for <%= userName %></h1>
+    <h3>Overall Score: <%= overallScore %></h3>
+    <h4>Insights:</h4>
+    <ul>
+        <% detailedInsights.forEach(function(insight) { %>
+            <li><%= insight %></li>
+        <% }) %>
+    </ul>
+    <h4>Key Results:</h4>
+    <ul>
+        <% objectives.forEach(function(objective) { %>
+            <li><%= objective %></li>
+        <% }) %>
+    </ul>
+</body>
+</html>

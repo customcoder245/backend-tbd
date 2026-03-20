@@ -11,6 +11,7 @@ import employeeAssessmentRoutes from "./routes/employeeAssessment.routes.js";
 import questionRoutes from "./routes/question.routes.js";
 import responseRoutes from "./routes/response.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
+import pdfRoutes from './routes/pdf.routes.js';
 
 const app = express();
 
@@ -25,7 +26,7 @@ app.use(async (req, res, next) => {
 });
 
 // Parse incoming JSON requests
-app.use(express.json());
+app.use(express.json()); // For handling JSON requests
 app.use(cookieParser());
 
 // Cors moved here for cleaner flow
@@ -58,5 +59,12 @@ app.use("/api/v1/employee-assessment", employeeAssessmentRoutes);
 app.use("/api/v1/questions", questionRoutes);
 app.use("/api/v1/responses", responseRoutes);
 app.use("/api/v1/dashboard", dashboardRoutes);
+
+// Use the PDF route
+app.use('/api/v1/generate-report', pdfRoutes);
+
+app.listen(3000, () => {
+    console.log('Server is running on port 3000');
+});
 
 export { app };

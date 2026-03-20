@@ -38,6 +38,8 @@ import { resendVerificationEmail } from "../controllers/resendVerification.contr
 import { protect, flexibleProtect } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { uploadCSV } from "../middlewares/csvUpload.middleware.js";
+import { generateReportPdf } from '../controllers/pdf.controller.js';
+
 
 const router = express.Router();
 
@@ -81,5 +83,8 @@ router.delete("/notifications/clear-all", protect, clearNotifications);
 // Preferences
 import { updateNotificationPreferences } from "../controllers/preferences.controller.js";
 router.patch("/update-notifications", protect, updateNotificationPreferences);
+
+// POST route for generating the PDF report
+router.post('/generate-report', generateReportPdf);
 
 export default router;
