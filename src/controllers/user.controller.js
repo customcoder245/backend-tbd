@@ -15,6 +15,7 @@ export const getMe = async (req, res) => {
         if (!user && req.guest) {
             const { email, invitationId } = req.guest;
             const assessment = await Assessment.findOne({
+                isDeleted: { $ne: true },
                 $or: [{ invitationId }, { employeeEmail: email }]
             }).sort({ submittedAt: -1 });
 
@@ -60,8 +61,8 @@ export const getMe = async (req, res) => {
         const userRole = user.role;
         if (["admin", "leader", "manager"].includes(userRole)) {
             const [incomplete, complete] = await Promise.all([
-                Assessment.findOne({ userId: user._id, isCompleted: false }).lean(),
-                Assessment.findOne({ userId: user._id, isCompleted: true }).sort({ submittedAt: -1 }).lean()
+                Assessment.findOne({ userId: user._id, isCompleted: false, isDeleted: { $ne: true } }).lean(),
+                Assessment.findOne({ userId: user._id, isCompleted: true, isDeleted: { $ne: true } }).sort({ submittedAt: -1 }).lean()
             ]);
             if (incomplete) {
                 assessmentStatus = "PENDING";

@@ -35,6 +35,7 @@ export const getOrgDetails = async (req, res) => {
         const invIds = invitations.map(inv => inv._id);
 
         const assessments = await Assessment.find({
+            isDeleted: { $ne: true },
             $or: [
                 { invitationId: { $in: invIds } },
                 { employeeEmail: { $in: invEmails } },
@@ -383,9 +384,10 @@ export const resetAssessmentForUser = async (req, res) => {
         const requesterId = req.user.userId;
         const requesterRole = req.user.role?.toLowerCase();
 
-        // Only admins can perform this action
-        if (requesterRole !== "admin") {
-            return res.status(403).json({ message: "Access denied. Only admins can reset assessments." });
+        // Only authorized roles can perform this action
+        const allowedRoles = ["admin", "leader"];
+        if (!allowedRoles.includes(requesterRole)) {
+            return res.status(403).json({ message: "Access denied. Only organization admins and leaders can reset assessments." });
         }
 
         // Admins cannot reset their OWN assessment
