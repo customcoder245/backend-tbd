@@ -432,22 +432,155 @@ export const updateDomainDetailedReport = async (req, res) => {
 };
 
 /**
- * 🆕 EXPORT PDF REPORT (NEW API)
- * Generates a professional 7-page PDF report for a user
+ * Shared helper to aggregate organization/team averages
  */
+async function getOrganizationContextData(req, res) {
+    const { userId: queryUserId, email: queryEmailPayload, includeSelf } = req.query;
+    const loggedInUserId = req.user.userId;
+    const targetUserId = queryUserId || loggedInUserId;
+
+    // 1. Identify the manager
+    let managerUser = await User.findById(targetUserId);
+    if (!managerUser && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
+        const invite = await Invitation.findById(queryUserId);
+        if (invite) {
+            managerUser = { email: invite.email, orgName: invite.orgName, department: invite.department };
+        }
+    }
+    if (!managerUser) return null;
+
+    const orgName = managerUser.orgName;
+    const managerDept = (managerUser.department || "").trim().toLowerCase();
+
+    if (!orgName) return null;
+
+    const safeOrg = orgName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const orgRegex = new RegExp(`^${safeOrg}$`, 'i');
+
+    const [depts, roles, invitations, registeredUsers] = await Promise.all([
+        Invitation.distinct("department", { orgName: orgRegex }),
+        Invitation.distinct("role", { orgName: orgRegex }),
+        Invitation.countDocuments({ orgName: orgRegex }),
+        User.countDocuments({ orgName: orgRegex, profileCompleted: true })
+    ]);
+
+    let allAssessments = await SubmittedAssessment.find({
+        "userDetails.orgName": { $regex: orgRegex }
+    }).select("userId userDetails scores submittedAt").sort({ submittedAt: -1 }).lean();
+
+    if (!includeSelf) {
+        const managerEmail = (managerUser.email || "").toLowerCase();
+        allAssessments = allAssessments.filter(a => (a.userDetails?.email || "").toLowerCase() !== managerEmail);
+    }
+
+    const latestByEmail = new Map();
+    for (const a of allAssessments) {
+        const email = (a.userDetails?.email || "").toLowerCase();
+        if (!email) continue;
+        const existing = latestByEmail.get(email);
+        if (!existing || new Date(a.submittedAt) > new Date(existing.submittedAt)) {
+            a._resolvedDept = (a.userDetails?.department || "").trim().toLowerCase();
+            a._resolvedRole = (a.userDetails?.role || "employee").toLowerCase();
+            latestByEmail.set(email, a);
+        }
+    }
+    const uniqueAssessments = [...latestByEmail.values()];
+
+    const deptAssessments = managerDept
+        ? uniqueAssessments.filter(a => a._resolvedDept === managerDept)
+        : uniqueAssessments;
+    const orgBenchmarkAssessments = uniqueAssessments.filter(a =>
+        managerDept ? (a._resolvedDept && a._resolvedDept !== managerDept) : true
+    );
+
+    const domainNames = ["People Potential", "Operational Steadiness", "Digital Fluency"];
+    const aggregateDomainAvg = (assessmentList) => {
+        const result = {};
+        for (const domainName of domainNames) {
+            const subTotals = {}, subCounts = {};
+            let domainTotal = 0, domainCount = 0;
+            for (const assessment of assessmentList) {
+                const domainData = assessment.scores?.domains?.[domainName];
+                if (!domainData) continue;
+                if (typeof domainData.score === "number") { domainTotal += domainData.score; domainCount++; }
+                for (const [subName, rawVal] of Object.entries(domainData.subdomains || {})) {
+                    const score = typeof rawVal === "object" ? (rawVal?.score ?? 0) : (rawVal ?? 0);
+                    if (!subTotals[subName]) { subTotals[subName] = 0; subCounts[subName] = 0; }
+                    subTotals[subName] += score;
+                    subCounts[subName]++;
+                }
+            }
+            const avgSubdomains = {};
+            for (const subName of Object.keys(subTotals)) {
+                avgSubdomains[subName] = Number((subTotals[subName] / subCounts[subName]).toFixed(1));
+            }
+            result[domainName] = {
+                avgScore: domainCount > 0 ? Number((domainTotal / domainCount).toFixed(1)) : 0,
+                subdomains: avgSubdomains
+            };
+        }
+        return result;
+    };
+
+    const employeeAssessments = deptAssessments.filter(a => a._resolvedRole === "employee");
+    const managerAssessments = deptAssessments.filter(a => a._resolvedRole === "manager");
+    const leaderAssessments = deptAssessments.filter(a => ["leader", "senior-leader"].includes(a._resolvedRole));
+
+    return {
+        teamAvg: aggregateDomainAvg(deptAssessments),
+        orgAvg: aggregateDomainAvg(orgBenchmarkAssessments),
+        employeeAvg: aggregateDomainAvg(employeeAssessments),
+        managerAvg: aggregateDomainAvg(managerAssessments),
+        leaderAvg: aggregateDomainAvg(leaderAssessments),
+        memberCount: deptAssessments.length,
+        orgMemberCount: orgBenchmarkAssessments.length,
+        totalInvitations: invitations,
+        acceptedInvitations: registeredUsers,
+        pendingInvitations: Math.max(0, invitations - registeredUsers),
+        department: managerUser.department || "",
+        orgName
+    };
+}
+
 export const exportPdfReport = async (req, res) => {
     try {
         const { userId: queryUserId, email: queryEmailPayload } = req.query;
-        // Use existing report fetching logic but get data instead of JSON response
-        const data = await getLatestReportData(req, res, "employee", true);
 
-        if (!data || !data.hasReport) {
-            return res.status(404).json({ message: "No report found to export." });
+        // 1. Fetch Participant Data (if userId exists)
+        let data = null;
+        if (queryUserId || queryEmailPayload) {
+            data = await getLatestReportData(req, res, "employee", true);
         }
 
-        const userName = `${data.user?.firstName || ""} ${data.user?.lastName || ""}`.trim() || data.user?.email || "Participant";
+        // 2. Fetch Organizational Comparison Data (regardless of userId)
+        const comparisonData = await getOrganizationContextData(req, res);
+
+        if (data && data.hasReport) {
+            data.comparisonData = comparisonData;
+        } else if (!queryUserId && !queryEmailPayload) {
+            // No user selected => Generate MASTER ORG REPORT
+            data = {
+                isMasterReport: true,
+                orgName: req.user.orgName || "Organization",
+                comparisonData: comparisonData,
+                user: req.user, // The Admin
+                hasReport: true
+            };
+        }
+
+        if (!data || !data.hasReport) {
+            if (!res.headersSent) {
+                return res.status(404).json({ message: "No report found to export." });
+            }
+            return;
+        }
+
+        const userName = data.isMasterReport
+            ? `${data.orgName} Master Report`
+            : `${data.user?.firstName || ""} ${data.user?.lastName || ""}`.trim() || data.user?.email || "Participant";
+
         const sanitizedUserName = userName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const fileName = `POD360_Report_${sanitizedUserName}_${new Date().toISOString().substring(0, 10)}.pdf`;
+        const fileName = `POD360_Export_${sanitizedUserName}_${new Date().toISOString().substring(0, 10)}.pdf`;
 
         // Set response headers for PDF download
         res.setHeader("Content-Type", "application/pdf");
@@ -472,127 +605,11 @@ export const exportPdfReport = async (req, res) => {
  */
 export const getManagerTeamAvg = async (req, res) => {
     try {
-        const { userId: queryUserId, email: queryEmailPayload, includeSelf } = req.query;
-        const loggedInUserId = req.user.userId;
-        const targetUserId = queryUserId || loggedInUserId;
-
-        // 1. Identify the manager
-        let managerUser = null;
-        if (mongoose.Types.ObjectId.isValid(targetUserId)) {
-            managerUser = await User.findById(targetUserId).lean();
-        }
-        if (!managerUser && queryEmailPayload) {
-            managerUser = await User.findOne({ email: queryEmailPayload.toLowerCase() }).lean();
-        }
-        if (!managerUser) {
+        const data = await getOrganizationContextData(req, res);
+        if (!data) {
             return res.status(200).json({ teamAvg: {}, orgAvg: {}, memberCount: 0, orgMemberCount: 0 });
         }
-
-        const managerDept = (req.query.department || managerUser.department || "").trim().toLowerCase();
-        const orgName = managerUser.orgName;
-
-        if (!orgName) {
-            return res.status(200).json({ teamAvg: {}, orgAvg: {}, memberCount: 0, orgMemberCount: 0 });
-        }
-
-        // 2. Regex for org name
-        const safeOrg = orgName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const orgRegex = new RegExp(`^${safeOrg}$`, 'i');
-
-        // 3. Directly fetch ALL assessments for this organization
-        // We rely entirely on the userDetails stored in the assessment submission.
-        let allAssessments = await SubmittedAssessment.find({
-            "userDetails.orgName": { $regex: orgRegex }
-        }).select("userId userDetails scores submittedAt").sort({ submittedAt: -1 }).lean();
-
-        // 5. Exclude the manager themselves unless includeSelf is true
-        if (!includeSelf) {
-            const managerEmail = managerUser.email.toLowerCase();
-            allAssessments = allAssessments.filter(a => {
-                const aEmail = (a.userDetails?.email || "").toLowerCase();
-                return aEmail !== managerEmail;
-            });
-        }
-
-        // 5. De-duplicate: keep only the LATEST assessment per person (by email)
-        //    and resolve each person's department
-        const latestByEmail = new Map();
-        for (const a of allAssessments) {
-            const email = (a.userDetails?.email || "").toLowerCase();
-            if (!email) continue;
-            const existing = latestByEmail.get(email);
-            if (!existing || new Date(a.submittedAt) > new Date(existing.submittedAt)) {
-                // Use data stored in the assessment itself, exactly as the user requested
-                a._resolvedDept = (a.userDetails?.department || "").trim().toLowerCase();
-                a._resolvedRole = (a.userDetails?.role || "employee").toLowerCase();
-                latestByEmail.set(email, a);
-            }
-        }
-        const uniqueAssessments = [...latestByEmail.values()];
-
-        // 7. Split into: SAME dept (team) vs OTHER depts (org benchmark)
-        const deptAssessments = managerDept
-            ? uniqueAssessments.filter(a => a._resolvedDept === managerDept)
-            : uniqueAssessments; // Fallback: all org members if dept is blank
-        const orgBenchmarkAssessments = uniqueAssessments.filter(a =>
-            managerDept ? (a._resolvedDept && a._resolvedDept !== managerDept) : true
-        );
-
-        // 8. Aggregate helper
-        const domainNames = ["People Potential", "Operational Steadiness", "Digital Fluency"];
-        const aggregateDomainAvg = (assessmentList) => {
-            const result = {};
-            for (const domainName of domainNames) {
-                const subTotals = {}, subCounts = {};
-                let domainTotal = 0, domainCount = 0;
-
-                for (const assessment of assessmentList) {
-                    const domainData = assessment.scores?.domains?.[domainName];
-                    if (!domainData) continue;
-                    if (typeof domainData.score === "number") { domainTotal += domainData.score; domainCount++; }
-                    for (const [subName, rawVal] of Object.entries(domainData.subdomains || {})) {
-                        const score = typeof rawVal === "object" ? (rawVal?.score ?? 0) : (rawVal ?? 0);
-                        if (!subTotals[subName]) { subTotals[subName] = 0; subCounts[subName] = 0; }
-                        subTotals[subName] += score;
-                        subCounts[subName]++;
-                    }
-                }
-
-                const avgSubdomains = {};
-                for (const subName of Object.keys(subTotals)) {
-                    avgSubdomains[subName] = Number((subTotals[subName] / subCounts[subName]).toFixed(1));
-                }
-                result[domainName] = {
-                    avgScore: domainCount > 0 ? Number((domainTotal / domainCount).toFixed(1)) : 0,
-                    subdomains: avgSubdomains
-                };
-            }
-            return result;
-        };
-
-        const employeeAssessments = deptAssessments.filter(a => a._resolvedRole === "employee");
-        const managerAssessments = deptAssessments.filter(a => a._resolvedRole === "manager");
-        const leaderAssessments = deptAssessments.filter(a => ["leader", "senior-leader", "senior_leader"].includes(a._resolvedRole));
-        const adminAssessments = deptAssessments.filter(a => ["admin", "superadmin", "super_admin"].includes(a._resolvedRole));
-
-        return res.status(200).json({
-            teamAvg: aggregateDomainAvg(deptAssessments),       // same-dept members (combined)
-            orgAvg: aggregateDomainAvg(orgBenchmarkAssessments), // other-dept org benchmark
-            employeeAvg: aggregateDomainAvg(employeeAssessments), // same-dept ONLY employees
-            managerAvg: aggregateDomainAvg(managerAssessments),   // same-dept ONLY managers
-            leaderAvg: aggregateDomainAvg(leaderAssessments),     // same-dept ONLY leaders
-            adminAvg: aggregateDomainAvg(adminAssessments),       // same-dept ONLY admins
-            memberCount: deptAssessments.length,
-            orgMemberCount: orgBenchmarkAssessments.length,
-            employeeCount: employeeAssessments.length,
-            managerCount: managerAssessments.length,
-            leaderCount: leaderAssessments.length,
-            adminCount: adminAssessments.length,
-            department: managerUser.department || "",
-            allDepartments: [...new Set(uniqueAssessments.map(a => a._resolvedDept).filter(Boolean))],
-            orgName
-        });
-
+        return res.status(200).json(data);
     } catch (error) {
         console.error("getManagerTeamAvg error:", error);
         res.status(500).json({ message: "Error fetching team averages", error: error.message });

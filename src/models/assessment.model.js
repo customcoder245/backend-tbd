@@ -16,7 +16,7 @@ const assessmentSchema = new Schema({
   },
 
   invitedBy: {
-    type: Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,        
     ref: "User"
   },
 

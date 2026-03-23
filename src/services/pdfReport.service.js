@@ -39,42 +39,57 @@ class PDFReportService {
         const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
         // Build Pages
-        this.drawCover(doc, userName, orgName, dateStr);
+        // Build Pages
+        if (data.isMasterReport) {
+            this.drawMasterCover(doc, data.orgName, dateStr);
+            doc.addPage();
+            this.drawHeader(doc, data.orgName);
+            await this.drawMasterOrgSummary(doc, data.orgName, data.comparisonData);
+        } else {
+            this.drawCover(doc, userName, orgName, dateStr);
 
-        doc.addPage();
-        this.drawHeader(doc, userName);
-        this.drawSystemArchitecture(doc);
-
-        doc.addPage();
-        this.drawHeader(doc, userName);
-        this.drawExecutiveSummary(doc, report, aiInsight);
-
-        // Domain & Subdomain Pages
-        for (const domain of ["People Potential", "Operational Steadiness", "Digital Fluency"]) {
-            // 1. Domain Summary Page
             doc.addPage();
             this.drawHeader(doc, userName);
-            await this.drawDomainDetailedPage(doc, domain, report.scores?.domains?.[domain], userName);
+            this.drawSystemArchitecture(doc);
 
-            // 2. Subdomain Deep Dive Pages (Iterating over Subdomains for this domain)
-            const subs = report.scores?.domains?.[domain]?.subdomains || {};
-            const subFeedback = report.scores?.domains?.[domain]?.subdomainFeedback || {};
+            doc.addPage();
+            this.drawHeader(doc, userName);
+            this.drawExecutiveSummary(doc, report, aiInsight);
 
-            for (const sName of Object.keys(subs)) {
-                // subs[sName] can be either a raw number or an object with a .score property
-                const rawVal = subs[sName];
-                const sScore = typeof rawVal === "object" ? (rawVal?.score ?? 0) : (rawVal ?? 0);
+            // Domain & Subdomain Pages
+            for (const domain of ["People Potential", "Operational Steadiness", "Digital Fluency"]) {
+                // 1. Domain Summary Page
                 doc.addPage();
                 this.drawHeader(doc, userName);
-                this.drawSubdomainDetailedPage(doc, userName, domain, sName, sScore, subFeedback[sName]);
-            }
-        }
+                await this.drawDomainDetailedPage(doc, domain, report.scores?.domains?.[domain], userName);
 
-        // Appendix: Detailed Raw Responses
-        if (report.responses && report.responses.length > 0) {
-            doc.addPage();
-            this.drawHeader(doc, userName);
-            await this.drawAppendixResponses(doc, report.responses);
+                // 2. Subdomain Deep Dive Pages (Iterating over Subdomains for this domain)
+                const subs = report.scores?.domains?.[domain]?.subdomains || {};
+                const subFeedback = report.scores?.domains?.[domain]?.subdomainFeedback || {};
+
+                for (const sName of Object.keys(subs)) {
+                    // subs[sName] can be either a raw number or an object with a .score property
+                    const rawVal = subs[sName];
+                    const sScore = typeof rawVal === "object" ? (rawVal?.score ?? 0) : (rawVal ?? 0);
+                    doc.addPage();
+                    this.drawHeader(doc, userName);
+                    this.drawSubdomainDetailedPage(doc, userName, domain, sName, sScore, subFeedback[sName]);
+                }
+            }
+
+            // --- NEW: Comparison & Alignment Page ---
+            if (data.comparisonData) {
+                doc.addPage();
+                this.drawHeader(doc, userName);
+                await this.drawComparisonPage(doc, userName, data.comparisonData, report.scores?.domains || {});
+            }
+
+            // Appendix: Detailed Raw Responses
+            if (report.responses && report.responses.length > 0) {
+                doc.addPage();
+                this.drawHeader(doc, userName);
+                await this.drawAppendixResponses(doc, report.responses);
+            }
         }
 
         this.applyPageNumbers(doc);
@@ -98,14 +113,43 @@ class PDFReportService {
         doc.rect(240, 360, 40, 4).fill(this.colors.secondary);
 
         // Subject Info
-        doc.fontSize(16).font("Helvetica-Bold").fillColor(this.colors.primary).text("PARTICIPANT:", 240, 420);
-        doc.fontSize(24).text(userName, 240, 440);
+        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("PARTICIPANT:", 240, 420);
+        doc.fontSize(16).font("Helvetica-Bold").fillColor(this.colors.primary).text(userName, 240, 440);
 
-        doc.fontSize(10).font("Helvetica").fillColor(this.colors.lightText).text(`ORGANIZATION: ${orgName}`, 240, 485);
-        doc.text(`DATE ISSUED: ${dateStr}`, 240, 500);
+        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("ORGANIZATION:", 240, 480);
+        doc.fontSize(14).font("Helvetica").fillColor(this.colors.primary).text(orgName, 240, 495);
 
-        // Footer graphic
-        doc.circle(100, 750, 60).lineWidth(1).strokeColor(this.colors.secondary).stroke();
+        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("DATE ISSUED:", 240, 530);
+        doc.fontSize(14).font("Helvetica").fillColor(this.colors.primary).text(dateStr, 240, 545);
+
+        // Footer
+        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("© 2026 TALENT BY DESIGN. ALL RIGHTS RESERVED.", 240, 780);
+    }
+
+    drawMasterCover(doc, orgName, dateStr) {
+        // Decorative background
+        doc.rect(0, 0, 600, 842).fill(this.colors.white);
+        doc.rect(0, 0, 200, 842).fill(this.colors.primary);
+
+        // Logo text
+        doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(18).text("TALENT BY DESIGN", 240, 60);
+        doc.fontSize(8).font("Helvetica").text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 75);
+
+        // Titles
+        doc.fontSize(44).font("Helvetica-Bold").fillColor(this.colors.primary).text("MASTER REPORT", 240, 250);
+        doc.fontSize(22).font("Helvetica").text("Organizational Health Dossier", 240, 310);
+
+        doc.rect(240, 360, 40, 4).fill(this.colors.secondary);
+
+        // Org Info
+        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("ORGANIZATION:", 240, 420);
+        doc.fontSize(18).font("Helvetica-Bold").fillColor(this.colors.primary).text(orgName.toUpperCase(), 240, 440);
+
+        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("GENERATED ON:", 240, 480);
+        doc.fontSize(14).font("Helvetica").fillColor(this.colors.primary).text(dateStr, 240, 495);
+
+        // Footer
+        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("© 2026 TALENT BY DESIGN. CONFIDENTIAL INTEL.", 240, 780);
     }
 
     drawHeader(doc, userName) {
@@ -410,6 +454,203 @@ class PDFReportService {
                 doc.font("Helvetica").fontSize(8).fillColor(this.colors.text);
             }
         });
+    }
+
+    async drawComparisonPage(doc, userName, comparisonData, userScores) {
+        doc.fontSize(20).font("Helvetica-Bold").fillColor(this.colors.primary).text("Organizational Alignment & Benchmark", 50, 60);
+        doc.fontSize(10).font("Helvetica").fillColor(this.colors.lightText).text("Contextual analysis comparing individual performance against team and organizational averages.", 50, 85);
+
+        const domainNames = ["People Potential", "Operational Steadiness", "Digital Fluency"];
+        const rows = [];
+
+        for (const dName of domainNames) {
+            const uScore = userScores[dName]?.score || 0;
+            const tAvg = comparisonData.teamAvg?.[dName]?.avgScore || 0;
+            const oAvg = comparisonData.orgAvg?.[dName]?.avgScore || 0;
+            const gap = uScore - tAvg;
+
+            rows.push({
+                domain: dName,
+                user: `${Math.round(uScore)}%`,
+                team: `${Math.round(tAvg)}%`,
+                org: `${Math.round(oAvg)}%`,
+                gap: (gap > 0 ? "+" : "") + Math.round(gap) + "%"
+            });
+        }
+
+        const table = {
+            headers: [
+                { label: "Performance Domain", property: "domain", width: 220 },
+                { label: "Score", property: "user", width: 70 },
+                { label: "Team Avg", property: "team", width: 70 },
+                { label: "Org Avg", property: "org", width: 70 },
+                { label: "Gap (vs Team)", property: "gap", width: 70 }
+            ],
+            datas: rows
+        };
+
+        await doc.table(table, {
+            start_y: 120,
+            prepareHeader: () => doc.font("Helvetica-Bold").fontSize(9).fillColor(this.colors.primary),
+            prepareRow: (row, indexColumn, indexRow, rectRow, rectCell) => {
+                doc.font("Helvetica").fontSize(9).fillColor(this.colors.text);
+                if (indexColumn === 4) {
+                    const val = parseInt(row.gap);
+                    if (val > 5) doc.fillColor(this.colors.success);
+                    else if (val < -5) doc.fillColor(this.colors.accent);
+                }
+            }
+        });
+
+        // 2. Alignment Analysis Section
+        let currentY = doc.y + 30;
+        doc.fontSize(16).font("Helvetica-Bold").fillColor(this.colors.primary).text("Detailed Alignment Insights", 50, currentY);
+        currentY += 25;
+
+        // Domain-specific comparison blocks
+        for (const dName of domainNames) {
+            const selfScore = userScores[dName]?.score || 0; // Changed from reportScores to userScores
+            const team = comparisonData.teamAvg?.[dName]?.avgScore || 0;
+            const org = comparisonData.orgAvg?.[dName]?.avgScore || 0;
+            const gap = selfScore - team;
+
+            doc.rect(50, currentY, 500, 80).fill(this.colors.ice);
+
+            // Score badges
+            doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(10).text(dName.toUpperCase(), 70, currentY + 15);
+
+            // Labels & Mini-bars
+            doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("YOUR SCORE", 70, currentY + 35);
+            doc.text("TEAM AVG", 230, currentY + 35);
+            doc.text("ORG BENCHMARK", 390, currentY + 35);
+
+            doc.fontSize(12).font("Helvetica-Bold").fillColor(this.colors.primary).text(`${Math.round(selfScore)}%`, 70, currentY + 45);
+            doc.text(`${Math.round(team)}%`, 230, currentY + 45);
+            doc.text(`${Math.round(org)}%`, 390, currentY + 45);
+
+            // Alignment status text
+            let insight = "";
+            if (gap > 5) insight = "Exceeding team average - potential mentor.";
+            else if (gap < -5) insight = "Below team average - focus on development here.";
+            else insight = "Aligned with team performance standards.";
+
+            doc.fontSize(9).font("Helvetica-Oblique").fillColor(this.colors.secondary).text(insight, 70, currentY + 65);
+
+            currentY += 90;
+            if (currentY > 750) { doc.addPage(); this.drawHeader(doc, userName); currentY = 70; }
+        }
+
+        // 3. Cultural Context Footer
+        doc.fontSize(9).font("Helvetica").fillColor(this.colors.lightText).text(
+            "This report compares your POD-360™ results with broader internal benchmarks. Alignment indicates consistent expectations and execution across levels, while gaps highlight areas where leadership perception or individual experience may diverge.",
+            50, 780, { width: 500, align: "center" }
+        );
+    }
+
+    async drawMasterOrgSummary(doc, orgName, comparisonData) {
+        doc.fontSize(24).font("Helvetica-Bold").fillColor(this.colors.primary).text("Organizational Health Summary", 50, 70);
+
+        // Engagement Summary stats
+        const startX = 50;
+        const width = 160;
+        const stats = [
+            { label: "TOTAL INVITES", val: comparisonData.totalInvitations || 0, color: this.colors.primary },
+            { label: "ACCEPTED / PROFILE", val: comparisonData.acceptedInvitations || 0, color: this.colors.success },
+            { label: "PENDING ACTION", val: comparisonData.pendingInvitations || 0, color: this.colors.warning }
+        ];
+
+        stats.forEach((s, i) => {
+            const x = startX + (i * (width + 10));
+            doc.rect(x, 110, width, 45).fill(this.colors.ice);
+            doc.fillColor(s.color).fontSize(14).font("Helvetica-Bold").text(s.val, x + 10, 118);
+            doc.fillColor(this.colors.lightText).fontSize(7).font("Helvetica").text(s.label, x + 10, 138);
+        });
+
+        // Overall Health Gauge (avg of all domains)
+        const domainNames = ["People Potential", "Operational Steadiness", "Digital Fluency"];
+        let total = 0;
+        domainNames.forEach(d => total += (comparisonData.teamAvg?.[d]?.avgScore || 0));
+        const orgHealth = Math.round(total / 3);
+
+        const centerGaugeX = 300;
+        const gaugeY = 240;
+        this.drawGauge(doc, centerGaugeX, gaugeY, 80, orgHealth);
+        doc.fontSize(10).font("Helvetica").fillColor(this.colors.lightText).text(
+            "The Organizational Health Index (OHI) represents the collective performance across all digital transformation domains. This score is aggregated from all member assessments.",
+            150, 310, { width: 300, align: "center" }
+        );
+
+        // Domain Performance Table
+        const rows = domainNames.map(dName => {
+            const team = comparisonData.teamAvg?.[dName]?.avgScore || 0;
+            const org = comparisonData.orgAvg?.[dName]?.avgScore || 0;
+            return {
+                domain: dName,
+                team: `${Math.round(team)}%`,
+                org: `${Math.round(org)}%`,
+                status: team >= 75 ? "Green" : team <= 50 ? "Red" : "Amber"
+            };
+        });
+
+        const table = {
+            headers: [
+                { label: "Transformation Domain", property: "domain", width: 250 },
+                { label: "Internal Avg", property: "team", width: 90 },
+                { label: "Benchmark", property: "org", width: 90 },
+                { label: "RAG Status", property: "status", width: 70 }
+            ],
+            datas: rows
+        };
+
+        await doc.table(table, {
+            start_y: 360,
+            prepareHeader: () => doc.font("Helvetica-Bold").fontSize(10).fillColor(this.colors.primary),
+            prepareRow: (row) => doc.font("Helvetica").fontSize(10).fillColor(this.colors.text)
+        });
+
+        // Strategy & Alignment section
+        let currentY = doc.y + 40;
+        doc.fontSize(16).font("Helvetica-Bold").fillColor(this.colors.primary).text("Cultural & Operational Alignment", 50, currentY);
+        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("Measuring the disconnect between Leadership vs. Workforce perceptions.", 50, currentY + 18);
+        currentY += 35;
+
+        // Alignment Blocks
+        const risks = domainNames.map(d => {
+            const lScore = comparisonData.leaderAvg?.[d]?.avgScore || 0;
+            const eScore = comparisonData.employeeAvg?.[d]?.avgScore || 0;
+            const gap = lScore - eScore;
+
+            let status = "Aligned";
+            let sColor = this.colors.success;
+            let info = "Leadership and employee experiences are synchronized.";
+            if (gap > 15) {
+                status = "Risk High"; sColor = this.colors.accent;
+                info = "Significant disconnect. Leadership perception is disconnected from workforce reality.";
+            }
+            else if (gap > 7) {
+                status = "Monitor"; sColor = this.colors.warning;
+                info = "Minor gap observed. Workforce sentiment slightly trails leadership expectations.";
+            }
+            else if (gap < -10) {
+                status = "Bottom Heavy"; sColor = "#448CD2";
+                info = "Leadership may be underestimating team capability or burnout risks.";
+            }
+
+            return { d, gap, status, sColor, info };
+        });
+
+        risks.forEach(risk => {
+            doc.rect(50, currentY, 500, 50).fill(this.colors.ice);
+            doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(10).text(risk.d, 70, currentY + 12);
+            doc.fillColor(this.colors.lightText).font("Helvetica").fontSize(8).text(risk.info, 70, currentY + 28);
+            doc.fillColor(risk.sColor).font("Helvetica-Bold").fontSize(12).text(risk.status.toUpperCase(), 430, currentY + 18, { width: 100, align: "right" });
+            currentY += 55;
+        });
+
+        doc.fontSize(8).font("Helvetica-Oblique").fillColor(this.colors.lightText).text(
+            "Privacy Note: This Master Report aggregates data to protect individual anonymity while providing systemic insights for organizational growth.",
+            50, 790, { width: 500, align: "center" }
+        );
     }
 
 }
