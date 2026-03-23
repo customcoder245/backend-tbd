@@ -1,6 +1,8 @@
 import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
 import Assessment from "../models/assessment.model.js";
+import Response from "../models/response.model.js";
+import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 
 // ==================== GET Organization Details ====================
@@ -370,6 +372,101 @@ export const getOrgFilters = async (req, res) => {
         });
     } catch (error) {
         console.error("getOrgFilters error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==================== RESET Assessment for a User (Admin Only) ====================
+export const resetAssessmentForUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const requesterId = req.user.userId;
+        const requesterRole = req.user.role?.toLowerCase();
+
+        // Only admins can perform this action
+        if (requesterRole !== "admin") {
+            return res.status(403).json({ message: "Access denied. Only admins can reset assessments." });
+        }
+
+        // Admins cannot reset their OWN assessment
+        if (requesterId.toString() === userId.toString()) {
+            return res.status(403).json({ message: "Admins cannot reset their own assessment." });
+        }
+
+        // Find the target user (registered) OR treat userId as invitationId
+        const targetUser = await User.findById(userId).lean();
+
+        let assessmentQuery = {};
+        let invitationQuery = {};
+
+        if (targetUser) {
+            // Registered user: look up assessment by userId
+            assessmentQuery = { userId: targetUser._id, isDeleted: { $ne: true } };
+            invitationQuery = { email: targetUser.email };
+        } else {
+            // Not a registered user — userId is likely an invitationId
+            const invitation = await Invitation.findById(userId).lean();
+            if (!invitation) {
+                return res.status(404).json({ message: "User or invitation not found." });
+            }
+            assessmentQuery = {
+                $or: [
+                    { invitationId: invitation._id, isDeleted: { $ne: true } },
+                    { employeeEmail: invitation.email, isDeleted: { $ne: true } }
+                ]
+            };
+            invitationQuery = { _id: invitation._id };
+        }
+
+        // Soft-delete ALL current assessment records for this user/invitation
+        const assessments = await Assessment.find(assessmentQuery);
+        if (!assessments.length) {
+            return res.status(404).json({ message: "No active assessment found to reset." });
+        }
+
+        const assessmentIds = assessments.map(a => a._id);
+
+        // Soft-delete: mark as reset (preserve data for history/future use)
+        await Assessment.updateMany(
+            { _id: { $in: assessmentIds } },
+            {
+                $set: {
+                    isDeleted: true,
+                    deletedAt: new Date(),
+                    deletedReason: "reset_by_admin"
+                }
+            }
+        );
+
+        // Also soft-delete associated responses
+        await Response.updateMany(
+            { assessmentId: { $in: assessmentIds.map(id => id.toString()) } },
+            { $set: { isDeleted: true, deletedAt: new Date() } }
+        );
+
+        // Reset the invitation so user can take assessment again after 3 months
+        // We set 'used' back to false so a new assessment session can begin
+        await Invitation.updateMany(
+            invitationQuery,
+            { $set: { used: false } }
+        );
+
+        // Update user snapshot scores if it is a registered user
+        if (targetUser) {
+            await User.findByIdAndUpdate(targetUser._id, {
+                $set: {
+                    lastAssessmentScore: 0,
+                    lastAssessmentClassification: null
+                }
+            });
+        }
+
+        return res.status(200).json({
+            message: "Assessment has been reset successfully. The user will be required to retake the assessment.",
+            resetCount: assessmentIds.length
+        });
+    } catch (error) {
+        console.error("resetAssessmentForUser error:", error);
         res.status(500).json({ message: "Server error" });
     }
 };

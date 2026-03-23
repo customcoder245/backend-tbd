@@ -30,8 +30,11 @@ export const startEmployeeAssessment = async (req, res) => {
     // 2️⃣ Cast to ObjectId
     const invitationId = new mongoose.Types.ObjectId(rawInvitationId);
 
-    // 3️⃣ 🔒 CHECK IF ALREADY EXISTS (THIS IS THE MAIN FIX)
-    const existingAssessment = await Assessment.findOne({ invitationId });
+    // 3️⃣ 🔒 CHECK IF ALREADY EXISTS — exclude soft-deleted (reset) assessments
+    const existingAssessment = await Assessment.findOne({
+      invitationId,
+      isDeleted: { $ne: true }
+    });
 
     if (existingAssessment) {
       return res.status(200).json({
@@ -81,9 +84,10 @@ export const submitEmployeeAssessment = async (req, res) => {
       });
     }
 
-    const assessment = await Assessment.findById(
-      new mongoose.Types.ObjectId(assessmentId)
-    );
+    const assessment = await Assessment.findOne({
+      _id: new mongoose.Types.ObjectId(assessmentId),
+      isDeleted: { $ne: true }
+    });
 
     if (!assessment) {
       return res.status(404).json({ message: "Assessment not found" });

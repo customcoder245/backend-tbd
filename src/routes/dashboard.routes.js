@@ -6,7 +6,8 @@ import {
     AdminReport,
     getDomainDetailedReport,
     updateDomainDetailedReport,
-    exportPdfReport
+    exportPdfReport,
+    getManagerTeamAvg
 } from "../controllers/dashboard.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 
@@ -24,5 +25,8 @@ router.get("/admin", AdminReport);
 router.get("/detailed-insight", getDomainDetailedReport);
 router.put("/detailed-insight", updateDomainDetailedReport);
 router.get("/export-pdf", exportPdfReport);
+
+// 🆕 Manager Team Average (real dept avg per subdomain)
+router.get("/manager-team-avg", getManagerTeamAvg);
 
 export default router;

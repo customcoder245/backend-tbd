@@ -81,6 +81,16 @@ const responseSchema = new Schema(
       type: Number,
       required: true,
       min: 0
+    },
+
+    // Soft-delete fields (preserved for history when admin resets assessment)
+    isDeleted: {
+      type: Boolean,
+      default: false
+    },
+    deletedAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

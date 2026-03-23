@@ -69,6 +69,20 @@ const assessmentSchema = new Schema({
     type: String,
     enum: ["Low", "Medium", "High"],
     default: "Low"
+  },
+
+  // Soft-delete fields (for admin reset — data preserved for future use)
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
+  deletedReason: {
+    type: String,
+    default: null
   }
 }, { timestamps: true });
 
