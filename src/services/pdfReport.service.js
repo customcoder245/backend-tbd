@@ -56,25 +56,15 @@ class PDFReportService {
             this.drawHeader(doc, userName);
             this.drawExecutiveSummary(doc, report, aiInsight);
 
-            // Domain & Subdomain Pages
+            // Domain Pages
             for (const domain of ["People Potential", "Operational Steadiness", "Digital Fluency"]) {
-                // 1. Domain Summary Page
-                doc.addPage();
+                const dData = report.scores?.domains?.[domain];
+                if (!dData) continue; // Skip creating a page if this domain has no data
+
+                // Domain Summary Page (Consolidated)
+                // doc.addPage();
                 this.drawHeader(doc, userName);
-                await this.drawDomainDetailedPage(doc, domain, report.scores?.domains?.[domain], userName);
-
-                // 2. Subdomain Deep Dive Pages (Iterating over Subdomains for this domain)
-                const subs = report.scores?.domains?.[domain]?.subdomains || {};
-                const subFeedback = report.scores?.domains?.[domain]?.subdomainFeedback || {};
-
-                for (const sName of Object.keys(subs)) {
-                    // subs[sName] can be either a raw number or an object with a .score property
-                    const rawVal = subs[sName];
-                    const sScore = typeof rawVal === "object" ? (rawVal?.score ?? 0) : (rawVal ?? 0);
-                    doc.addPage();
-                    this.drawHeader(doc, userName);
-                    this.drawSubdomainDetailedPage(doc, userName, domain, sName, sScore, subFeedback[sName]);
-                }
+                await this.drawDomainDetailedPage(doc, domain, dData, userName);
             }
 
             // --- NEW: Comparison & Alignment Page ---
@@ -98,7 +88,7 @@ class PDFReportService {
 
     drawCover(doc, userName, orgName, dateStr) {
         // Decorative background
-        doc.rect(0, 0, 600, 842).fill(this.colors.white);
+        doc.rect(0, 0, 595, 842).fill(this.colors.white);
         doc.rect(0, 0, 200, 842).fill(this.colors.ice);
         doc.rect(200, 0, 2, 842).fill(this.colors.border);
 
@@ -110,7 +100,7 @@ class PDFReportService {
         doc.fontSize(54).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD-360™", 240, 250);
         doc.fontSize(22).font("Helvetica").text("Confidential Performance Profile", 240, 310);
 
-        doc.rect(240, 360, 40, 4).fill(this.colors.secondary);
+        doc.rect(240, 310 + 40, 40, 4).fill(this.colors.secondary);
 
         // Subject Info
         doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("PARTICIPANT:", 240, 420);
@@ -128,7 +118,7 @@ class PDFReportService {
 
     drawMasterCover(doc, orgName, dateStr) {
         // Decorative background
-        doc.rect(0, 0, 600, 842).fill(this.colors.white);
+        doc.rect(0, 0, 595, 842).fill(this.colors.white);
         doc.rect(0, 0, 200, 842).fill(this.colors.primary);
 
         // Logo text
@@ -139,7 +129,7 @@ class PDFReportService {
         doc.fontSize(44).font("Helvetica-Bold").fillColor(this.colors.primary).text("MASTER REPORT", 240, 250);
         doc.fontSize(22).font("Helvetica").text("Organizational Health Dossier", 240, 310);
 
-        doc.rect(240, 360, 40, 4).fill(this.colors.secondary);
+        doc.rect(240, 310 + 40, 40, 4).fill(this.colors.secondary);
 
         // Org Info
         doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("ORGANIZATION:", 240, 420);
@@ -383,48 +373,6 @@ class PDFReportService {
         currentY = this.drawDynamicBlock(doc, "Recommended Offerings", "Targeted initiatives relative to findings", recItems, currentY, false, userName);
     }
 
-    drawSubdomainDetailedPage(doc, userName, domainName, sName, sVal, sData) {
-        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text(`${domainName.toUpperCase()}`, 50, 60);
-        doc.fontSize(20).font("Helvetica-Bold").fillColor(this.colors.primary).text(sName, 50, 75);
-
-        // Score & Phase Indicator Badge
-        const indColor = sVal >= 75 ? this.colors.success : sVal <= 50 ? this.colors.accent : this.colors.warning;
-
-        doc.rect(480, 60, 70, 40).lineWidth(1).strokeColor(indColor).stroke();
-        doc.fillColor(indColor).fontSize(20).font("Helvetica-Bold").text(`${Math.round(sVal)}%`, 480, 72, { width: 70, align: "center" });
-
-        const phase = sData?.phaseIndicator || "Evaluating";
-        doc.rect(50, 110, 130, 20).fill(this.colors.secondary);
-        doc.fillColor(this.colors.white).fontSize(9).font("Helvetica-Bold").text(`PHASE: ${phase.toUpperCase()}`, 50, 116, { width: 130, align: "center" });
-
-        let currentY = 150;
-
-        // 1. INSIGHT BLOCK
-        const mainInsight = sData?.insight || sData?.modelDescription || "";
-        const insightLines = this.getBulletedLines(mainInsight, 5);
-        const insightItems = insightLines.map(line => ({ type: 'bullet', text: line, bulletColor: this.colors.secondary }));
-
-        if (insightItems.length === 0) insightItems.push({ type: 'text', text: "Analysis pending based on recent data models.", color: this.colors.lightText });
-
-        currentY = this.drawDynamicBlock(doc, "Insight & Synthesis", null, insightItems, currentY, true, userName);
-
-        // 2. OKR BLOCK
-        const coachingLines = this.getBulletedLines(sData?.coachingTips || "", 4);
-        const okrItems = coachingLines.map(kr => ({ type: 'bullet', text: kr, bulletColor: this.colors.secondary }));
-
-        if (okrItems.length === 0) okrItems.push({ type: 'text', text: "No precise key items outlined.", color: this.colors.lightText });
-
-        currentY = this.drawDynamicBlock(doc, "Objectives & Key Results (Targeted)", null, okrItems, currentY, false, userName);
-
-        // 3. RECOMMENDED OFFERINGS BLOCK
-        const recLines = this.getBulletedLines(sData?.recommendedPrograms || "", 5);
-        const recItems = recLines.map(rec => ({ type: 'bullet', text: rec, bulletColor: this.colors.primary }));
-
-        if (recItems.length === 0) recItems.push({ type: 'text', text: "No aligned programming tailored for this layer.", color: this.colors.lightText });
-
-        currentY = this.drawDynamicBlock(doc, "Targeted Offerings & Programs", null, recItems, currentY, false, userName);
-    }
-
     async drawAppendixResponses(doc, responses) {
         doc.fontSize(20).font("Helvetica-Bold").fillColor(this.colors.primary).text("Appendix A: Comprehensive Assessment Feed", 50, 60);
         doc.fontSize(10).font("Helvetica").fillColor(this.colors.lightText).text("Raw output mapping of individual assessment selections underpinning the generated analysis.", 50, 85);
@@ -509,10 +457,17 @@ class PDFReportService {
 
         // Domain-specific comparison blocks
         for (const dName of domainNames) {
-            const selfScore = userScores[dName]?.score || 0; // Changed from reportScores to userScores
+            const selfScore = userScores[dName]?.score || 0;
             const team = comparisonData.teamAvg?.[dName]?.avgScore || 0;
             const org = comparisonData.orgAvg?.[dName]?.avgScore || 0;
             const gap = selfScore - team;
+
+            // Page break check BEFORE drawing the block
+            if (currentY + 100 > 780) {
+                doc.addPage();
+                this.drawHeader(doc, userName);
+                currentY = 70;
+            }
 
             doc.rect(50, currentY, 500, 80).fill(this.colors.ice);
 
@@ -536,8 +491,7 @@ class PDFReportService {
 
             doc.fontSize(9).font("Helvetica-Oblique").fillColor(this.colors.secondary).text(insight, 70, currentY + 65);
 
-            currentY += 90;
-            if (currentY > 750) { doc.addPage(); this.drawHeader(doc, userName); currentY = 70; }
+            currentY += 95;
         }
 
         // 3. Cultural Context Footer
