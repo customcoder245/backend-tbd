@@ -467,7 +467,8 @@ async function getOrganizationContextData(req, res) {
     const depts = [...new Set([...invitationDepts, ...userDepts])];
 
     let allAssessments = await SubmittedAssessment.find({
-        "userDetails.orgName": { $regex: orgRegex }
+        "userDetails.orgName": { $regex: orgRegex },
+        isDeleted: { $ne: true }
     }).select("userId userDetails scores submittedAt").sort({ submittedAt: -1 }).lean();
 
     if (!includeSelf) {

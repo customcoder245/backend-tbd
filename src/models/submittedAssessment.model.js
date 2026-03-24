@@ -46,6 +46,15 @@ const submittedAssessmentSchema = new Schema(
     submittedAt: {
       type: Date,
       default: Date.now
+    },
+
+    isDeleted: {
+      type: Boolean,
+      default: false
+    },
+
+    deletedAt: {
+      type: Date
     }
   },
   { timestamps: true }

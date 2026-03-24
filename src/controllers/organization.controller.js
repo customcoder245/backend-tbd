@@ -440,11 +440,17 @@ export const resetAssessmentForUser = async (req, res) => {
             }
         );
 
-        // Also soft-delete associated responses
-        await Response.updateMany(
-            { assessmentId: { $in: assessmentIds.map(id => id.toString()) } },
-            { $set: { isDeleted: true, deletedAt: new Date() } }
-        );
+        // Also soft-delete associated responses and snapshots
+        await Promise.all([
+            Response.updateMany(
+                { assessmentId: { $in: assessmentIds.map(id => id.toString()) } },
+                { $set: { isDeleted: true, deletedAt: new Date() } }
+            ),
+            SubmittedAssessment.updateMany(
+                { assessmentId: { $in: assessmentIds } },
+                { $set: { isDeleted: true, deletedAt: new Date() } }
+            )
+        ]);
 
         // Reset the invitation so user can take assessment again after 3 months
         // We set 'used' back to false so a new assessment session can begin
