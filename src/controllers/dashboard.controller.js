@@ -435,7 +435,7 @@ export const updateDomainDetailedReport = async (req, res) => {
  * Shared helper to aggregate organization/team averages
  */
 async function getOrganizationContextData(req, res) {
-    const { userId: queryUserId, email: queryEmailPayload, includeSelf } = req.query;
+    const { userId: queryUserId, email: queryEmailPayload, includeSelf, department: queryDept } = req.query;
     const loggedInUserId = req.user.userId;
     const targetUserId = queryUserId || loggedInUserId;
 
@@ -450,19 +450,21 @@ async function getOrganizationContextData(req, res) {
     if (!managerUser) return null;
 
     const orgName = managerUser.orgName;
-    const managerDept = (managerUser.department || "").trim().toLowerCase();
+    const managerDept = (queryDept || managerUser.department || "").trim().toLowerCase();
 
     if (!orgName) return null;
 
     const safeOrg = orgName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const orgRegex = new RegExp(`^${safeOrg}$`, 'i');
 
-    const [depts, roles, invitations, registeredUsers] = await Promise.all([
+    const [invitationDepts, userDepts, roles, invitations, registeredUsers] = await Promise.all([
         Invitation.distinct("department", { orgName: orgRegex }),
+        User.distinct("department", { orgName: orgRegex }),
         Invitation.distinct("role", { orgName: orgRegex }),
         Invitation.countDocuments({ orgName: orgRegex }),
         User.countDocuments({ orgName: orgRegex, profileCompleted: true })
     ]);
+    const depts = [...new Set([...invitationDepts, ...userDepts])];
 
     let allAssessments = await SubmittedAssessment.find({
         "userDetails.orgName": { $regex: orgRegex }
@@ -533,12 +535,16 @@ async function getOrganizationContextData(req, res) {
         managerAvg: aggregateDomainAvg(managerAssessments),
         leaderAvg: aggregateDomainAvg(leaderAssessments),
         memberCount: deptAssessments.length,
+        employeeCount: employeeAssessments.length,
+        managerCount: managerAssessments.length,
+        leaderCount: leaderAssessments.length,
         orgMemberCount: orgBenchmarkAssessments.length,
         totalInvitations: invitations,
         acceptedInvitations: registeredUsers,
         pendingInvitations: Math.max(0, invitations - registeredUsers),
-        department: managerUser.department || "",
-        orgName
+        department: managerDept,
+        orgName,
+        allDepartments: depts.filter(d => d && d.trim().length > 0)
     };
 }
 
