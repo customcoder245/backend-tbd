@@ -5,6 +5,57 @@ import mongoose from "mongoose";
 
 import PDFReportService from "../services/pdfReport.service.js";
 
+const normalizeRole = (role = "") => role.toLowerCase().replace(/[_\s-]/g, "");
+
+const getScopedAccessContext = async (loggedInUserId, queryUserId, queryEmailPayload) => {
+    const requester = await User.findById(loggedInUserId).lean();
+    if (!requester) {
+        return { allowed: false, status: 401, message: "Requester not found." };
+    }
+
+    const requesterRole = normalizeRole(requester.role);
+    const isViewingOtherUser = queryUserId && queryUserId !== String(loggedInUserId);
+
+    let targetUser = null;
+    if (queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
+        targetUser = await User.findById(queryUserId).lean();
+    }
+
+    let targetInvite = null;
+    let targetEmail = queryEmailPayload;
+    if (!targetUser && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
+        targetInvite = await Invitation.findById(queryUserId).lean();
+        if (targetInvite) targetEmail = targetInvite.email;
+    }
+
+    if (!isViewingOtherUser) {
+        return { allowed: true, requester, requesterRole, targetUser, targetInvite, targetEmail };
+    }
+
+    const targetRole = normalizeRole(targetUser?.role || targetInvite?.role);
+    const sameOrg = requester.orgName && (requester.orgName === targetUser?.orgName || requester.orgName === targetInvite?.orgName);
+    const requesterDept = (requester.department || "").trim().toLowerCase();
+    const targetDept = (targetUser?.department || targetInvite?.department || "").trim().toLowerCase();
+    const sameDept = requesterDept && requesterDept === targetDept;
+
+    let allowed = false;
+    if (requesterRole === "superadmin") allowed = true;
+    else if (requesterRole === "admin") allowed = sameOrg;
+    else if (requesterRole === "leader") allowed = sameOrg && sameDept && ["leader", "manager", "employee"].includes(targetRole);
+    else if (requesterRole === "manager") allowed = sameOrg && sameDept && targetRole === "employee";
+
+    return {
+        allowed,
+        status: allowed ? 200 : 403,
+        message: allowed ? null : "Access denied.",
+        requester,
+        requesterRole,
+        targetUser,
+        targetInvite,
+        targetEmail
+    };
+};
+
 /**
  * Shared helper to fetch the latest report for a user
  * Returns DATA instead of response if returnData is true
@@ -15,37 +66,18 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
         const loggedInUserId = req.user.userId;
 
         const userId = queryUserId || loggedInUserId;
-
-        // Fetch target user 
-        let targetUser = null;
-        if (mongoose.Types.ObjectId.isValid(userId)) {
-            targetUser = await User.findById(userId);
+        const access = await getScopedAccessContext(loggedInUserId, queryUserId, queryEmailPayload);
+        if (!access.allowed) {
+            return res.status(access.status).json({ message: access.message, hasReport: false });
         }
 
-        // --- FIRST CHECK IF THIS IS AN INVITATION ID (GUEST EMPLOYEE) ---
-        let queryEmail = queryEmailPayload;
-        let isGuest = false;
-        if (!targetUser && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
-            const invite = await Invitation.findById(queryUserId);
-            if (invite) {
-                queryEmail = invite.email;
-                isGuest = true;
-            }
-        }
+        const targetUser = access.targetUser;
+        const queryEmail = access.targetEmail;
+        const isGuest = Boolean(access.targetInvite || (queryEmail && !targetUser));
 
         // --- GUEST EMPLOYEE PATH (no User account, identified by email) ---
         // The _id passed from orgUsers is the Invitation _id, not a User _id
         if (isGuest || queryEmail) {
-            const requester = await User.findById(loggedInUserId);
-            const rRole = requester?.role?.toLowerCase() || "";
-
-            // Only superadmin, admin, leader, manager can view others' reports
-            if (queryUserId && queryUserId !== loggedInUserId) {
-                if (!["superadmin", "admin", "leader", "manager"].includes(rRole)) {
-                    return res.status(403).json({ message: "Access denied.", hasReport: false });
-                }
-            }
-
             // Find assessment by email (case-insensitive)
             const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
             const report = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex })
@@ -551,6 +583,11 @@ async function getOrganizationContextData(req, res) {
 
 export const exportPdfReport = async (req, res) => {
     try {
+        const requesterRole = normalizeRole(req.user?.role);
+        if (["leader", "manager"].includes(requesterRole)) {
+            return res.status(403).json({ message: "Export is not available for this role." });
+        }
+
         const { userId: queryUserId, email: queryEmailPayload } = req.query;
 
         // 1. Fetch Participant Data (if userId exists)

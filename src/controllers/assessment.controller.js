@@ -614,9 +614,10 @@ export const getAdminIntelligence = async (req, res) => {
     const assessmentFilter = { orgName, ...dateFilter };
 
     // Run independent queries in parallel
-    const [assessments, registeredUsers, activeInviteCount, recentInvites] = await Promise.all([
+    const [assessments, registeredUsers, invitations, activeInviteCount, recentInvites] = await Promise.all([
       Assessment.find({ ...assessmentFilter, isDeleted: { $ne: true } }).lean(),
       User.find(teamFilter).lean(),
+      Invitation.find(teamFilter).lean(),
       Invitation.countDocuments({ ...teamFilter, used: false }),
       Invitation.find({ ...teamFilter, ...dateFilter }).sort({ createdAt: -1 }).limit(5).lean()
     ]);
@@ -630,33 +631,87 @@ export const getAdminIntelligence = async (req, res) => {
         email,
         name: u.firstName !== "-" ? `${u.firstName} ${u.lastName}` : u.email,
         role: u.role,
+        department: u.department || "",
         status: "Registered",
         assessmentStatus: "Not Started",
         lastScore: u.lastAssessmentScore || 0,
-        classification: u.lastAssessmentClassification || null
+        classification: u.lastAssessmentClassification || null,
+        lastActivity: u.updatedAt || u.createdAt,
+        _latestAssessmentAt: null,
+        _latestCompletedAt: null
       });
     });
 
-    assessments.forEach(a => {
+    invitations.forEach(inv => {
+      const email = inv.email?.toLowerCase();
+      if (!email) return;
+
+      const existing = peopleMap.get(email);
+      peopleMap.set(email, {
+        email,
+        name: existing?.name || inv.name || inv.email,
+        role: existing?.role || inv.role,
+        department: existing?.department || inv.department || "",
+        status: existing?.status || (inv.used ? "Invitation Accepted" : "Invited"),
+        assessmentStatus: existing?.assessmentStatus || "Not Started",
+        lastScore: existing?.lastScore || 0,
+        classification: existing?.classification || null,
+        lastActivity: existing?.lastActivity || inv.updatedAt || inv.createdAt,
+        _latestAssessmentAt: existing?._latestAssessmentAt || null,
+        _latestCompletedAt: existing?._latestCompletedAt || null
+      });
+    });
+
+    const assessmentsSorted = [...assessments].sort((a, b) => {
+      const aTime = new Date(a.submittedAt || a.updatedAt || a.createdAt || 0).getTime();
+      const bTime = new Date(b.submittedAt || b.updatedAt || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+
+    assessmentsSorted.forEach(a => {
       const email = a.employeeEmail?.toLowerCase() || a.userDetails?.email?.toLowerCase();
       if (!email) return;
 
       const existing = peopleMap.get(email);
+      const activityTime = new Date(a.submittedAt || a.updatedAt || a.createdAt || 0).getTime();
       const name = a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : (existing?.name || email);
+      const latestAssessmentAt = existing?._latestAssessmentAt ? new Date(existing._latestAssessmentAt).getTime() : 0;
+      const latestCompletedAt = existing?._latestCompletedAt ? new Date(existing._latestCompletedAt).getTime() : 0;
 
-      peopleMap.set(email, {
+      const mergedPerson = {
         email,
         name,
-        role: a.userDetails?.role || existing?.role || "Employee",
-        status: a.isCompleted ? "Completed" : "Active",
-        assessmentStatus: a.isCompleted ? "Completed" : "In Progress",
-        lastActivity: a.submittedAt || a.updatedAt || a.createdAt,
-        lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : (existing?.lastScore || 0),
-        classification: a.isCompleted ? a.classification : (existing?.classification || null)
-      });
+        role: a.userDetails?.role || existing?.role || a.stakeholder || "Employee",
+        department: a.userDetails?.department || existing?.department || "",
+        status: existing?.status || "Registered",
+        assessmentStatus: existing?.assessmentStatus || "Not Started",
+        lastActivity: existing?.lastActivity || a.submittedAt || a.updatedAt || a.createdAt,
+        lastScore: existing?.lastScore || 0,
+        classification: existing?.classification || null,
+        _latestAssessmentAt: existing?._latestAssessmentAt || null,
+        _latestCompletedAt: existing?._latestCompletedAt || null
+      };
+
+      if (activityTime >= latestAssessmentAt) {
+        mergedPerson.status = a.isCompleted ? "Completed" : "Active";
+        mergedPerson.assessmentStatus = a.isCompleted ? "Completed" : "In Progress";
+        mergedPerson.lastActivity = a.submittedAt || a.updatedAt || a.createdAt;
+        mergedPerson._latestAssessmentAt = new Date(activityTime);
+      }
+
+      if (a.isCompleted && activityTime >= latestCompletedAt) {
+        mergedPerson.lastScore = Math.round(a.scores?.overall || 0);
+        mergedPerson.classification = a.classification || null;
+        mergedPerson._latestCompletedAt = new Date(activityTime);
+      }
+
+      peopleMap.set(email, mergedPerson);
     });
 
-    const uniquePeople = Array.from(peopleMap.values());
+    const uniquePeople = Array.from(peopleMap.values()).map(person => {
+      const { _latestAssessmentAt, _latestCompletedAt, ...cleanPerson } = person;
+      return cleanPerson;
+    });
     const completedCount = uniquePeople.filter(p => p.assessmentStatus === "Completed").length;
     const inProgressCount = uniquePeople.filter(p => p.assessmentStatus === "In Progress").length;
     const notStartedCount = uniquePeople.filter(p => p.assessmentStatus === "Not Started").length;
