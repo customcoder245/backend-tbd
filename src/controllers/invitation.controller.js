@@ -329,6 +329,7 @@ export const getInvitations = async (req, res) => {
                     name,
                     email: inv.email,
                     role: inv.role,
+                    department: (regUser && regUser.department) || inv.department || "—",
                     createdAt: inv.createdAt,
                     status: currentStatus
                 };
