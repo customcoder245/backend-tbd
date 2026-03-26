@@ -59,10 +59,9 @@ class PDFReportService {
             // Domain Pages
             for (const domain of ["People Potential", "Operational Steadiness", "Digital Fluency"]) {
                 const dData = report.scores?.domains?.[domain];
-                if (!dData) continue; // Skip creating a page if this domain has no data
+                if (!dData) continue;
 
-                // Domain Summary Page (Consolidated)
-                // doc.addPage();
+                doc.addPage();
                 this.drawHeader(doc, userName);
                 await this.drawDomainDetailedPage(doc, domain, dData, userName);
             }
@@ -93,12 +92,12 @@ class PDFReportService {
         doc.rect(200, 0, 2, 842).fill(this.colors.border);
 
         // Logo text
-        doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(18).text("TALENT BY DESIGN", 240, 60);
-        doc.fontSize(8).font("Helvetica").text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 75);
+        doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(25).text("TALENT BY DESIGN", 240, 60);
+        doc.fontSize(8).font("Helvetica").text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 83);
 
         // Titles
-        doc.fontSize(54).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD-360™", 240, 250);
-        doc.fontSize(22).font("Helvetica").text("Confidential Performance Profile", 240, 310);
+        doc.fontSize(54).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD-360™", 240, 245);
+        doc.fontSize(22).font("Helvetica").text("Confidential Performance Profile", 240, 308);
 
         doc.rect(240, 310 + 40, 40, 4).fill(this.colors.secondary);
 
@@ -260,16 +259,12 @@ class PDFReportService {
         let itemsHeight = 0;
 
         items.forEach(item => {
-            if (item.type === 'text') {
-                itemsHeight += doc.heightOfString(item.text, { width: 440 }) + (item.space || 5);
-            } else if (item.type === 'bullet') {
-                itemsHeight += doc.heightOfString(item.text, { width: 440 }) + (item.space || 5);
-            } else if (item.type === 'kr') {
-                itemsHeight += doc.heightOfString(item.text, { width: 420 }) + 20;
-            }
+            const width = item.type === 'kr' ? 420 : 440;
+            itemsHeight += doc.heightOfString(item.text, { width }) + (item.space || 8);
+            if (item.type === 'kr') itemsHeight += 5; // Extra padding for KR layout
         });
 
-        const totalHeight = Math.max(80, contentHeight + itemsHeight + 10); // adding padding at bottom
+        const totalHeight = Math.max(80, contentHeight + itemsHeight + 15);
 
         if (y + totalHeight > 780) {
             doc.addPage();
@@ -289,18 +284,21 @@ class PDFReportService {
 
         items.forEach((item, idx) => {
             if (item.type === 'text') {
+                const textHeight = doc.heightOfString(item.text, { width: 460 });
                 doc.fillColor(item.color || this.colors.primary).fontSize(item.size || 10).font("Helvetica").text(item.text, 70, currentItemY, { width: 460 });
-                currentItemY += doc.heightOfString(item.text, { width: 460 }) + (item.space || 5);
+                currentItemY += textHeight + (item.space || 8);
             } else if (item.type === 'bullet') {
-                doc.circle(75, currentItemY + 4, 2).fill(item.bulletColor || this.colors.secondary);
-                doc.fillColor(this.colors.primary).fontSize(9).font("Helvetica").text(item.text, 85, currentItemY, { width: 440 });
-                currentItemY += doc.heightOfString(item.text, { width: 440 }) + (item.space || 5);
+                const textHeight = doc.heightOfString(item.text, { width: 440 });
+                doc.circle(75, currentItemY + 5, 2.5).fill(item.bulletColor || this.colors.secondary);
+                doc.fillColor(this.colors.primary).fontSize(9).font("Helvetica").text(item.text, 88, currentItemY, { width: 440 });
+                currentItemY += textHeight + (item.space || 8);
             } else if (item.type === 'kr') {
-                doc.circle(85, currentItemY + 10, 12).lineWidth(2).strokeColor(this.colors.primary).stroke();
-                doc.fillColor(this.colors.primary).fontSize(8).font("Helvetica-Bold").text(`${idx + 1}`, 82, currentItemY + 7);
+                const textHeight = doc.heightOfString(item.text, { width: 420 });
+                doc.circle(85, currentItemY + 12, 12).lineWidth(2).strokeColor(this.colors.primary).stroke();
+                doc.fillColor(this.colors.primary).fontSize(8).font("Helvetica-Bold").text(`${idx + 1}`, 82, currentItemY + 8, { width: 6, align: 'center' });
                 doc.fillColor(this.colors.primary).fontSize(9).font("Helvetica-Bold").text(`KR ${idx + 1}`, 110, currentItemY);
-                doc.fillColor(this.colors.lightText).fontSize(8).font("Helvetica").text(item.text, 110, currentItemY + 12, { width: 420 });
-                currentItemY += doc.heightOfString(item.text, { width: 420 }) + 20;
+                doc.fillColor(this.colors.lightText).fontSize(8).font("Helvetica").text(item.text, 110, currentItemY + 14, { width: 420 });
+                currentItemY += textHeight + 25;
             }
         });
 
@@ -322,28 +320,34 @@ class PDFReportService {
 
         // Score Distribution & Gauge
         const dScore = Math.round(domainData?.score || 0);
-        this.drawGauge(doc, 300, 170, 70, dScore);
+        this.drawGauge(doc, 300, 160, 65, dScore);
 
         // Subdomain Breakdowns (Table format)
-        doc.fontSize(12).font("Helvetica-Bold").fillColor(this.colors.primary).text("SUB-DOMAIN ANALYSIS OVERVIEW", 50, 210);
+        doc.fontSize(12).font("Helvetica-Bold").fillColor(this.colors.primary).text("SUB-DOMAIN ANALYSIS OVERVIEW", 50, 230);
         const subs = domainData?.subdomains || {};
         const subNames = Object.keys(subs);
 
-        let sy = 230;
+        let sy = 250;
         for (const sName of subNames) {
+            // Check for page break if subdomains are pushing too low
+            if (sy > 740) {
+                doc.addPage();
+                this.drawHeader(doc, userName);
+                sy = 70;
+            }
+
             const rawVal = subs[sName];
             const sVal = Math.round(typeof rawVal === "object" ? (rawVal?.score ?? 0) : (rawVal ?? 0));
-            // Low/Med/High Logic for indicator
             const indColor = sVal >= 75 ? this.colors.success : sVal <= 50 ? this.colors.accent : this.colors.warning;
 
-            doc.rect(50, sy, 500, 30).lineWidth(0.5).strokeColor(this.colors.border).stroke();
-            doc.circle(70, sy + 15, 6).fill(indColor);
-            doc.fillColor(this.colors.primary).fontSize(10).font("Helvetica-Bold").text(sName, 90, sy + 10);
-            doc.fillColor(this.colors.primary).fontSize(12).font("Helvetica-Bold").text(`${sVal}%`, 500, sy + 10, { width: 40, align: "right" });
-            sy += 40;
+            doc.rect(50, sy, 500, 32).lineWidth(0.5).strokeColor(this.colors.border).stroke();
+            doc.circle(70, sy + 16, 6).fill(indColor);
+            doc.fillColor(this.colors.primary).fontSize(10).font("Helvetica-Bold").text(sName, 90, sy + 11, { width: 380, ellipsis: true });
+            doc.fillColor(this.colors.primary).fontSize(12).font("Helvetica-Bold").text(`${sVal}%`, 480, sy + 10, { width: 60, align: "right" });
+            sy += 42;
         }
 
-        let currentY = sy + 20;
+        let currentY = sy + 25;
 
         // --- DYNAMIC BLOCKS ---
 
@@ -462,19 +466,25 @@ class PDFReportService {
             const org = comparisonData.orgAvg?.[dName]?.avgScore || 0;
             const gap = selfScore - team;
 
+            let insight = "";
+            if (gap > 5) insight = "Exceeding team average - potential mentor.";
+            else if (gap < -5) insight = "Below team average - focus on development here.";
+            else insight = "Aligned with team performance standards.";
+
+            const insightHeight = doc.heightOfString(insight, { width: 420 });
+            const blockHeight = 65 + insightHeight + 10;
+
             // Page break check BEFORE drawing the block
-            if (currentY + 100 > 780) {
+            if (currentY + blockHeight > 780) {
                 doc.addPage();
                 this.drawHeader(doc, userName);
                 currentY = 70;
             }
 
-            doc.rect(50, currentY, 500, 80).fill(this.colors.ice);
+            doc.rect(50, currentY, 500, blockHeight).fill(this.colors.ice);
 
-            // Score badges
             doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(10).text(dName.toUpperCase(), 70, currentY + 15);
 
-            // Labels & Mini-bars
             doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("YOUR SCORE", 70, currentY + 35);
             doc.text("TEAM AVG", 230, currentY + 35);
             doc.text("ORG BENCHMARK", 390, currentY + 35);
@@ -483,15 +493,9 @@ class PDFReportService {
             doc.text(`${Math.round(team)}%`, 230, currentY + 45);
             doc.text(`${Math.round(org)}%`, 390, currentY + 45);
 
-            // Alignment status text
-            let insight = "";
-            if (gap > 5) insight = "Exceeding team average - potential mentor.";
-            else if (gap < -5) insight = "Below team average - focus on development here.";
-            else insight = "Aligned with team performance standards.";
+            doc.fontSize(9).font("Helvetica-Oblique").fillColor(this.colors.secondary).text(insight, 70, currentY + 65, { width: 420 });
 
-            doc.fontSize(9).font("Helvetica-Oblique").fillColor(this.colors.secondary).text(insight, 70, currentY + 65);
-
-            currentY += 95;
+            currentY += blockHeight + 20;
         }
 
         // 3. Cultural Context Footer
@@ -528,10 +532,15 @@ class PDFReportService {
 
         const centerGaugeX = 300;
         const gaugeY = 240;
-        this.drawGauge(doc, centerGaugeX, gaugeY, 80, orgHealth);
+        const radius = 80;
+        this.drawGauge(doc, centerGaugeX, gaugeY, radius, orgHealth);
+
+        const healthExDesc = "The Organizational Health Index (OHI) represents the collective performance across all digital transformation domains. This score is aggregated from all member assessments.";
+        const healthExHeight = doc.heightOfString(healthExDesc, { width: 350 });
+
         doc.fontSize(10).font("Helvetica").fillColor(this.colors.lightText).text(
-            "The Organizational Health Index (OHI) represents the collective performance across all digital transformation domains. This score is aggregated from all member assessments.",
-            150, 310, { width: 300, align: "center" }
+            healthExDesc,
+            125, gaugeY + 70, { width: 350, align: "center" }
         );
 
         // Domain Performance Table
@@ -557,7 +566,7 @@ class PDFReportService {
         };
 
         await doc.table(table, {
-            start_y: 360,
+            start_y: gaugeY + healthExHeight + 100,
             prepareHeader: () => doc.font("Helvetica-Bold").fontSize(10).fillColor(this.colors.primary),
             prepareRow: (row) => doc.font("Helvetica").fontSize(10).fillColor(this.colors.text)
         });
@@ -594,11 +603,20 @@ class PDFReportService {
         });
 
         risks.forEach(risk => {
-            doc.rect(50, currentY, 500, 50).fill(this.colors.ice);
+            const infoHeight = doc.heightOfString(risk.info, { width: 340 });
+            const blockHeight = Math.max(50, 25 + infoHeight + 15);
+
+            if (currentY + blockHeight > 780) {
+                doc.addPage();
+                this.drawHeader(doc, orgName);
+                currentY = 70;
+            }
+
+            doc.rect(50, currentY, 500, blockHeight).fill(this.colors.ice);
             doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(10).text(risk.d, 70, currentY + 12);
-            doc.fillColor(this.colors.lightText).font("Helvetica").fontSize(8).text(risk.info, 70, currentY + 28);
-            doc.fillColor(risk.sColor).font("Helvetica-Bold").fontSize(12).text(risk.status.toUpperCase(), 430, currentY + 18, { width: 100, align: "right" });
-            currentY += 55;
+            doc.fillColor(this.colors.lightText).font("Helvetica").fontSize(8).text(risk.info, 70, currentY + 28, { width: 340 });
+            doc.fillColor(risk.sColor).font("Helvetica-Bold").fontSize(11).text(risk.status.toUpperCase(), 410, currentY + 18, { width: 130, align: "right" });
+            currentY += blockHeight + 10;
         });
 
         doc.fontSize(8).font("Helvetica-Oblique").fillColor(this.colors.lightText).text(
