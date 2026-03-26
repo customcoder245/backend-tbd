@@ -605,6 +605,73 @@ export const exportPdfReport = async (req, res) => {
 };
 
 /**
+ * 🆕 Report Preview API (FOR SUPER ADMIN)
+ * Returns the PDF with 'inline' disposition so it can be viewed in browser iframe
+ */
+export const previewPdfReport = async (req, res) => {
+    try {
+        const { userId: queryUserId, email: queryEmailPayload, isMaster } = req.query;
+
+        // Only superadmin allowed for live preview
+        const requesterRole = req.user.role?.toLowerCase() || "";
+        if (requesterRole !== "superadmin" && requesterRole !== "super_admin") {
+            return res.status(403).json({ message: "Only Super Admin can access live preview." });
+        }
+
+        let data = null;
+        if (isMaster === 'true') {
+            const comparisonData = await getOrganizationContextData(req, res);
+            data = {
+                isMasterReport: true,
+                orgName: req.user.orgName || "Organization",
+                comparisonData: comparisonData,
+                user: req.user,
+                hasReport: true
+            };
+        } else {
+            // Find a sample report if no specific user provided
+            let targetUserId = queryUserId;
+            let targetEmail = queryEmailPayload;
+
+            if (!targetUserId && !targetEmail) {
+                const sampleReport = await SubmittedAssessment.findOne({ isDeleted: { $ne: true } }).sort({ submittedAt: -1 }).lean();
+                if (sampleReport) {
+                    targetUserId = sampleReport.userId;
+                    targetEmail = sampleReport.userDetails?.email;
+                }
+            }
+
+            // Mock req.query for getLatestReportData if we found a sample
+            const originalQuery = req.query;
+            const mockReq = { ...req, query: { ...originalQuery, userId: targetUserId, email: targetEmail } };
+
+            // We can't really "mock" req easily if getLatestReportData expects the real one, 
+            // but we can pass the modified query.
+            data = await getLatestReportData(mockReq, res, "employee", true);
+
+            const comparisonData = await getOrganizationContextData(mockReq, res);
+            if (data && data.hasReport) {
+                data.comparisonData = comparisonData;
+            }
+        }
+
+        if (!data || !data.hasReport) {
+            return res.status(404).json({ message: "No report data found for preview. Please ensure at least one assessment exists in the system." });
+        }
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", "inline");
+
+        await PDFReportService.generateReport(data, res);
+    } catch (error) {
+        console.error("PDF Preview Error:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: "Failed to preview PDF report", error: error.message });
+        }
+    }
+};
+
+/**
  * 🆕 MANAGER TEAM AVERAGE API
  * Returns:
  *  - teamAvg  = avg subdomain scores of members in the SAME department as manager
