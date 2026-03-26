@@ -83,65 +83,41 @@ class PDFReportService {
                 await this.drawDomainDetailedPage(doc, domain, dData, userName);
             }
 
-            // --- NEW: Comparison & Alignment Page ---
-            if (data.comparisonData) {
+            // --- Comparison & Alignment Page (only if real score data exists) ---
+            const hasTeamData = data.comparisonData && Object.keys(data.comparisonData.teamAvg || {}).length > 0;
+            if (hasTeamData) {
                 doc.addPage();
                 this.drawHeader(doc, userName);
                 await this.drawComparisonPage(doc, userName, data.comparisonData, report.scores?.domains || {});
             }
 
-            // Appendix: Detailed Raw Responses
-            if (report.responses && report.responses.length > 0) {
+            // Appendix: Detailed Raw Responses (only if there are meaningful responses)
+            if (report.responses && report.responses.length > 5) {
                 doc.addPage();
                 this.drawHeader(doc, userName);
                 await this.drawAppendixResponses(doc, report.responses);
             }
         }
 
-        this.trimTrailingBlankPages(doc);
         this.applyPageNumbers(doc);
+
+        // ── Remove trailing blank pages ──────────────────────────────
+        // pdfkit-table sometimes adds an extra blank page after tables.
+        // We detect and strip any last page where the cursor is still near the top.
+        const range = doc.bufferedPageRange();
+        if (range.count > 1) {
+            doc.switchToPage(range.start + range.count - 1);
+            // The default top margin is 50. If y is <= 80, the page essentially only has a header.
+            if (doc.y <= 85) {
+                // Overwrite it with white so it appears invisible (PDFKit can't delete pages)
+                doc.rect(0, 0, 595, 842).fill("#FFFFFF");
+            }
+        }
+
         doc.end();
     }
 
-    /**
-     * Removes trailing blank pages that pdfkit-table sometimes adds at the
-     * end of a document. Blank pages have a very small content stream
-     * (just the default PDF save/restore operators with no real drawing).
-     */
-    trimTrailingBlankPages(doc) {
-        try {
-            const range = doc.bufferedPageRange();
-            // Walk backwards from the last page
-            for (let i = range.start + range.count - 1; i > range.start; i--) {
-                const page = doc._pageBuffer[i];
-                if (!page) break;
 
-                // Access the raw content stream to determine if real content exists.
-                // An empty / blank page will have an extremely short stream (~10-60 bytes).
-                let streamLen = 9999;
-                try {
-                    const c = page.content;
-                    if (c && typeof c.uncompressedLength === 'number') {
-                        streamLen = c.uncompressedLength;
-                    } else if (c && c.end && typeof c.end === 'function') {
-                        // Estimate from the internal chunk buffer if available
-                        const buf = c._buffer || c.content || c.data;
-                        if (buf) streamLen = Buffer.isBuffer(buf) ? buf.length : String(buf).length;
-                    }
-                } catch (_) { break; }
-
-                if (streamLen < 80) {
-                    // Blank trailing page — remove it from the buffer
-                    doc._pageBuffer.splice(i, 1);
-                } else {
-                    break; // found a page with real content — stop
-                }
-            }
-        } catch (err) {
-            // Fail silently — report will still generate correctly
-            console.warn('[PDFService] trimTrailingBlankPages skipped:', err.message);
-        }
-    }
 
     async drawCover(doc, userName, orgName, dateStr) {
         // Decorative background
@@ -162,7 +138,7 @@ class PDFReportService {
         }
 
         doc.fontSize(25).font("Helvetica-Bold").fillColor(this.colors.primary).text("TALENT BY DESIGN", 240, 120);
-        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 140);
+        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 242, 140);
 
         // Titles
         doc.fontSize(54).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD-360™", 240, 245);
@@ -236,8 +212,7 @@ class PDFReportService {
             if (i === 0) continue;
             // Footer Line
             doc.moveTo(50, 805).lineTo(550, 805).strokeColor(this.colors.border).lineWidth(0.5).stroke();
-            doc.fillColor(this.colors.lightText).fontSize(8).font("Helvetica").text(`© ${new Date().getFullYear()} Talent By Design | POD-360™ System Data`, 50, 815);
-            doc.text(`Page ${i + 1}`, 530, 815);
+            doc.fillColor(this.colors.lightText).fontSize(8).font("Helvetica").text(`Page ${i + 1}`, 530, 815);
         }
     }
 
