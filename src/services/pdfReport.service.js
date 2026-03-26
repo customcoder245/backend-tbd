@@ -1,4 +1,9 @@
 import PDFDocument from "pdfkit-table";
+import https from "https";
+import http from "http";
+
+// Pinned Cloudinary logo URL (PNG converted from SVG via Cloudinary transformation)
+const BRAND_LOGO_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/f_png,w_300/v1774516563/logos/talent_by_design_logo_new.svg";
 
 /**
  * PDF Report Generator Service
@@ -29,6 +34,18 @@ class PDFReportService {
             .slice(0, limit);
     }
 
+    fetchImageBuffer(url) {
+        return new Promise((resolve) => {
+            const client = url.startsWith('https') ? https : http;
+            client.get(url, (res) => {
+                const chunks = [];
+                res.on('data', (chunk) => chunks.push(chunk));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
+                res.on('error', () => resolve(null));
+            }).on('error', () => resolve(null));
+        });
+    }
+
     async generateReport(data, stream) {
         const doc = new PDFDocument({ size: "A4", margin: 50, bufferPages: true });
         doc.pipe(stream);
@@ -41,12 +58,12 @@ class PDFReportService {
         // Build Pages
         // Build Pages
         if (data.isMasterReport) {
-            this.drawMasterCover(doc, data.orgName, dateStr);
+            await this.drawMasterCover(doc, data.orgName, dateStr);
             doc.addPage();
             this.drawHeader(doc, data.orgName);
             await this.drawMasterOrgSummary(doc, data.orgName, data.comparisonData);
         } else {
-            this.drawCover(doc, userName, orgName, dateStr);
+            await this.drawCover(doc, userName, orgName, dateStr);
 
             doc.addPage();
             this.drawHeader(doc, userName);
@@ -81,25 +98,77 @@ class PDFReportService {
             }
         }
 
+        this.trimTrailingBlankPages(doc);
         this.applyPageNumbers(doc);
         doc.end();
     }
 
-    drawCover(doc, userName, orgName, dateStr) {
+    /**
+     * Removes trailing blank pages that pdfkit-table sometimes adds at the
+     * end of a document. Blank pages have a very small content stream
+     * (just the default PDF save/restore operators with no real drawing).
+     */
+    trimTrailingBlankPages(doc) {
+        try {
+            const range = doc.bufferedPageRange();
+            // Walk backwards from the last page
+            for (let i = range.start + range.count - 1; i > range.start; i--) {
+                const page = doc._pageBuffer[i];
+                if (!page) break;
+
+                // Access the raw content stream to determine if real content exists.
+                // An empty / blank page will have an extremely short stream (~10-60 bytes).
+                let streamLen = 9999;
+                try {
+                    const c = page.content;
+                    if (c && typeof c.uncompressedLength === 'number') {
+                        streamLen = c.uncompressedLength;
+                    } else if (c && c.end && typeof c.end === 'function') {
+                        // Estimate from the internal chunk buffer if available
+                        const buf = c._buffer || c.content || c.data;
+                        if (buf) streamLen = Buffer.isBuffer(buf) ? buf.length : String(buf).length;
+                    }
+                } catch (_) { break; }
+
+                if (streamLen < 80) {
+                    // Blank trailing page — remove it from the buffer
+                    doc._pageBuffer.splice(i, 1);
+                } else {
+                    break; // found a page with real content — stop
+                }
+            }
+        } catch (err) {
+            // Fail silently — report will still generate correctly
+            console.warn('[PDFService] trimTrailingBlankPages skipped:', err.message);
+        }
+    }
+
+    async drawCover(doc, userName, orgName, dateStr) {
         // Decorative background
         doc.rect(0, 0, 595, 842).fill(this.colors.white);
         doc.rect(0, 0, 200, 842).fill(this.colors.ice);
         doc.rect(200, 0, 2, 842).fill(this.colors.border);
 
-        // Logo text
-        doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(25).text("TALENT BY DESIGN", 240, 60);
-        doc.fontSize(8).font("Helvetica").text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 83);
+        // Fetch & embed Cloudinary logo (converted to PNG via URL transform)
+        try {
+            const logoBuffer = await this.fetchImageBuffer(BRAND_LOGO_URL);
+            if (logoBuffer && logoBuffer.length > 0) {
+                doc.image(logoBuffer, 20, 100, { width: 160 });
+            } else {
+                doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(25).text("TALENT BY DESIGN", 240, 60);
+            }
+        } catch (e) {
+            doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(25).text("TALENT BY DESIGN", 240, 60);
+        }
+
+        doc.fontSize(25).font("Helvetica-Bold").fillColor(this.colors.primary).text("TALENT BY DESIGN", 240, 120);
+        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 140);
 
         // Titles
         doc.fontSize(54).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD-360™", 240, 245);
-        doc.fontSize(22).font("Helvetica").text("Confidential Performance Profile", 240, 308);
+        doc.fontSize(22).font("Helvetica").fillColor(this.colors.text).text("Confidential Performance Profile", 240, 308);
 
-        doc.rect(240, 310 + 40, 40, 4).fill(this.colors.secondary);
+        doc.rect(240, 310 + 40, 60, 5).fill(this.colors.secondary);
 
         // Subject Info
         doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("PARTICIPANT:", 240, 420);
@@ -111,18 +180,32 @@ class PDFReportService {
         doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("DATE ISSUED:", 240, 530);
         doc.fontSize(14).font("Helvetica").fillColor(this.colors.primary).text(dateStr, 240, 545);
 
+        // Bottom color strip
+        // doc.rect(0, 800, 595, 20024).fill(this.colors.primary);
+        // doc.rect(0, 808, 595, 632).fill(this.colors.secondary);
+
         // Footer
-        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("© 2026 TALENT BY DESIGN. ALL RIGHTS RESERVED.", 240, 780);
+        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("© 2026 TALENT BY DESIGN. ALL RIGHTS RESERVED.", 240, 818);
     }
 
-    drawMasterCover(doc, orgName, dateStr) {
+    async drawMasterCover(doc, orgName, dateStr) {
         // Decorative background
         doc.rect(0, 0, 595, 842).fill(this.colors.white);
         doc.rect(0, 0, 200, 842).fill(this.colors.primary);
 
-        // Logo text
-        doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(18).text("TALENT BY DESIGN", 240, 60);
-        doc.fontSize(8).font("Helvetica").text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 75);
+        // Fetch & embed Cloudinary logo on white area
+        try {
+            const logoBuffer = await this.fetchImageBuffer(BRAND_LOGO_URL);
+            if (logoBuffer && logoBuffer.length > 0) {
+                doc.image(logoBuffer, 240, 52, { width: 160 });
+            } else {
+                doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(18).text("TALENT BY DESIGN", 240, 60);
+            }
+        } catch (e) {
+            doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(18).text("TALENT BY DESIGN", 240, 60);
+        }
+
+        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 90);
 
         // Titles
         doc.fontSize(44).font("Helvetica-Bold").fillColor(this.colors.primary).text("MASTER REPORT", 240, 250);
