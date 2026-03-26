@@ -30,7 +30,9 @@ import {
 import {
   getOrgDetails,
   getAllOrganizations,
-  getOrgFilters
+  getOrgFilters,
+  resetAssessmentForUser,
+  getOrgMembers
 } from "../controllers/organization.controller.js";
 
 import { getNotifications, markAsRead, markAllAsRead, clearNotifications } from "../controllers/notification.controller.js";
@@ -73,6 +75,8 @@ router.patch("/update-profile", protect, upload.fields([{ name: "profileImage", 
 router.get("/organization/:orgName", protect, getOrgDetails);
 router.get("/organizations", protect, getAllOrganizations);
 router.get("/organization-filters/:orgName", protect, getOrgFilters);
+router.delete("/reset-assessment/:userId", protect, resetAssessmentForUser);
+router.get("/organization-members", protect, getOrgMembers);
 
 // Notifications routes
 router.get("/notifications", protect, getNotifications);

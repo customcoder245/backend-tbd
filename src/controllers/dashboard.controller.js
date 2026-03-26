@@ -3,11 +3,13 @@ import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
 import mongoose from "mongoose";
 
+import PDFReportService from "../services/pdfReport.service.js";
+
 /**
  * Shared helper to fetch the latest report for a user
- * Supports BOTH registered users (has User record) AND guest employees (invited, no account)
+ * Returns DATA instead of response if returnData is true
  */
-const getLatestReportData = async (req, res, targetRole) => {
+const getLatestReportData = async (req, res, targetRole, returnData = false) => {
     try {
         const { userId: queryUserId, email: queryEmailPayload } = req.query;
         const loggedInUserId = req.user.userId;
@@ -63,7 +65,7 @@ const getLatestReportData = async (req, res, targetRole) => {
             const avgScore = domainScoresArray.length > 0
                 ? domainScoresArray.reduce((acc, d) => acc + (d.score || 0), 0) / domainScoresArray.length : 0;
 
-            return res.status(200).json({
+            const responseData = {
                 report,
                 user: report.userDetails,
                 aiInsight: report.customAiInsight || {
@@ -72,7 +74,10 @@ const getLatestReportData = async (req, res, targetRole) => {
                     type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
                 },
                 hasReport: true
-            });
+            };
+
+            if (returnData) return responseData;
+            return res.status(200).json(responseData);
         }
 
         // --- REGISTERED USER PATH ---
@@ -225,32 +230,69 @@ export const getDomainDetailedReport = async (req, res) => {
 
         // Check for specific subdomain feedback, otherwise fallback to domain-level feedback
         let feedback = {};
-        if (subdomain && domainData.subdomainFeedback && domainData.subdomainFeedback[subdomain]) {
-            feedback = domainData.subdomainFeedback[subdomain];
+        if (subdomain && domainData.subdomainFeedback) {
+            // Try exact match first
+            if (domainData.subdomainFeedback[subdomain]) {
+                feedback = domainData.subdomainFeedback[subdomain];
+            } else {
+                // Try case-insensitive match
+                const subKey = Object.keys(domainData.subdomainFeedback).find(
+                    k => k.toLowerCase().trim() === subdomain.toLowerCase().trim()
+                );
+                if (subKey) {
+                    feedback = domainData.subdomainFeedback[subKey];
+                } else {
+                    feedback = domainData.feedback || {};
+                }
+            }
         } else {
             feedback = domainData.feedback || {};
         }
 
         const insightTitleLabel = subdomain ? `Insight for ${subdomain}` : `Insight for ${domain}`;
 
+        const filterBulletedLines = (text) => {
+            if (!text) return "";
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            const hasBullets = lines.some(line => line.includes('•'));
+
+            if (!hasBullets) {
+                return lines.join('\n');
+            }
+
+            return lines
+                .filter(line => line.includes('•'))
+                .map(line => line.replace(/•/g, '').trim())
+                .filter(line => line.length > 0)
+                .join('\n');
+        };
+
+        const getBulletedItems = (text) => {
+            if (!text) return [];
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            const hasBullets = lines.some(line => line.includes('•'));
+
+            if (!hasBullets) {
+                return lines;
+            }
+
+            return lines
+                .filter(line => line.includes('•'))
+                .map(line => line.replace(/•/g, '').trim())
+                .filter(line => line.length > 0);
+        };
+
         // 1. Insights Pod (Domain analysis)
         const insightsPod = {
             title: feedback.pod360Title || insightTitleLabel,
             subtitle: feedback.pod360Description || "Overall analysis based on your responses",
-            mainText: feedback.insight || `No specific insights available for ${subdomain || domain} yet.`,
-            modelDescription: feedback.modelDescription || "",
+            mainText: filterBulletedLines(feedback.insight) || `No specific insights available for ${subdomain || domain} yet.`,
+            modelDescription: filterBulletedLines(feedback.modelDescription) || "",
             phase: feedback.phaseIndicator || ""
         };
 
         // 2. Objectives (OKRs) Pod - Derived from coaching tips
-        let actionItems = [];
-        if (feedback.coachingTips) {
-            // Split string by newlines or bullets to create list items
-            actionItems = feedback.coachingTips
-                .split(/\r?\n|•/)
-                .map(line => line.trim())
-                .filter(line => line.length > 2);
-        }
+        const actionItems = getBulletedItems(feedback.coachingTips);
 
         const subdomainScore = (subdomain && domainData.subdomains && domainData.subdomains[subdomain])
             ? domainData.subdomains[subdomain]
@@ -264,13 +306,7 @@ export const getDomainDetailedReport = async (req, res) => {
         };
 
         // 3. Recommended Offering Pod
-        let recommendations = [];
-        if (feedback.recommendedPrograms) {
-            recommendations = feedback.recommendedPrograms
-                .split(/\r?\n|•/)
-                .map(line => line.trim())
-                .filter(line => line.length > 2);
-        }
+        const recommendations = getBulletedItems(feedback.recommendedPrograms);
 
         const recommendationsPod = {
             title: "Talent By Design Recommended Offering",
@@ -392,5 +428,264 @@ export const updateDomainDetailedReport = async (req, res) => {
     } catch (error) {
         console.error("Error in updateDomainDetailedReport:", error);
         res.status(500).json({ message: "Error updating detailed report", error: error.message });
+    }
+};
+
+/**
+ * Shared helper to aggregate organization/team averages
+ */
+async function getOrganizationContextData(req, res) {
+    const { userId: queryUserId, email: queryEmailPayload, includeSelf, department: queryDept } = req.query;
+    const loggedInUserId = req.user.userId;
+    const targetUserId = queryUserId || loggedInUserId;
+
+    // 1. Identify the manager
+    let managerUser = await User.findById(targetUserId);
+    if (!managerUser && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
+        const invite = await Invitation.findById(queryUserId);
+        if (invite) {
+            managerUser = { email: invite.email, orgName: invite.orgName, department: invite.department };
+        }
+    }
+    if (!managerUser) return null;
+
+    const orgName = managerUser.orgName;
+    const managerDept = (queryDept || managerUser.department || "").trim().toLowerCase();
+
+    if (!orgName) return null;
+
+    const safeOrg = orgName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const orgRegex = new RegExp(`^${safeOrg}$`, 'i');
+
+    const [invitationDepts, userDepts, roles, invitations, registeredUsers] = await Promise.all([
+        Invitation.distinct("department", { orgName: orgRegex }),
+        User.distinct("department", { orgName: orgRegex }),
+        Invitation.distinct("role", { orgName: orgRegex }),
+        Invitation.countDocuments({ orgName: orgRegex }),
+        User.countDocuments({ orgName: orgRegex, profileCompleted: true })
+    ]);
+    const depts = [...new Set([...invitationDepts, ...userDepts])];
+
+    let allAssessments = await SubmittedAssessment.find({
+        "userDetails.orgName": { $regex: orgRegex },
+        isDeleted: { $ne: true }
+    }).select("userId userDetails scores submittedAt").sort({ submittedAt: -1 }).lean();
+
+    if (!includeSelf) {
+        const managerEmail = (managerUser.email || "").toLowerCase();
+        allAssessments = allAssessments.filter(a => (a.userDetails?.email || "").toLowerCase() !== managerEmail);
+    }
+
+    const latestByEmail = new Map();
+    for (const a of allAssessments) {
+        const email = (a.userDetails?.email || "").toLowerCase();
+        if (!email) continue;
+        const existing = latestByEmail.get(email);
+        if (!existing || new Date(a.submittedAt) > new Date(existing.submittedAt)) {
+            a._resolvedDept = (a.userDetails?.department || "").trim().toLowerCase();
+            a._resolvedRole = (a.userDetails?.role || "employee").toLowerCase();
+            latestByEmail.set(email, a);
+        }
+    }
+    const uniqueAssessments = [...latestByEmail.values()];
+
+    const deptAssessments = managerDept
+        ? uniqueAssessments.filter(a => a._resolvedDept === managerDept)
+        : uniqueAssessments;
+    const orgBenchmarkAssessments = uniqueAssessments.filter(a =>
+        managerDept ? (a._resolvedDept && a._resolvedDept !== managerDept) : true
+    );
+
+    const domainNames = ["People Potential", "Operational Steadiness", "Digital Fluency"];
+    const aggregateDomainAvg = (assessmentList) => {
+        const result = {};
+        for (const domainName of domainNames) {
+            const subTotals = {}, subCounts = {};
+            let domainTotal = 0, domainCount = 0;
+            for (const assessment of assessmentList) {
+                const domainData = assessment.scores?.domains?.[domainName];
+                if (!domainData) continue;
+                if (typeof domainData.score === "number") { domainTotal += domainData.score; domainCount++; }
+                for (const [subName, rawVal] of Object.entries(domainData.subdomains || {})) {
+                    const score = typeof rawVal === "object" ? (rawVal?.score ?? 0) : (rawVal ?? 0);
+                    if (!subTotals[subName]) { subTotals[subName] = 0; subCounts[subName] = 0; }
+                    subTotals[subName] += score;
+                    subCounts[subName]++;
+                }
+            }
+            const avgSubdomains = {};
+            for (const subName of Object.keys(subTotals)) {
+                avgSubdomains[subName] = Number((subTotals[subName] / subCounts[subName]).toFixed(1));
+            }
+            result[domainName] = {
+                avgScore: domainCount > 0 ? Number((domainTotal / domainCount).toFixed(1)) : 0,
+                subdomains: avgSubdomains
+            };
+        }
+        return result;
+    };
+
+    const employeeAssessments = deptAssessments.filter(a => a._resolvedRole === "employee");
+    const managerAssessments = deptAssessments.filter(a => a._resolvedRole === "manager");
+    const leaderAssessments = deptAssessments.filter(a => ["leader", "senior-leader"].includes(a._resolvedRole));
+
+    return {
+        teamAvg: aggregateDomainAvg(deptAssessments),
+        orgAvg: aggregateDomainAvg(orgBenchmarkAssessments),
+        employeeAvg: aggregateDomainAvg(employeeAssessments),
+        managerAvg: aggregateDomainAvg(managerAssessments),
+        leaderAvg: aggregateDomainAvg(leaderAssessments),
+        memberCount: deptAssessments.length,
+        employeeCount: employeeAssessments.length,
+        managerCount: managerAssessments.length,
+        leaderCount: leaderAssessments.length,
+        orgMemberCount: orgBenchmarkAssessments.length,
+        totalInvitations: invitations,
+        acceptedInvitations: registeredUsers,
+        pendingInvitations: Math.max(0, invitations - registeredUsers),
+        department: managerDept,
+        orgName,
+        allDepartments: depts.filter(d => d && d.trim().length > 0)
+    };
+}
+
+export const exportPdfReport = async (req, res) => {
+    try {
+        const { userId: queryUserId, email: queryEmailPayload } = req.query;
+
+        // 1. Fetch Participant Data (if userId exists)
+        let data = null;
+        if (queryUserId || queryEmailPayload) {
+            data = await getLatestReportData(req, res, "employee", true);
+        }
+
+        // 2. Fetch Organizational Comparison Data (regardless of userId)
+        const comparisonData = await getOrganizationContextData(req, res);
+
+        if (data && data.hasReport) {
+            data.comparisonData = comparisonData;
+        } else if (!queryUserId && !queryEmailPayload) {
+            // No user selected => Generate MASTER ORG REPORT
+            data = {
+                isMasterReport: true,
+                orgName: req.user.orgName || "Organization",
+                comparisonData: comparisonData,
+                user: req.user, // The Admin
+                hasReport: true
+            };
+        }
+
+        if (!data || !data.hasReport) {
+            if (!res.headersSent) {
+                return res.status(404).json({ message: "No report found to export." });
+            }
+            return;
+        }
+
+        const userName = data.isMasterReport
+            ? `${data.orgName} Master Report`
+            : `${data.user?.firstName || ""} ${data.user?.lastName || ""}`.trim() || data.user?.email || "Participant";
+
+        const sanitizedUserName = userName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const fileName = `POD360_Export_${sanitizedUserName}_${new Date().toISOString().substring(0, 10)}.pdf`;
+
+        // Set response headers for PDF download
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+        // Generate PDF and stream directly to response
+        await PDFReportService.generateReport(data, res);
+
+    } catch (error) {
+        console.error("PDF Export Error:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: "Failed to generate PDF report", error: error.message });
+        }
+    }
+};
+
+/**
+ * 🆕 Report Preview API (FOR SUPER ADMIN)
+ * Returns the PDF with 'inline' disposition so it can be viewed in browser iframe
+ */
+export const previewPdfReport = async (req, res) => {
+    try {
+        const { userId: queryUserId, email: queryEmailPayload, isMaster } = req.query;
+
+        // Only superadmin allowed for live preview
+        const requesterRole = req.user.role?.toLowerCase() || "";
+        if (requesterRole !== "superadmin" && requesterRole !== "super_admin") {
+            return res.status(403).json({ message: "Only Super Admin can access live preview." });
+        }
+
+        let data = null;
+        if (isMaster === 'true') {
+            const comparisonData = await getOrganizationContextData(req, res);
+            data = {
+                isMasterReport: true,
+                orgName: req.user.orgName || "Organization",
+                comparisonData: comparisonData,
+                user: req.user,
+                hasReport: true
+            };
+        } else {
+            // Find a sample report if no specific user provided
+            let targetUserId = queryUserId;
+            let targetEmail = queryEmailPayload;
+
+            if (!targetUserId && !targetEmail) {
+                const sampleReport = await SubmittedAssessment.findOne({ isDeleted: { $ne: true } }).sort({ submittedAt: -1 }).lean();
+                if (sampleReport) {
+                    targetUserId = sampleReport.userId;
+                    targetEmail = sampleReport.userDetails?.email;
+                }
+            }
+
+            // Mock req.query for getLatestReportData if we found a sample
+            const originalQuery = req.query;
+            const mockReq = { ...req, query: { ...originalQuery, userId: targetUserId, email: targetEmail } };
+
+            // We can't really "mock" req easily if getLatestReportData expects the real one, 
+            // but we can pass the modified query.
+            data = await getLatestReportData(mockReq, res, "employee", true);
+
+            const comparisonData = await getOrganizationContextData(mockReq, res);
+            if (data && data.hasReport) {
+                data.comparisonData = comparisonData;
+            }
+        }
+
+        if (!data || !data.hasReport) {
+            return res.status(404).json({ message: "No report data found for preview. Please ensure at least one assessment exists in the system." });
+        }
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", "inline");
+
+        await PDFReportService.generateReport(data, res);
+    } catch (error) {
+        console.error("PDF Preview Error:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: "Failed to preview PDF report", error: error.message });
+        }
+    }
+};
+
+/**
+ * 🆕 MANAGER TEAM AVERAGE API
+ * Returns:
+ *  - teamAvg  = avg subdomain scores of members in the SAME department as manager
+ *  - orgAvg   = avg subdomain scores of members in OTHER departments (org benchmark)
+ */
+export const getManagerTeamAvg = async (req, res) => {
+    try {
+        const data = await getOrganizationContextData(req, res);
+        if (!data) {
+            return res.status(200).json({ teamAvg: {}, orgAvg: {}, memberCount: 0, orgMemberCount: 0 });
+        }
+        return res.status(200).json(data);
+    } catch (error) {
+        console.error("getManagerTeamAvg error:", error);
+        res.status(500).json({ message: "Error fetching team averages", error: error.message });
     }
 };

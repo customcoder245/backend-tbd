@@ -1,6 +1,8 @@
 import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
 import Assessment from "../models/assessment.model.js";
+import Response from "../models/response.model.js";
+import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 
 // ==================== GET Organization Details ====================
@@ -33,6 +35,7 @@ export const getOrgDetails = async (req, res) => {
         const invIds = invitations.map(inv => inv._id);
 
         const assessments = await Assessment.find({
+            isDeleted: { $ne: true },
             $or: [
                 { invitationId: { $in: invIds } },
                 { employeeEmail: { $in: invEmails } },
@@ -93,6 +96,9 @@ export const getOrgDetails = async (req, res) => {
                 if (incomplete) assessmentStatus = "In Progress";
             }
 
+            // Department: prefer user record, fall back to submitted assessment userDetails
+            const userAssessmentDept = userAssesses.find(a => a.userDetails?.department)?.userDetails?.department;
+
             formattedMembers.push({
                 _id: u._id,
                 firstName: u.firstName || "—",
@@ -100,6 +106,7 @@ export const getOrgDetails = async (req, res) => {
                 name: name,
                 email: u.email,
                 role: u.role,
+                department: u.department || userAssessmentDept || "—",
                 createdAt: u.createdAt,
                 status: (u.isEmailVerified && u.profileCompleted) ? "Accept" : "Pending",
                 assessmentStatus,
@@ -146,6 +153,10 @@ export const getOrgDetails = async (req, res) => {
                 }
             }
 
+            // Department: prefer invitation record, fall back to assessment userDetails
+            const assessmentDept = assessment?.userDetails?.department
+                || assessList.find(a => a.userDetails?.department)?.userDetails?.department;
+
             formattedMembers.push({
                 _id: inv._id,
                 firstName: name.split(" ")[0] || "—",
@@ -153,6 +164,7 @@ export const getOrgDetails = async (req, res) => {
                 name: name,
                 email: inv.email,
                 role: inv.role,
+                department: inv.department || assessmentDept || "—",
                 createdAt: inv.createdAt,
                 status: currentStatus,
                 assessmentStatus,
@@ -195,6 +207,7 @@ export const getOrgDetails = async (req, res) => {
                     name: `${adminUser.firstName || ""} ${adminUser.lastName || ""}`.trim(),
                     email: adminUser.email,
                     role: "admin",
+                    department: adminUser.department || "—",
                     createdAt: adminUser.createdAt,
                     status: "Accept", // Admin is active
                     assessmentStatus: adminAssessmentStatus,
@@ -370,6 +383,244 @@ export const getOrgFilters = async (req, res) => {
         });
     } catch (error) {
         console.error("getOrgFilters error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==================== RESET Assessment for a User (Admin Only) ====================
+export const resetAssessmentForUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const requesterId = req.user.userId;
+        const requesterRole = req.user.role?.toLowerCase();
+
+        // Only authorized roles can perform this action
+        const allowedRoles = ["admin", "leader"];
+        if (!allowedRoles.includes(requesterRole)) {
+            return res.status(403).json({ message: "Access denied. Only organization admins and leaders can reset assessments." });
+        }
+
+        // Admins cannot reset their OWN assessment
+        if (requesterId.toString() === userId.toString()) {
+            return res.status(403).json({ message: "Admins cannot reset their own assessment." });
+        }
+
+        // Find the target user (registered) OR treat userId as invitationId
+        const targetUser = await User.findById(userId).lean();
+
+        let assessmentQuery = {};
+        let invitationQuery = {};
+
+        if (targetUser) {
+            // Registered user: look up assessment by userId
+            assessmentQuery = { userId: targetUser._id, isDeleted: { $ne: true } };
+            invitationQuery = { email: targetUser.email };
+        } else {
+            // Not a registered user — userId is likely an invitationId
+            const invitation = await Invitation.findById(userId).lean();
+            if (!invitation) {
+                return res.status(404).json({ message: "User or invitation not found." });
+            }
+            assessmentQuery = {
+                $or: [
+                    { invitationId: invitation._id, isDeleted: { $ne: true } },
+                    { employeeEmail: invitation.email, isDeleted: { $ne: true } }
+                ]
+            };
+            invitationQuery = { _id: invitation._id };
+        }
+
+        // Soft-delete ALL current assessment records for this user/invitation
+        const assessments = await Assessment.find(assessmentQuery);
+        if (!assessments.length) {
+            return res.status(404).json({ message: "No active assessment found to reset." });
+        }
+
+        const assessmentIds = assessments.map(a => a._id);
+
+        // Soft-delete: mark as reset (preserve data for history/future use)
+        await Assessment.updateMany(
+            { _id: { $in: assessmentIds } },
+            {
+                $set: {
+                    isDeleted: true,
+                    deletedAt: new Date(),
+                    deletedReason: "reset_by_admin"
+                }
+            }
+        );
+
+        // Also soft-delete associated responses and snapshots
+        await Promise.all([
+            Response.updateMany(
+                { assessmentId: { $in: assessmentIds.map(id => id.toString()) } },
+                { $set: { isDeleted: true, deletedAt: new Date() } }
+            ),
+            SubmittedAssessment.updateMany(
+                { assessmentId: { $in: assessmentIds } },
+                { $set: { isDeleted: true, deletedAt: new Date() } }
+            )
+        ]);
+
+        // Reset the invitation so user can take assessment again after 3 months
+        // We set 'used' back to false so a new assessment session can begin
+        await Invitation.updateMany(
+            invitationQuery,
+            { $set: { used: false } }
+        );
+
+        // Update user snapshot scores if it is a registered user
+        if (targetUser) {
+            await User.findByIdAndUpdate(targetUser._id, {
+                $set: {
+                    lastAssessmentScore: 0,
+                    lastAssessmentClassification: null
+                }
+            });
+        }
+
+        return res.status(200).json({
+            message: "Assessment has been reset successfully. The user will be required to retake the assessment.",
+            resetCount: assessmentIds.length
+        });
+    } catch (error) {
+        console.error("resetAssessmentForUser error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==================== GET Organization Members (For AdminAssessment) ====================
+export const getOrgMembers = async (req, res) => {
+    try {
+        const orgName = req.user.orgName;
+        if (!orgName) return res.status(400).json({ message: "Organization not found" });
+
+        // Reuse getOrgDetails logic but simpler
+        const safeOrgName = orgName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const orgRegex = { $regex: new RegExp("^" + safeOrgName + "$", "i") };
+
+        const [invitations, registeredUsers] = await Promise.all([
+            Invitation.find({ orgName: orgRegex }).sort({ createdAt: -1 }),
+            User.find({ orgName: orgRegex }).lean()
+        ]);
+
+        const formattedMembers = [];
+        const invEmails = invitations.map(inv => inv.email.toLowerCase());
+        const invIds = invitations.map(inv => inv._id);
+
+        const assessments = await Assessment.find({
+            isDeleted: { $ne: true },
+            $or: [
+                { invitationId: { $in: invIds } },
+                { employeeEmail: { $in: invEmails } },
+                { userId: { $in: registeredUsers.map(u => u._id) } }
+            ]
+        }).sort({ submittedAt: -1 }).lean();
+
+        const assessmentByUserId = {};
+        const assessmentByInvOrEmail = {};
+        for (const a of assessments) {
+            if (a.userId) {
+                if (!assessmentByUserId[a.userId]) assessmentByUserId[a.userId] = [];
+                assessmentByUserId[a.userId].push(a);
+            }
+            if (a.invitationId) {
+                if (!assessmentByInvOrEmail[a.invitationId.toString()]) assessmentByInvOrEmail[a.invitationId.toString()] = [];
+                assessmentByInvOrEmail[a.invitationId.toString()].push(a);
+            }
+            if (a.employeeEmail) {
+                const em = a.employeeEmail.toLowerCase();
+                if (!assessmentByInvOrEmail[em]) assessmentByInvOrEmail[em] = [];
+                assessmentByInvOrEmail[em].push(a);
+            }
+        }
+
+        const processedEmails = new Set();
+        const requesterRole = req.user.role?.toLowerCase();
+        const requesterDept = (await User.findById(req.user.userId).select("department").lean())?.department;
+
+        // 1. Registered Users
+        for (const u of registeredUsers) {
+            const roleLower = u.role?.toLowerCase();
+
+            // Hierarchy filter
+            if (requesterRole === "leader" && !["manager", "employee"].includes(roleLower)) continue;
+            if (requesterRole === "manager" && roleLower !== "employee") continue;
+
+            // Department filter
+            if (requesterDept && u.department && u.department !== requesterDept && (requesterRole === "leader" || requesterRole === "manager")) continue;
+
+            let assessmentStatus = "Not Started";
+            const userAssesses = assessmentByUserId[u._id.toString()] || [];
+            const completeAsses = userAssesses.find(a => a.isCompleted);
+
+            if (completeAsses) {
+                assessmentStatus = "Completed";
+                const cycleStart = getAssessmentCycleStartDate();
+                if (completeAsses.submittedAt < cycleStart) assessmentStatus = "Due";
+            } else {
+                const incomplete = userAssesses.find(a => !a.isCompleted);
+                if (incomplete) assessmentStatus = "In Progress";
+            }
+
+            // Department: prefer User record, fall back to assessment userDetails
+            const userAssessmentDept = userAssesses.find(a => a.userDetails?.department)?.userDetails?.department;
+
+            formattedMembers.push({
+                _id: u._id,
+                firstName: u.firstName || "—",
+                lastName: u.lastName || "",
+                email: u.email,
+                role: u.role,
+                department: u.department || userAssessmentDept || "—",
+                assessmentStatus
+            });
+            processedEmails.add(u.email.toLowerCase());
+        }
+
+        // 2. Invitations
+        for (const inv of invitations) {
+            const emailLower = inv.email.toLowerCase();
+            if (processedEmails.has(emailLower)) continue;
+
+            const roleLower = inv.role?.toLowerCase();
+
+            // Hierarchy filter
+            if (requesterRole === "leader" && !["manager", "employee"].includes(roleLower)) continue;
+            if (requesterRole === "manager" && roleLower !== "employee") continue;
+
+            // Department filter
+            if (requesterDept && inv.department && inv.department !== requesterDept && (requesterRole === "leader" || requesterRole === "manager")) continue;
+
+            let assessmentStatus = "Not Started";
+            const assessList1 = assessmentByInvOrEmail[inv._id.toString()] || [];
+            const assessList2 = assessmentByInvOrEmail[emailLower] || [];
+            const assessList = [...assessList1, ...assessList2];
+            assessList.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+            const assessment = assessList[0];
+
+            if (assessment) {
+                assessmentStatus = assessment.isCompleted ? "Completed" : "In Progress";
+            }
+
+            // Department: prefer invitation record, fall back to assessment userDetails
+            const assessmentDept = assessment?.userDetails?.department
+                || assessList.find(a => a.userDetails?.department)?.userDetails?.department;
+
+            formattedMembers.push({
+                _id: inv._id,
+                firstName: inv.name?.split(" ")[0] || assessment?.userDetails?.firstName || "—",
+                lastName: inv.name?.split(" ").slice(1).join(" ") || assessment?.userDetails?.lastName || "",
+                email: inv.email,
+                role: inv.role,
+                department: inv.department || assessmentDept || "—",
+                assessmentStatus
+            });
+        }
+
+        res.status(200).json({ members: formattedMembers });
+    } catch (error) {
+        console.error("getOrgMembers error:", error);
         res.status(500).json({ message: "Server error" });
     }
 };

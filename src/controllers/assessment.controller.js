@@ -41,7 +41,8 @@ export const startAssessment = async (req, res) => {
     // 2. Check the latest COMPLETED assessment first (determines the cycle)
     const latestCompletedAssessment = await Assessment.findOne({
       userId,
-      isCompleted: true
+      isCompleted: true,
+      isDeleted: { $ne: true }
     }).sort({ submittedAt: -1 });
 
     const cycleStart = getAssessmentCycleStartDate();
@@ -67,7 +68,8 @@ export const startAssessment = async (req, res) => {
     // 4. Cycle is due (or never completed). Check for an in-progress assessment.
     const incompleteAssessment = await Assessment.findOne({
       userId,
-      isCompleted: false
+      isCompleted: false,
+      isDeleted: { $ne: true }
     }).sort({ createdAt: -1 });
 
     if (incompleteAssessment) {
@@ -201,6 +203,8 @@ export const submitAssessment = async (req, res) => {
 
     // 💡 Add feedback BEFORE assigning to model
     let fbCount = 0;
+    const stakeholderRole = assessment.stakeholder || user.role || "employee";
+
     for (const domainName in scores.domains) {
       const domainObj = scores.domains[domainName];
       domainObj.subdomainFeedback = {};
@@ -218,7 +222,7 @@ export const submitAssessment = async (req, res) => {
           minSubName = subName;
         }
 
-        const subFb = getSubdomainFeedback(subName, subScore, user.role);
+        const subFb = getSubdomainFeedback(subName, subScore, stakeholderRole);
         if (subFb) {
           fbCount++;
           domainObj.subdomainFeedback[subName] = subFb;
@@ -227,13 +231,19 @@ export const submitAssessment = async (req, res) => {
 
       // Finalize Domain-Level Feedback from the lowest scoring subdomain
       if (minSubName) {
-        const primaryFb = getSubdomainFeedback(minSubName, minScore, user.role);
-        if (primaryFb) {
-          domainObj.feedback = primaryFb;
+        let domainFb = getSubdomainFeedback(minSubName, minScore, stakeholderRole);
+        if (!domainFb) {
+          // Fallback: If lowest subdomain has no entry, pick ANY available feedback from the other subdomains in this domain
+          const availableSubs = Object.keys(domainObj.subdomainFeedback);
+          if (availableSubs.length > 0) {
+            domainFb = domainObj.subdomainFeedback[availableSubs[0]];
+            console.log(`[Feedback Fallback] Used "${availableSubs[0]}" insight for domain "${domainName}" because "${minSubName}" was missing.`);
+          }
         }
+        domainObj.feedback = domainFb || null;
       }
     }
-    console.log(`[Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: ${user.role}`);
+    console.log(`[Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: ${stakeholderRole}`);
 
     // 🔥 4.5 Link to User record for easier access from dashboard
     user.lastAssessmentScore = scores.overall;
@@ -328,7 +338,7 @@ export const getMyAssessments = async (req, res) => {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
-    const assessments = await Assessment.find({ userId })
+    const assessments = await Assessment.find({ userId, isDeleted: { $ne: true } })
       .select("-responses -userDetails -employeeDetails") // Exclude heavy detail fields
       .sort({ createdAt: -1 });
 
@@ -346,7 +356,7 @@ export const getSuperAdminStats = async (req, res) => {
   try {
     // 1. Aggregate Assessments (Completed count per org)
     const assessmentStats = await Assessment.aggregate([
-      { $match: { isCompleted: true } },
+      { $match: { isCompleted: true, isDeleted: { $ne: true } } },
       { $group: { _id: "$orgName", completedCount: { $sum: 1 } } }
     ]);
 
@@ -447,24 +457,25 @@ export const getSuperAdminIntelligence = async (req, res) => {
     ] = await Promise.all([
       Invitation.distinct("orgName"),
       User.distinct("orgName"),
-      Assessment.distinct("orgName"),
-      Assessment.distinct("orgName", { isCompleted: true, ...assessmentDateFilter }),
+      Assessment.distinct("orgName", { isDeleted: { $ne: true } }),
+      Assessment.distinct("orgName", { isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter }),
       User.aggregate([
         { $match: { role: { $ne: "superAdmin" } } },
         { $group: { _id: "$role", count: { $sum: 1 } } }
       ]),
       Invitation.find({ role: "employee" }, "email").lean(),
       Assessment.find({
-        "userDetails.role": { $regex: /employee/i }
+        "userDetails.role": { $regex: /employee/i },
+        isDeleted: { $ne: true }
       }, "userDetails.email").lean(),
       Invitation.countDocuments(),
       User.countDocuments({ role: "admin" }),
-      Assessment.countDocuments({ isCompleted: true }),
+      Assessment.countDocuments({ isCompleted: true, isDeleted: { $ne: true } }),
       Assessment.aggregate([
-        { $match: { isCompleted: true, ...assessmentDateFilter } },
+        { $match: { isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter } },
         { $group: { _id: "$userDetails.role", count: { $sum: 1 } } }
       ]),
-      Assessment.find({ isCompleted: true, ...assessmentDateFilter }).sort({ submittedAt: -1 }).limit(3).lean(),
+      Assessment.find({ isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter }).sort({ submittedAt: -1 }).limit(3).lean(),
       Invitation.find(dateFilter).sort({ createdAt: -1 }).limit(3).lean()
     ]);
 
@@ -604,7 +615,7 @@ export const getAdminIntelligence = async (req, res) => {
 
     // Run independent queries in parallel
     const [assessments, registeredUsers, activeInviteCount, recentInvites] = await Promise.all([
-      Assessment.find(assessmentFilter).lean(),
+      Assessment.find({ ...assessmentFilter, isDeleted: { $ne: true } }).lean(),
       User.find(teamFilter).lean(),
       Invitation.countDocuments({ ...teamFilter, used: false }),
       Invitation.find({ ...teamFilter, ...dateFilter }).sort({ createdAt: -1 }).limit(5).lean()

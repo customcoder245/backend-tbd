@@ -83,15 +83,29 @@ export const getSubdomainFeedback = (subdomainName, score, role) => {
         }
     }
 
-    const subdomainData = roleData[subdomainKey];
+    let subdomainData = roleData[subdomainKey];
+
+    // 4. Robust Level Fallback: If the specific level (Low/Medium/High) is missing,
+    // we try are available levels to ensure something is always returned.
     if (!subdomainData) {
         console.warn(`[Feedback] Missing: Role[${targetRoleKey}] Sub[${subdomainName}] (Norm: ${normSubdomain})`);
         return null;
     }
 
-    const result = subdomainData[level] || null;
+    let result = subdomainData[level];
     if (!result) {
-        console.warn(`[Feedback] Missing Level: Role[${targetRoleKey}] Sub[${subdomainKey}] Level[${level}]`);
+        const fallbacks = ["Medium", "High", "Low"]; // Preferred sequence
+        for (const fbLevel of fallbacks) {
+            if (subdomainData[fbLevel]) {
+                result = subdomainData[fbLevel];
+                console.log(`[Feedback] Level Fallback: Used "${fbLevel}" for "${subdomainName}" (Role: ${targetRoleKey}) because "${level}" was missing.`);
+                break;
+            }
+        }
+    }
+
+    if (!result) {
+        console.warn(`[Feedback] Total missing: Role[${targetRoleKey}] Sub[${subdomainKey}] - No levels available.`);
     }
 
     return result;

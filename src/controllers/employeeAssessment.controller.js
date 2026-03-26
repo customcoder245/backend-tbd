@@ -30,8 +30,11 @@ export const startEmployeeAssessment = async (req, res) => {
     // 2️⃣ Cast to ObjectId
     const invitationId = new mongoose.Types.ObjectId(rawInvitationId);
 
-    // 3️⃣ 🔒 CHECK IF ALREADY EXISTS (THIS IS THE MAIN FIX)
-    const existingAssessment = await Assessment.findOne({ invitationId });
+    // 3️⃣ 🔒 CHECK IF ALREADY EXISTS — exclude soft-deleted (reset) assessments
+    const existingAssessment = await Assessment.findOne({
+      invitationId,
+      isDeleted: { $ne: true }
+    });
 
     if (existingAssessment) {
       return res.status(200).json({
@@ -81,9 +84,10 @@ export const submitEmployeeAssessment = async (req, res) => {
       });
     }
 
-    const assessment = await Assessment.findById(
-      new mongoose.Types.ObjectId(assessmentId)
-    );
+    const assessment = await Assessment.findOne({
+      _id: new mongoose.Types.ObjectId(assessmentId),
+      isDeleted: { $ne: true }
+    });
 
     if (!assessment) {
       return res.status(404).json({ message: "Assessment not found" });
@@ -121,6 +125,8 @@ export const submitEmployeeAssessment = async (req, res) => {
 
     // 💡 Add feedback BEFORE assigning to model
     let fbCount = 0;
+    const stakeholderRole = assessment.stakeholder || "employee";
+
     for (const domainName in scores.domains) {
       const domainObj = scores.domains[domainName];
       domainObj.subdomainFeedback = {};
@@ -137,21 +143,28 @@ export const submitEmployeeAssessment = async (req, res) => {
           minSubName = subName;
         }
 
-        const subFb = getSubdomainFeedback(subName, subScore, 'employee');
+        const subFb = getSubdomainFeedback(subName, subScore, stakeholderRole);
         if (subFb) {
           fbCount++;
           domainObj.subdomainFeedback[subName] = subFb;
         }
       }
 
+      // Finalize Domain-Level Feedback from the lowest scoring subdomain
       if (minSubName) {
-        const primaryFb = getSubdomainFeedback(minSubName, minScore, 'employee');
-        if (primaryFb) {
-          domainObj.feedback = primaryFb;
+        let domainFb = getSubdomainFeedback(minSubName, minScore, stakeholderRole);
+        if (!domainFb) {
+          // Fallback: If lowest subdomain has no entry, pick ANY available feedback from the other subdomains in this domain
+          const availableSubs = Object.keys(domainObj.subdomainFeedback);
+          if (availableSubs.length > 0) {
+            domainFb = domainObj.subdomainFeedback[availableSubs[0]];
+            console.log(`[Feedback Fallback] Used "${availableSubs[0]}" insight for domain "${domainName}" because "${minSubName}" was missing.`);
+          }
         }
+        domainObj.feedback = domainFb || null;
       }
     }
-    console.log(`[Employee Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: employee`);
+    console.log(`[Employee Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: ${stakeholderRole}`);
 
     // Assign the fully-built scores object (with feedback already included)
     assessment.scores = scores;
