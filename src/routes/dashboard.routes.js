@@ -30,7 +30,7 @@ router.get("/export-pdf", exportPdfReport);
 router.get("/preview-pdf-report", previewPdfReport);
 
 // 🆕 Release Report (Super Admin Only)
-router.post("/release-report", releaseReport);
+router.put("/release-report", releaseReport);
 
 // 🆕 Manager Team Average (real dept avg per subdomain)
 router.get("/manager-team-avg", getManagerTeamAvg);
