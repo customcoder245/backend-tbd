@@ -346,7 +346,7 @@ export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {
       You have been invited to participate in <strong> Talent By Design's POD-360™ </strong> Workplace Assessment.  We thank you in advance for your time and look forward to supporting you along your journey
       ${isEmployee
       ? "We're excited to have you complete your confidential professional assessment."
-      : "You have been assigned administrative access to help manage your organization's talent growth."
+      : " "
     }
     </p>
     <div style="margin: 40px 0;">
@@ -450,24 +450,19 @@ export const sendNotificationEmail = async (user, title, message) => {
   });
 };
 
-export const sendReportReleasedEmail = async (user, reportType) => {
+export const sendReportReleasedEmail = async (user, reportType, pdfBuffer = null) => {
   if (!user?.email) return;
 
   const subject = `Your ${reportType} Report is Ready`;
   const content = `
-    <p style="font-size: 16px; margin-bottom: 24px;">
-      Hello ${user.firstName || "there"},
-    </p>
     <p style="font-size: 16px; margin-bottom: 16px;">
-      Your professional assessment report for <strong>${reportType}</strong> is now ready for your review. You can now view and export your detailed results directly from your dashboard.
+      Your <strong>POD-360™ ${reportType}</strong> assessment report has been officially reviewed and approved by your administrator.
     </p>
-    <div style="margin: 40px 0;">
-      <a href="${process.env.FRONTEND_URL}/dashboard" style="display: inline-block; padding: 12px 28px; background: rgba(68, 140, 210, 0.05); color: #448cd2; text-decoration: none; border-radius: 32px; font-size: 16px; font-weight: 600; border: 1px solid #448cd2; cursor: pointer;">
-        View My Report
-      </a>
-    </div>
-    <p style="font-size: 14px; color: #64748b;">
-      We look forward to supporting your ongoing development journey.
+    <p style="font-size: 14px; color: #64748b; margin-top: 24px;">
+      This report contains your personalized scores, domain insights, objectives and key results, and recommended development programs. We look forward to supporting your ongoing growth journey.
+    </p>
+    <p style="font-size: 13px; color: #94a3b8; margin-top: 16px; font-style: italic;">
+      If you have any questions about your results, please reach out to your organization administrator.
     </p>
   `;
 
@@ -476,5 +471,10 @@ export const sendReportReleasedEmail = async (user, reportType) => {
     to: user.email,
     subject: subject,
     html: getEmailWrapper(user.firstName || "", content),
+    attachments: pdfBuffer ? [{
+      filename: `POD360_Report_${(user.firstName || 'Participant').replace(/ /g, '_')}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf'
+    }] : []
   });
 };

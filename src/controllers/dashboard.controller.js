@@ -1,10 +1,9 @@
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
+import PDFReportService from "../services/pdfReport.service.js";
 import mongoose from "mongoose";
 import { sendReportReleasedEmail } from "../utils/sendEmail.js";
-
-import PDFReportService from "../services/pdfReport.service.js";
 
 /**
  * Shared helper to fetch the latest report for a user
@@ -869,13 +868,33 @@ export const releaseReport = async (req, res) => {
         assessment.isReleased = true;
         await assessment.save();
 
-        // 📧 SEND NOTIFICATION EMAIL
+        // 📧 GENERATE PDF & SEND ATTACHMENT
         try {
             const targetUser = assessment.userDetails;
             const reportType = assessment.stakeholder || "Professional Assessment";
-            await sendReportReleasedEmail(targetUser, reportType);
-        } catch (emailErr) {
-            console.error("[ReleaseReport] Email failed but status updated:", emailErr.message);
+
+            // 1. Prepare data for PDF (including comparison)
+            const domainScoresArray = Object.values(assessment.scores?.domains || {});
+            const avgScore = domainScoresArray.length > 0
+                ? domainScoresArray.reduce((acc, d) => acc + (d.score || 0), 0) / domainScoresArray.length : 0;
+            const aiInsight = {
+                title: avgScore > 75 ? "Excellence Sustained" : avgScore < 50 ? "Opportunity for Shift" : "Performance Trajectory",
+                description: `Average score of ${Math.round(avgScore)}% across all domains.`,
+                type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
+            };
+
+            // Mocking comparisonData or fetching if possible (simplified for email)
+            const data = {
+                report: assessment,
+                user: targetUser,
+                aiInsight,
+                hasReport: true
+            };
+
+            const pdfBuffer = await PDFReportService.generateReportBuffer(data);
+            await sendReportReleasedEmail(targetUser, reportType, pdfBuffer);
+        } catch (err) {
+            console.error("[ReleaseReport] Delivery failed but status updated:", err.message);
         }
 
         res.status(200).json({
@@ -885,5 +904,42 @@ export const releaseReport = async (req, res) => {
     } catch (error) {
         console.error("Error in releaseReport:", error);
         res.status(500).json({ message: "Error releasing report", error: error.message });
+    }
+};
+
+/**
+ * 🆕 PUBLIC DOWNLOAD REPORT (FOR GUEST EMPLOYEES)
+ * No auth required, but MUST be released
+ */
+export const publicDownloadReport = async (req, res) => {
+    try {
+        const { email } = req.query;
+        if (!email) return res.status(400).json({ message: "Email is required" });
+
+        const emailRegex = new RegExp(`^${email.replace(/[.*+?^${}()|[\\\]\\]/g, '\\$&')}$`, 'i');
+        const report = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 }).lean();
+
+        if (!report) return res.status(404).json({ message: "No report found for this email address." });
+        if (!report.isReleased) return res.status(403).json({ message: "This report has not been officially released by an administrator yet." });
+
+        const data = {
+            report,
+            user: report.userDetails,
+            hasReport: true
+        };
+
+        const userName = `${data.user?.firstName || ""} ${data.user?.lastName || ""}`.trim() || data.user?.email || "Participant";
+        const sanitizedUserName = userName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const fileName = `POD360_Report_${sanitizedUserName}_${new Date().toISOString().substring(0, 10)}.pdf`;
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+        await PDFReportService.generateReport(data, res);
+    } catch (error) {
+        console.error("Public Download Error:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: "Failed to download report", error: error.message });
+        }
     }
 };

@@ -47,16 +47,29 @@ class PDFReportService {
     }
 
     async generateReport(data, stream) {
-        const doc = new PDFDocument({ size: "A4", margin: 50, bufferPages: true });
+        const doc = await this._buildDoc(data);
         doc.pipe(stream);
+        doc.end();
+    }
 
+    async generateReportBuffer(data) {
+        const doc = await this._buildDoc(data);
+        return new Promise((resolve, reject) => {
+            const chunks = [];
+            doc.on('data', chunk => chunks.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(chunks)));
+            doc.on('error', reject);
+            doc.end();
+        });
+    }
+
+    async _buildDoc(data) {
+        const doc = new PDFDocument({ size: "A4", margin: 50, bufferPages: true });
         const { report, user, aiInsight } = data;
         const userName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "Participant";
         const orgName = user?.orgName || "Talent By Design";
         const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-        // Build Pages
-        // Build Pages
         if (data.isMasterReport) {
             await this.drawMasterCover(doc, data.orgName, dateStr);
             doc.addPage();
@@ -102,19 +115,15 @@ class PDFReportService {
         this.applyPageNumbers(doc);
 
         // ── Remove trailing blank pages ──────────────────────────────
-        // pdfkit-table sometimes adds an extra blank page after tables.
-        // We detect and strip any last page where the cursor is still near the top.
         const range = doc.bufferedPageRange();
         if (range.count > 1) {
             doc.switchToPage(range.start + range.count - 1);
-            // The default top margin is 50. If y is <= 80, the page essentially only has a header.
             if (doc.y <= 85) {
-                // Overwrite it with white so it appears invisible (PDFKit can't delete pages)
                 doc.rect(0, 0, 595, 842).fill("#FFFFFF");
             }
         }
 
-        doc.end();
+        return doc;
     }
 
 

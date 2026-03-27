@@ -9,13 +9,17 @@ import {
     releaseReport,
     exportPdfReport,
     previewPdfReport,
-    getManagerTeamAvg
+    getManagerTeamAvg,
+    publicDownloadReport
 } from "../controllers/dashboard.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-// All dashboard routes are protected
+// 🆕 PUBLIC ROUTES (No Login Required)
+router.get("/public-download", publicDownloadReport);
+
+// All other dashboard routes are protected
 router.use(protect);
 
 router.get("/employee", employeeReport);
