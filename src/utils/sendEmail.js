@@ -449,3 +449,32 @@ export const sendNotificationEmail = async (user, title, message) => {
     html: getEmailWrapper(user.firstName || "", content),
   });
 };
+
+export const sendReportReleasedEmail = async (user, reportType) => {
+  if (!user?.email) return;
+
+  const subject = `Your ${reportType} Report is Ready`;
+  const content = `
+    <p style="font-size: 16px; margin-bottom: 24px;">
+      Hello ${user.firstName || "there"},
+    </p>
+    <p style="font-size: 16px; margin-bottom: 16px;">
+      Your professional assessment report for <strong>${reportType}</strong> is now ready for your review. You can now view and export your detailed results directly from your dashboard.
+    </p>
+    <div style="margin: 40px 0;">
+      <a href="${process.env.FRONTEND_URL}/dashboard" style="display: inline-block; padding: 12px 28px; background: rgba(68, 140, 210, 0.05); color: #448cd2; text-decoration: none; border-radius: 32px; font-size: 16px; font-weight: 600; border: 1px solid #448cd2; cursor: pointer;">
+        View My Report
+      </a>
+    </div>
+    <p style="font-size: 14px; color: #64748b;">
+      We look forward to supporting your ongoing development journey.
+    </p>
+  `;
+
+  await sendEmail({
+    from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
+    to: user.email,
+    subject: subject,
+    html: getEmailWrapper(user.firstName || "", content),
+  });
+};

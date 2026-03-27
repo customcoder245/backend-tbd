@@ -6,6 +6,7 @@ import {
     AdminReport,
     getDomainDetailedReport,
     updateDomainDetailedReport,
+    releaseReport,
     exportPdfReport,
     previewPdfReport,
     getManagerTeamAvg
@@ -27,6 +28,9 @@ router.get("/detailed-insight", getDomainDetailedReport);
 router.put("/detailed-insight", updateDomainDetailedReport);
 router.get("/export-pdf", exportPdfReport);
 router.get("/preview-pdf-report", previewPdfReport);
+
+// 🆕 Release Report (Super Admin Only)
+router.post("/release-report", releaseReport);
 
 // 🆕 Manager Team Average (real dept avg per subdomain)
 router.get("/manager-team-avg", getManagerTeamAvg);

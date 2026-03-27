@@ -2,6 +2,7 @@ import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
 import mongoose from "mongoose";
+import { sendReportReleasedEmail } from "../utils/sendEmail.js";
 
 import PDFReportService from "../services/pdfReport.service.js";
 
@@ -11,8 +12,79 @@ import PDFReportService from "../services/pdfReport.service.js";
  */
 const getLatestReportData = async (req, res, targetRole, returnData = false) => {
     try {
-        const { userId: queryUserId, email: queryEmailPayload } = req.query;
+        const { userId: queryUserId, email: queryEmailPayload, orgName: queryOrgName } = req.query;
         const loggedInUserId = req.user.userId;
+
+        // 🆕 ORG COLLECTIVE REPORT PATH (if orgName is provided and no specific user)
+        if (!queryUserId && !queryEmailPayload && (queryOrgName || req.user.orgName)) {
+            const orgToSearch = queryOrgName || req.user.orgName;
+            const orgRegex = new RegExp(`^${orgToSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
+            // Find all assessments for this organization
+            const allOrgAssessments = await SubmittedAssessment.find({
+                "userDetails.orgName": orgRegex
+            }).lean();
+
+            if (allOrgAssessments.length > 0) {
+                // AGGREGATE SCORES
+                const collectiveReport = {
+                    _id: "collective_report_" + orgToSearch,
+                    isReleased: true, // Collective is always released
+                    stakeholder: "Organization Collective",
+                    scores: {
+                        overall: 0,
+                        domains: {}
+                    },
+                    userDetails: {
+                        firstName: orgToSearch,
+                        lastName: "Collective Report",
+                        orgName: orgToSearch
+                    }
+                };
+
+                // Domain Map for averaging
+                const domainMap = {};
+                allOrgAssessments.forEach(report => {
+                    if (!report.scores?.domains) return;
+                    Object.entries(report.scores.domains).forEach(([dName, dData]) => {
+                        if (!domainMap[dName]) domainMap[dName] = { total: 0, count: 0, subdomains: {} };
+                        domainMap[dName].total += (dData.score || 0);
+                        domainMap[dName].count++;
+
+                        if (dData.subdomains) {
+                            Object.entries(dData.subdomains).forEach(([sName, sVal]) => {
+                                if (!domainMap[dName].subdomains[sName]) domainMap[dName].subdomains[sName] = { total: 0, count: 0 };
+                                domainMap[dName].subdomains[sName].total += (typeof sVal === 'number' ? sVal : sVal.score || 0);
+                                domainMap[dName].subdomains[sName].count++;
+                            });
+                        }
+                    });
+                });
+
+                // Finalize Averages
+                Object.entries(domainMap).forEach(([dName, dMeta]) => {
+                    collectiveReport.scores.domains[dName] = {
+                        score: Math.round(dMeta.total / dMeta.count),
+                        subdomains: {}
+                    };
+                    Object.entries(dMeta.subdomains).forEach(([sName, sMeta]) => {
+                        collectiveReport.scores.domains[dName].subdomains[sName] = Math.round(sMeta.total / sMeta.count);
+                    });
+                });
+
+                const overallAvg = Object.values(collectiveReport.scores.domains).reduce((acc, d) => acc + (d.score || 0), 0) / (Object.keys(collectiveReport.scores.domains).length || 1);
+                collectiveReport.scores.overall = Math.round(overallAvg);
+
+                return res.status(200).json({
+                    report: collectiveReport,
+                    firstReport: collectiveReport,
+                    user: collectiveReport.userDetails,
+                    isReleased: true,
+                    hasReport: true,
+                    isCollective: true
+                });
+            }
+        }
 
         const userId = queryUserId || loggedInUserId;
 
@@ -73,6 +145,7 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
                     description: `Average score of ${Math.round(avgScore)}% across all domains.`,
                     type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
                 },
+                isReleased: report.isReleased || false,
                 hasReport: true
             };
 
@@ -136,6 +209,8 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
             report: latestReport,
             firstReport: firstReport,
             user: targetUser || latestReport.userDetails,
+            aiInsight: aiInsight, // Ensure aiInsight is included
+            isReleased: latestReport.isReleased || false,
             hasReport: true
         });
     } catch (error) {
@@ -491,24 +566,34 @@ export const updateDomainDetailedReport = async (req, res) => {
  * Shared helper to aggregate organization/team averages
  */
 async function getOrganizationContextData(req, res) {
-    const { userId: queryUserId, email: queryEmailPayload, includeSelf, department: queryDept } = req.query;
+    const { userId: queryUserId, email: queryEmailPayload, includeSelf, department: queryDept, orgName: queryOrgName } = req.query;
     const loggedInUserId = req.user.userId;
-    const targetUserId = queryUserId || loggedInUserId;
+    var contextManager = null;
 
-    // 1. Identify the manager
-    let managerUser = await User.findById(targetUserId);
-    if (!managerUser && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
-        const invite = await Invitation.findById(queryUserId);
-        if (invite) {
-            managerUser = { email: invite.email, orgName: invite.orgName, department: invite.department };
+    let targetOrg = queryOrgName;
+    let targetDept = queryDept;
+
+    if (!targetOrg) {
+        const targetUserId = queryUserId || loggedInUserId;
+
+        // 1. Identify the manager
+        contextManager = await User.findById(targetUserId);
+        if (!contextManager && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
+            const invite = await Invitation.findById(queryUserId);
+            if (invite) {
+                contextManager = { email: invite.email, orgName: invite.orgName, department: invite.department };
+            }
+        }
+        if (contextManager) {
+            targetOrg = contextManager.orgName;
+            if (!targetDept) targetDept = contextManager.department;
         }
     }
-    if (!managerUser) return null;
 
-    const orgName = managerUser.orgName;
-    const managerDept = (queryDept || managerUser.department || "").trim().toLowerCase();
+    if (!targetOrg) return null;
 
-    if (!orgName) return null;
+    const orgName = targetOrg;
+    const managerDept = (targetDept || "").trim().toLowerCase();
 
     const safeOrg = orgName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const orgRegex = new RegExp(`^${safeOrg}$`, 'i');
@@ -527,8 +612,8 @@ async function getOrganizationContextData(req, res) {
         isDeleted: { $ne: true }
     }).select("userId userDetails scores submittedAt").sort({ submittedAt: -1 }).lean();
 
-    if (!includeSelf) {
-        const managerEmail = (managerUser.email || "").toLowerCase();
+    if (!includeSelf && contextManager) {
+        const managerEmail = (contextManager.email || "").toLowerCase();
         allAssessments = allAssessments.filter(a => (a.userDetails?.email || "").toLowerCase() !== managerEmail);
     }
 
@@ -607,11 +692,11 @@ async function getOrganizationContextData(req, res) {
 
 export const exportPdfReport = async (req, res) => {
     try {
-        const { userId: queryUserId, email: queryEmailPayload } = req.query;
+        const { userId: queryUserId, email: queryEmailPayload, orgName: queryOrgName } = req.query;
 
-        // 1. Fetch Participant Data (if userId exists)
+        // 1. Fetch Participant Data (if userId or orgName exists)
         let data = null;
-        if (queryUserId || queryEmailPayload) {
+        if (queryUserId || queryEmailPayload || queryOrgName) {
             data = await getLatestReportData(req, res, "employee", true);
         }
 
@@ -620,11 +705,13 @@ export const exportPdfReport = async (req, res) => {
 
         if (data && data.hasReport) {
             data.comparisonData = comparisonData;
-        } else if (!queryUserId && !queryEmailPayload) {
-            // No user selected => Generate MASTER ORG REPORT
+            if (queryOrgName && !queryUserId) data.isMasterReport = true;
+        } else if (!queryUserId && !queryEmailPayload && !queryOrgName) {
+            // No user or org selected => Generate DEFAULT MASTER ORG REPORT for Admin
+            const orgName = req.user.orgName || "Organization";
             data = {
                 isMasterReport: true,
-                orgName: req.user.orgName || "Organization",
+                orgName: orgName,
                 comparisonData: comparisonData,
                 user: req.user, // The Admin
                 hasReport: true
@@ -743,5 +830,60 @@ export const getManagerTeamAvg = async (req, res) => {
     } catch (error) {
         console.error("getManagerTeamAvg error:", error);
         res.status(500).json({ message: "Error fetching team averages", error: error.message });
+    }
+};
+
+/**
+ * 🆕 RELEASE REPORT API
+ * Updates isReleased to true and sends notification email to the user
+ */
+export const releaseReport = async (req, res) => {
+    try {
+        const { userId, email } = req.body;
+        const loggedInUserId = req.user.userId;
+
+        const requester = await User.findById(loggedInUserId);
+        const rRole = requester?.role?.toLowerCase();
+        const isAuthorized = rRole === "superadmin" || rRole === "super_admin";
+
+        if (!isAuthorized) {
+            return res.status(403).json({ message: "Only Super Admin and Admin can release reports." });
+        }
+
+        let assessment = null;
+        if (email) {
+            const emailRegex = new RegExp(`^${email.replace(/[.*+?^${}()|[\\\]\\]/g, '\\$&')}$`, 'i');
+            assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 });
+        } else if (userId) {
+            assessment = await SubmittedAssessment.findOne({ userId }).sort({ submittedAt: -1 });
+        }
+
+        if (!assessment) {
+            return res.status(404).json({ message: "No assessment found to release." });
+        }
+
+        if (assessment.isReleased) {
+            return res.status(400).json({ message: "Report is already released." });
+        }
+
+        assessment.isReleased = true;
+        await assessment.save();
+
+        // 📧 SEND NOTIFICATION EMAIL
+        try {
+            const targetUser = assessment.userDetails;
+            const reportType = assessment.stakeholder || "Professional Assessment";
+            await sendReportReleasedEmail(targetUser, reportType);
+        } catch (emailErr) {
+            console.error("[ReleaseReport] Email failed but status updated:", emailErr.message);
+        }
+
+        res.status(200).json({
+            message: "Report successfully released and user notified.",
+            isReleased: true
+        });
+    } catch (error) {
+        console.error("Error in releaseReport:", error);
+        res.status(500).json({ message: "Error releasing report", error: error.message });
     }
 };
