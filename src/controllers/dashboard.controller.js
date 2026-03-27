@@ -291,18 +291,18 @@ export const getDomainDetailedReport = async (req, res) => {
             phase: feedback.phaseIndicator || ""
         };
 
-        // 2. Objectives (OKRs) Pod - Derived from coaching tips
-        const actionItems = getBulletedItems(feedback.coachingTips);
+        // 2. Objectives (OKRs) Pod - Derived ONLY from manual objectives field
+        const actionItems = getBulletedItems(feedback.objectives || "");
 
-        const subdomainScore = (subdomain && domainData.subdomains && domainData.subdomains[subdomain])
-            ? domainData.subdomains[subdomain]
-            : domainData.score;
+        const progressValue = (feedback.progressScore !== undefined && feedback.progressScore !== null)
+            ? feedback.progressScore
+            : 0;
 
         const objectivesPod = {
             title: "Objectives And Key Results",
             subtitle: "Develop essential leadership and EI skills",
             items: actionItems, // Return all items as KRs
-            progress: Math.round(subdomainScore) || 0
+            progress: progressValue || 0
         };
 
         // 3. Recommended Offering Pod
@@ -325,6 +325,8 @@ export const getDomainDetailedReport = async (req, res) => {
                 rawFeedback: {
                     insight: feedback.insight || "",
                     coachingTips: feedback.coachingTips || "",
+                    objectives: feedback.objectives || "",
+                    progressScore: feedback.progressScore !== undefined ? feedback.progressScore : 0,
                     recommendedPrograms: feedback.recommendedPrograms || "",
                     pod360Title: feedback.pod360Title || "",
                     pod360Description: feedback.pod360Description || "",
@@ -347,7 +349,7 @@ export const getDomainDetailedReport = async (req, res) => {
  */
 export const updateDomainDetailedReport = async (req, res) => {
     try {
-        const { userId: queryUserId, email: queryEmailPayload, domain, subdomain, insight, coachingTips, recommendedPrograms, pod360Title, pod360Description, modelDescription } = req.body;
+        const { userId: queryUserId, email: queryEmailPayload, domain, subdomain, insight, coachingTips, recommendedPrograms, pod360Title, pod360Description, modelDescription, objectives, progressScore } = req.body;
         const loggedInUserId = req.user.userId;
         const userId = queryUserId || loggedInUserId;
 
@@ -356,8 +358,11 @@ export const updateDomainDetailedReport = async (req, res) => {
         }
 
         const requester = await User.findById(loggedInUserId);
-        if (requester?.role?.toLowerCase() !== "superadmin" && requester?.role?.toLowerCase() !== "super_admin") {
-            return res.status(403).json({ message: "Only Super Admin can update the report details." });
+        const userRole = requester?.role?.toLowerCase();
+        const isAuthorized = userRole === "superadmin" || userRole === "super_admin" || userRole === "admin";
+
+        if (!isAuthorized) {
+            return res.status(403).json({ message: "Only Super Admin and Admin can update the report details." });
         }
 
         let targetUser = null;
@@ -377,54 +382,105 @@ export const updateDomainDetailedReport = async (req, res) => {
 
         let assessment = null;
         if (isGuest || queryEmail) {
-            const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`, 'i');
+            const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\\\]\\]/g, '\\\\$&')}$`, 'i');
             assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 });
         } else {
             assessment = await SubmittedAssessment.findOne({ userId }).sort({ submittedAt: -1 });
             if (!assessment && targetUser?.email) {
-                const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`, 'i');
+                const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\\\]\\]/g, '\\\\$&')}$`, 'i');
                 assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 });
             }
         }
 
-        if (!assessment || !assessment.scores || !assessment.scores.domains) {
-            return res.status(404).json({ message: "No scores found for this user." });
+        // Identify orgName first (important if assessment is null)
+        const orgName = assessment?.userDetails?.orgName || targetUser?.orgName || requester?.orgName;
+
+        if (!assessment && !orgName) {
+            return res.status(404).json({ message: "No assessment or organization found for this context." });
         }
 
-        let domainData = assessment.scores.domains[domain];
-        if (!domainData) {
-            return res.status(404).json({ message: `No data found for domain: ${domain}` });
+        // --- PREPARE PAYLOAD ---
+        const actualDomain = domain; // Fallback to provided domain
+        const updatePayload = {};
+        const prefix = subdomain
+            ? `scores.domains.${actualDomain}.subdomainFeedback.${subdomain}`
+            : `scores.domains.${actualDomain}.feedback`;
+
+        if (insight !== undefined) updatePayload[`${prefix}.insight`] = insight;
+        if (coachingTips !== undefined) updatePayload[`${prefix}.coachingTips`] = coachingTips;
+        if (recommendedPrograms !== undefined) updatePayload[`${prefix}.recommendedPrograms`] = recommendedPrograms;
+        if (pod360Title !== undefined) updatePayload[`${prefix}.pod360Title`] = pod360Title;
+        if (pod360Description !== undefined) updatePayload[`${prefix}.pod360Description`] = pod360Description;
+        if (modelDescription !== undefined) updatePayload[`${prefix}.modelDescription`] = modelDescription;
+        if (objectives !== undefined) updatePayload[`${prefix}.objectives`] = objectives;
+        if (progressScore !== undefined) updatePayload[`${prefix}.progressScore`] = progressScore;
+
+        if (progressScore !== undefined && progressScore !== null) {
+            const scorePath = subdomain
+                ? `scores.domains.${actualDomain}.subdomains.${subdomain}`
+                : `scores.domains.${actualDomain}.score`;
+            updatePayload[scorePath] = progressScore;
         }
 
-        if (subdomain) {
-            if (!domainData.subdomainFeedback) domainData.subdomainFeedback = {};
-            if (!domainData.subdomainFeedback[subdomain]) domainData.subdomainFeedback[subdomain] = {};
-            domainData.subdomainFeedback[subdomain].insight = insight;
-            domainData.subdomainFeedback[subdomain].coachingTips = coachingTips;
-            domainData.subdomainFeedback[subdomain].recommendedPrograms = recommendedPrograms;
-            domainData.subdomainFeedback[subdomain].pod360Title = pod360Title;
-            domainData.subdomainFeedback[subdomain].pod360Description = pod360Description;
-            domainData.subdomainFeedback[subdomain].modelDescription = modelDescription;
-        } else {
-            if (!domainData.feedback) domainData.feedback = {};
-            domainData.feedback.insight = insight;
-            domainData.feedback.coachingTips = coachingTips;
-            domainData.feedback.recommendedPrograms = recommendedPrograms;
-            domainData.feedback.pod360Title = pod360Title;
-            domainData.feedback.pod360Description = pod360Description;
-            domainData.feedback.modelDescription = modelDescription;
-        }
-        if (pod360Title || pod360Description) {
-            if (!assessment.customAiInsight) assessment.customAiInsight = {};
-            if (pod360Title) assessment.customAiInsight.title = pod360Title;
-            if (pod360Description) assessment.customAiInsight.description = pod360Description;
-            assessment.markModified('customAiInsight');
+        // 1. Update individual assessment if it exists
+        if (assessment) {
+            // Re-find actual key for exact individual match (casing)
+            const domainKey = (assessment.scores?.domains)
+                ? Object.keys(assessment.scores.domains).find(k => k.toLowerCase().trim() === domain.toLowerCase().trim())
+                : null;
+
+            const currentActualDomain = domainKey || domain;
+            const itemPrefix = subdomain ? `subdomainFeedback.${subdomain}` : `feedback`;
+
+            if (!assessment.scores.domains[currentActualDomain]) assessment.scores.domains[currentActualDomain] = { score: 0 };
+            const domainData = assessment.scores.domains[currentActualDomain];
+
+            if (subdomain) {
+                if (!domainData.subdomainFeedback) domainData.subdomainFeedback = {};
+                if (!domainData.subdomainFeedback[subdomain]) domainData.subdomainFeedback[subdomain] = {};
+                const subF = domainData.subdomainFeedback[subdomain];
+                Object.assign(subF, { insight, coachingTips, recommendedPrograms, pod360Title, pod360Description, modelDescription, objectives, progressScore });
+                if (progressScore !== undefined && progressScore !== null) {
+                    if (!domainData.subdomains) domainData.subdomains = {};
+                    domainData.subdomains[subdomain] = progressScore;
+                }
+            } else {
+                if (!domainData.feedback) domainData.feedback = {};
+                Object.assign(domainData.feedback, { insight, coachingTips, recommendedPrograms, pod360Title, pod360Description, modelDescription, objectives, progressScore });
+                if (progressScore !== undefined && progressScore !== null) domainData.score = progressScore;
+            }
+
+            if (pod360Title || pod360Description) {
+                if (!assessment.customAiInsight) assessment.customAiInsight = {};
+                if (pod360Title) assessment.customAiInsight.title = pod360Title;
+                if (pod360Description) assessment.customAiInsight.description = pod360Description;
+                assessment.markModified('customAiInsight');
+            }
+            assessment.markModified('scores');
+            await assessment.save();
         }
 
-        assessment.markModified('scores');
-        await assessment.save();
+        // 2. Propagation Logic (Update EVERY person in the org)
+        if (orgName && Object.keys(updatePayload).length > 0) {
+            console.log(`[Propagation] Updating org: ${orgName} for domain: ${actualDomain}`);
+            await SubmittedAssessment.updateMany(
+                { "userDetails.orgName": orgName },
+                { $set: updatePayload }
+            );
 
-        res.status(200).json({ message: "Report details updated successfully." });
+            // Handle overall AI insight if provided
+            if (pod360Title || pod360Description) {
+                const aiUpdate = {};
+                if (pod360Title) aiUpdate["customAiInsight.title"] = pod360Title;
+                if (pod360Description) aiUpdate["customAiInsight.description"] = pod360Description;
+                await SubmittedAssessment.updateMany(
+                    { "userDetails.orgName": orgName },
+                    { $set: aiUpdate }
+                );
+            }
+        }
+
+        res.status(200).json({ message: "Report details updated successfully for the entire organization." });
     } catch (error) {
         console.error("Error in updateDomainDetailedReport:", error);
         res.status(500).json({ message: "Error updating detailed report", error: error.message });
