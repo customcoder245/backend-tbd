@@ -111,7 +111,8 @@ export const getOrgDetails = async (req, res) => {
                 status: (u.isEmailVerified && u.profileCompleted) ? "Accept" : "Pending",
                 assessmentStatus,
                 lastScore,
-                classification
+                classification,
+                lastAssessmentId: completeAsses?._id || null
             });
             processedEmails.add(u.email.toLowerCase());
         }
@@ -169,7 +170,8 @@ export const getOrgDetails = async (req, res) => {
                 status: currentStatus,
                 assessmentStatus,
                 lastScore,
-                classification
+                classification,
+                lastAssessmentId: (assessment && assessment.isCompleted) ? assessment._id : null
             });
         }
 
@@ -212,7 +214,8 @@ export const getOrgDetails = async (req, res) => {
                     status: "Accept", // Admin is active
                     assessmentStatus: adminAssessmentStatus,
                     lastScore,
-                    classification
+                    classification,
+                    lastAssessmentId: adminAssessment?._id || null
                 });
             }
         }

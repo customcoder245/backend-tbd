@@ -71,6 +71,9 @@ export const saveResponse = async (req, res) => {
             : "LOWER"
           : null,
         comment: finalComment,
+        insightPrompt: (question.scale === "FORCED_CHOICE" && question.forcedChoice)
+          ? (answer === "A" ? question.forcedChoice.optionA?.insightPrompt : question.forcedChoice.optionB?.insightPrompt) || question.insightPrompt
+          : question.insightPrompt,
         subdomainWeight: question.subdomainWeight
       };
 
@@ -115,13 +118,23 @@ export const getResponsesByAssessment = async (req, res) => {
       return res.status(400).json({ message: "Assessment ID is required" });
     }
 
+    // --- NEW LOGIC: Fetch from SubmittedAssessment snapshot first ---
+    const SubmittedAssessment = (await import("../models/submittedAssessment.model.js")).default;
+    const submitted = await SubmittedAssessment.findOne({ assessmentId });
+
+    if (submitted) {
+      console.log(`[ResponseController] Returning snapshotted data from SubmittedAssessment for ${assessmentId}`);
+      return res.status(200).json(submitted);
+    }
+
+    // Fallback to real-time Response collection (drafts or legacy)
     const responses = await Response.find({ assessmentId });
 
     if (!responses.length) {
       return res.status(404).json({ message: "No responses found for this assessment" });
     }
 
-    res.status(200).json(responses);
+    res.status(200).json({ responses });
   } catch (error) {
     res.status(500).json({
       message: "Error fetching responses",
