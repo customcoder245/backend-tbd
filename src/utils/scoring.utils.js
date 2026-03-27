@@ -23,7 +23,7 @@ export const convertToNumericScore = (response) => {
 
     if (scale === "FORCED_CHOICE") {
         // Higher maturity option = 100, Lower maturity option = 20
-        const hvOption = response.higherValueOption || "A";
+        const hvOption = response.higherValueOption || "B";
         return response.selectedOption === hvOption ? 100 : 20;
     }
 
