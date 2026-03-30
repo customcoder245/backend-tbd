@@ -470,6 +470,7 @@ async function getOrganizationContextData(req, res) {
     const { userId: queryUserId, email: queryEmailPayload, includeSelf, department: queryDept } = req.query;
     const loggedInUserId = req.user.userId;
     const targetUserId = queryUserId || loggedInUserId;
+    const requesterRole = normalizeRole(req.user?.role);
 
     // 1. Identify the manager
     let managerUser = await User.findById(targetUserId);
@@ -577,7 +578,9 @@ async function getOrganizationContextData(req, res) {
         pendingInvitations: Math.max(0, invitations - registeredUsers),
         department: managerDept,
         orgName,
-        allDepartments: depts.filter(d => d && d.trim().length > 0)
+        allDepartments: ["leader", "manager"].includes(requesterRole)
+            ? []
+            : depts.filter(d => d && d.trim().length > 0)
     };
 }
 

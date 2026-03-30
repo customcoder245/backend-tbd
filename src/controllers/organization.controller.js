@@ -259,6 +259,10 @@ export const getOrgFilters = async (req, res) => {
         const { orgName } = req.params;
         if (!orgName) return res.status(400).json({ message: "Org name is required" });
 
+        const requester = await User.findById(req.user.userId).select("role").lean();
+        const requesterRole = requester?.role?.toLowerCase() || "";
+        const hideDepartmentDropdown = requesterRole === "leader" || requesterRole === "manager";
+
         const safeOrgName = orgName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         const orgRegex = { $regex: new RegExp("^" + safeOrgName + "$", "i") };
 
@@ -375,7 +379,7 @@ export const getOrgFilters = async (req, res) => {
         });
 
         res.status(200).json({
-            departments: allDepts,
+            departments: hideDepartmentDropdown ? [] : allDepts,
             roles: allRoles,
             members: members
                 .filter(m => m.assessmentStatus === "Completed")
