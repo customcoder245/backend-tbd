@@ -446,28 +446,30 @@ export const updateDomainDetailedReport = async (req, res) => {
 
         let queryEmail = queryEmailPayload;
         let isGuest = false;
+        let inviteOrgName = null;
         if (!targetUser && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
             const invite = await Invitation.findById(queryUserId);
             if (invite) {
                 queryEmail = invite.email;
                 isGuest = true;
+                inviteOrgName = invite.orgName;
             }
         }
 
         let assessment = null;
         if (isGuest || queryEmail) {
-            const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\\\]\\]/g, '\\\\$&')}$`, 'i');
+            const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
             assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 });
         } else {
             assessment = await SubmittedAssessment.findOne({ userId }).sort({ submittedAt: -1 });
             if (!assessment && targetUser?.email) {
-                const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\\\]\\]/g, '\\\\$&')}$`, 'i');
+                const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
                 assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 });
             }
         }
 
         // Identify orgName first (important if assessment is null)
-        const orgName = assessment?.userDetails?.orgName || targetUser?.orgName || requester?.orgName;
+        const orgName = assessment?.userDetails?.orgName || targetUser?.orgName || inviteOrgName || requester?.orgName;
 
         if (!assessment && !orgName) {
             return res.status(404).json({ message: "No assessment or organization found for this context." });
