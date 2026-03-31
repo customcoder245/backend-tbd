@@ -23,7 +23,7 @@ export const updateTooltip = async (req, res) => {
 
         let tooltip = await Tooltip.findOneAndUpdate(
             { tooltipId },
-            { content, title, lastUpdatedBy: req.user._id },
+            { content, title, lastUpdatedBy: req.user.userId },
             { new: true, upsert: true }
         );
 

@@ -17,8 +17,9 @@ import { protect, restrictTo } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-// 🆕 PUBLIC ROUTES (No Login Required)
+// 🆕 PUBLIC ROUTES
 router.get("/public-download", publicDownloadReport);
+router.get("/tooltips", getTooltips);
 
 // All other dashboard routes are protected
 router.use(protect);
@@ -40,8 +41,7 @@ router.put("/release-report", releaseReport);
 // 🆕 Manager Team Average (real dept avg per subdomain)
 router.get("/manager-team-avg", getManagerTeamAvg);
 
-// 🆕 Tooltip routes
-router.get("/tooltips", getTooltips);
+// 🆕 Update Tooltip content (Super Admin Only)
 router.put("/tooltips", restrictTo("superadmin", "super_admin"), updateTooltip);
 
 export default router;
