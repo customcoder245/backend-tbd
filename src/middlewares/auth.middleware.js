@@ -87,3 +87,21 @@ export const flexibleProtect = async (req, res, next) => {
 
   return res.status(401).json({ message: "Unauthorized. Please login or use a valid invitation link." });
 };
+
+export const restrictTo = (...roles) => {
+  return (req, res, next) => {
+    // Check if user is logged in
+    if (!req.user) {
+      return res.status(401).json({ message: "You are not logged in" });
+    }
+
+    // roles: ['admin', 'superadmin']
+    if (!roles.includes(req.user.role?.toLowerCase())) {
+      return res.status(403).json({
+        message: "You do not have permission to perform this action",
+      });
+    }
+
+    next();
+  };
+};

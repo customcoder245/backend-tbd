@@ -12,7 +12,8 @@ import {
     getManagerTeamAvg,
     publicDownloadReport
 } from "../controllers/dashboard.controller.js";
-import { protect } from "../middlewares/auth.middleware.js";
+import { getTooltips, updateTooltip } from "../controllers/tooltip.controller.js";
+import { protect, restrictTo } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -38,5 +39,9 @@ router.put("/release-report", releaseReport);
 
 // 🆕 Manager Team Average (real dept avg per subdomain)
 router.get("/manager-team-avg", getManagerTeamAvg);
+
+// 🆕 Tooltip routes
+router.get("/tooltips", getTooltips);
+router.put("/tooltips", restrictTo("superadmin", "super_admin"), updateTooltip);
 
 export default router;
