@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 
 import connectDB from "./db/index.js";
+import { speedInsightsMiddleware } from "./utils/speedInsights.js";
 
 // ROUTES
 import authRoutes from "./routes/auth.routes.js";
@@ -28,6 +29,9 @@ app.use(async (req, res, next) => {
 app.use(express.json());
 app.use(cookieParser());
 
+// Enable Speed Insights middleware (adds headers for frontend integration)
+app.use(speedInsightsMiddleware);
+
 // Cors moved here for cleaner flow
 const allowedOrigin = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "*";
 
@@ -48,6 +52,16 @@ app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
     message: "API is working 🚀"
+  });
+});
+
+// Speed Insights configuration endpoint
+app.get("/api/v1/speed-insights/config", (req, res) => {
+  res.status(200).json({
+    success: true,
+    speedInsightsEnabled: process.env.VERCEL === '1' || process.env.VERCEL_ENV !== undefined,
+    message: "Speed Insights is configured. For frontend integration, install @vercel/speed-insights in your frontend application.",
+    documentation: "https://vercel.com/docs/speed-insights/quickstart"
   });
 });
 
