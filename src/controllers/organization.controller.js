@@ -4,6 +4,8 @@ import Assessment from "../models/assessment.model.js";
 import Response from "../models/response.model.js";
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
+import jwt from "jsonwebtoken";
+import { sendAssessmentResetEmail } from "../utils/sendEmail.js";
 
 // ==================== GET Organization Details ====================
 export const getOrgDetails = async (req, res) => {
@@ -465,12 +467,56 @@ export const resetAssessmentForUser = async (req, res) => {
             )
         ]);
 
-        // Reset the invitation so user can take assessment again after 3 months
-        // We set 'used' back to false so a new assessment session can begin
-        await Invitation.updateMany(
-            invitationQuery,
-            { $set: { used: false } }
-        );
+        // Reset the invitation, update token, and notify the user via email
+        const invitation = await Invitation.findOne(invitationQuery);
+        if (invitation) {
+            const tokenExpiry = "3d";
+            const dbExpiry = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+
+            // Generate a fresh session token
+            const newToken = jwt.sign(
+                {
+                    email: invitation.email,
+                    role: invitation.role,
+                    invitedId: requesterId,
+                    orgName: invitation.orgName
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: tokenExpiry }
+            );
+
+            await Invitation.findByIdAndUpdate(invitation._id, {
+                $set: {
+                    token: newToken,
+                    token1: newToken,
+                    used: false,
+                    expiredAt: dbExpiry,
+                    invitedBy: requesterId
+                }
+            });
+
+            // Send Email NOTIFICATION
+            const backendUrl = process.env.BACKEND_URL || "";
+            const baseUrl = backendUrl.endsWith("/") ? backendUrl : `${backendUrl}/`;
+            const link = `${baseUrl}auth/invite/${newToken}`;
+
+            try {
+                await sendAssessmentResetEmail(
+                    invitation.email,
+                    link,
+                    targetUser?.firstName || "",
+                    invitation.orgName || "Talent By Design"
+                );
+            } catch (err) {
+                console.error("Failed to send reset assessment email Although assessment was reset:", err.message);
+            }
+        } else {
+            // Fallback: Just reset matching invitation records by query if direct find failed
+            await Invitation.updateMany(
+                invitationQuery,
+                { $set: { used: false } }
+            );
+        }
 
         // Update user snapshot scores if it is a registered user
         if (targetUser) {

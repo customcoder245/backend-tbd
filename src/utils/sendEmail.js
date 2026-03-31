@@ -478,3 +478,30 @@ export const sendReportReleasedEmail = async (user, reportType, pdfBuffer = null
     }] : []
   });
 };
+
+export const sendAssessmentResetEmail = async (email, link, firstName, orgName) => {
+  const subject = "Your Assessment has been Reset";
+  const content = `
+    <p style="font-size: 16px; margin-bottom: 16px;">
+      Your administrator has reset your <strong>POD-360™</strong> assessment for <strong>${orgName}</strong>.
+    </p>
+    <p style="font-size: 16px; margin-bottom: 24px;">
+      This allows you to take the assessment again. Please click the button below to get started:
+    </p>
+    <div style="margin: 40px 0;">
+      <a href="${link}" style="display: inline-block; padding: 12px 28px; background: rgba(68, 140, 210, 0.05); color: #448cd2; text-decoration: none; border-radius: 32px; font-size: 16px; font-weight: 600; border: 1px solid #448cd2; cursor: pointer;">
+        Start Assessment
+      </a>
+    </div>
+    <p style="font-size: 14px; color: #64748b;">
+      If you have any questions, please contact your organization administrator.
+    </p>
+  `;
+
+  await sendEmail({
+    from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: subject,
+    html: getEmailWrapper(firstName || "", content),
+  });
+};
