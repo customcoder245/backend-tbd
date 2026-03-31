@@ -27,11 +27,16 @@ class PDFReportService {
 
     getBulletedLines(text, limit = 10) {
         if (!text) return [];
-        return text.split(/\r?\n/)
-            .filter(line => line.includes('•'))
-            .map(line => line.replace(/•/g, '').trim())
-            .filter(line => line.length > 0)
-            .slice(0, limit);
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length === 0) return [];
+
+        const bulleted = lines.filter(line => line.includes('•'));
+        if (bulleted.length > 0) {
+            return bulleted.map(line => line.replace(/•/g, '').trim()).slice(0, limit);
+        }
+
+        // Fallback: If no dots found, just return the lines (useful for custom text)
+        return lines.slice(0, limit);
     }
 
     fetchImageBuffer(url) {
@@ -427,17 +432,44 @@ class PDFReportService {
 
         // --- DYNAMIC BLOCKS ---
 
+        // --- DYNAMIC BLOCKS ---
+
+        // Combine domain-level and subdomain-specific feedback details
+        let combinedInsight = domainData?.feedback?.insight || domainData?.feedback?.modelDescription || "";
+        let combinedCoaching = domainData?.feedback?.coachingTips || "";
+        let combinedPrograms = domainData?.feedback?.recommendedPrograms || "";
+
+        if (domainData?.subdomainFeedback) {
+            Object.keys(domainData.subdomainFeedback).forEach(sub => {
+                const fb = domainData.subdomainFeedback[sub];
+                if (!fb) return;
+
+                // Add unique subdomain content if it's not already in the domain level
+                const subInsight = fb.insight || fb.modelDescription || "";
+                if (subInsight && !combinedInsight.includes(subInsight)) {
+                    combinedInsight += "\n" + subInsight;
+                }
+
+                if (fb.coachingTips && !combinedCoaching.includes(fb.coachingTips)) {
+                    combinedCoaching += "\n" + fb.coachingTips;
+                }
+
+                if (fb.recommendedPrograms && !combinedPrograms.includes(fb.recommendedPrograms)) {
+                    combinedPrograms += "\n" + fb.recommendedPrograms;
+                }
+            });
+        }
+
         // 1. INSIGHT BLOCK
-        const mainInsight = domainData?.feedback?.insight || domainData?.feedback?.modelDescription || "";
-        const insightLines = this.getBulletedLines(mainInsight, 3);
+        const insightLines = this.getBulletedLines(combinedInsight, 5); // Increased limit
         const insightItems = insightLines.map(line => ({ type: 'bullet', text: line, bulletColor: this.colors.secondary }));
 
         if (insightItems.length === 0) insightItems.push({ type: 'text', text: "Analysis pending based on recently observed factors.", color: this.colors.lightText });
 
-        currentY = this.drawDynamicBlock(doc, `Overall Insight for ${domainName}`, "Overall synthesis representation", insightItems, currentY, true, userName);
+        currentY = this.drawDynamicBlock(doc, `Overall Insight for ${domainName}`, "Combined synthesis from all sub-domains", insightItems, currentY, true, userName);
 
         // 2. OKR BLOCK
-        const coachingLines = this.getBulletedLines(domainData?.feedback?.coachingTips || "", 4);
+        const coachingLines = this.getBulletedLines(combinedCoaching, 8); // Increased limit
         const okrItems = coachingLines.map(kr => ({ type: 'kr', text: kr }));
 
         if (okrItems.length === 0) okrItems.push({ type: 'text', text: "No specific key results tailored for this grouping.", color: this.colors.lightText });
@@ -445,7 +477,7 @@ class PDFReportService {
         currentY = this.drawDynamicBlock(doc, "Objectives and Key Results", "Develop essential skills based on domain analysis", okrItems, currentY, false, userName);
 
         // 3. RECOMMENDED OFFERINGS BLOCK
-        const recLines = this.getBulletedLines(domainData?.feedback?.recommendedPrograms || "", 5);
+        const recLines = this.getBulletedLines(combinedPrograms, 6); // Increased limit
         const recItems = recLines.map(rec => ({ type: 'bullet', text: rec, bulletColor: this.colors.primary }));
 
         if (recItems.length === 0) recItems.push({ type: 'text', text: "No supplemental recommendations evaluated presently.", color: this.colors.lightText });

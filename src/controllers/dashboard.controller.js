@@ -304,6 +304,10 @@ export const getDomainDetailedReport = async (req, res) => {
 
         // Check for specific subdomain feedback, otherwise fallback to domain-level feedback
         let feedback = {};
+        let aggregatedInsights = [];
+        let aggregatedCoachingTips = [];
+        let aggregatedRecommendations = [];
+
         if (subdomain && domainData.subdomainFeedback) {
             // Try exact match first
             if (domainData.subdomainFeedback[subdomain]) {
@@ -321,6 +325,14 @@ export const getDomainDetailedReport = async (req, res) => {
             }
         } else {
             feedback = domainData.feedback || {};
+            // Aggregate all subdomain-level feedback when viewing domain-level
+            if (domainData.subdomainFeedback) {
+                Object.values(domainData.subdomainFeedback).forEach(subFb => {
+                    if (subFb.insight) aggregatedInsights.push(subFb.insight);
+                    if (subFb.coachingTips) aggregatedCoachingTips.push(subFb.coachingTips);
+                    if (subFb.recommendedPrograms) aggregatedRecommendations.push(subFb.recommendedPrograms);
+                });
+            }
         }
 
         const insightTitleLabel = subdomain ? `Insight for ${subdomain}` : `Insight for ${domain}`;
@@ -356,11 +368,27 @@ export const getDomainDetailedReport = async (req, res) => {
                 .filter(line => line.length > 0);
         };
 
+        // Aggregation logic for mainText
+        let finalInsight = feedback.insight || "";
+        if (aggregatedInsights.length > 0 && !subdomain) {
+            finalInsight = aggregatedInsights.join('\n\n');
+        }
+
+        let finalCoachingTips = feedback.coachingTips || "";
+        if (aggregatedCoachingTips.length > 0 && !subdomain) {
+            finalCoachingTips = aggregatedCoachingTips.join('\n\n');
+        }
+
+        let finalRecommendations = feedback.recommendedPrograms || "";
+        if (aggregatedRecommendations.length > 0 && !subdomain) {
+            finalRecommendations = aggregatedRecommendations.join('\n\n');
+        }
+
         // 1. Insights Pod (Domain analysis)
         const insightsPod = {
             title: feedback.pod360Title || insightTitleLabel,
             subtitle: feedback.pod360Description || "Overall analysis based on your responses",
-            mainText: filterBulletedLines(feedback.insight) || `No specific insights available for ${subdomain || domain} yet.`,
+            mainText: filterBulletedLines(finalInsight) || `No specific insights available for ${subdomain || domain} yet.`,
             modelDescription: filterBulletedLines(feedback.modelDescription) || "",
             phase: feedback.phaseIndicator || ""
         };
@@ -380,13 +408,21 @@ export const getDomainDetailedReport = async (req, res) => {
         };
 
         // 3. Recommended Offering Pod
-        const recommendations = getBulletedItems(feedback.recommendedPrograms);
+        const recommendations = getBulletedItems(finalRecommendations);
 
         const recommendationsPod = {
             title: "Talent By Design Recommended Offering",
             subtitle: `Strategic recommendations for ${subdomain || domain}`,
             items: recommendations,
             icon: "offering"
+        };
+
+        // 4. Coaching Tips Pod (Added explicitly)
+        const coachingTipsItems = getBulletedItems(finalCoachingTips);
+        const coachingTipsPod = {
+            title: "Coaching Tips",
+            subtitle: `Targeted guidance for ${subdomain || domain}`,
+            items: coachingTipsItems
         };
 
         res.status(200).json({
@@ -396,6 +432,7 @@ export const getDomainDetailedReport = async (req, res) => {
                 insights: insightsPod,
                 objectives: objectivesPod,
                 recommendations: recommendationsPod,
+                coachingTips: coachingTipsPod,
                 rawFeedback: {
                     insight: feedback.insight || "",
                     coachingTips: feedback.coachingTips || "",
