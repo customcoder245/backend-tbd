@@ -1,4 +1,9 @@
 import PDFDocument from "pdfkit-table";
+import https from "https";
+import http from "http";
+
+// Pinned Cloudinary logo URL (PNG converted from SVG via Cloudinary transformation)
+const BRAND_LOGO_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/f_png,w_300/v1774516563/logos/talent_by_design_logo_new.svg";
 
 /**
  * PDF Report Generator Service
@@ -22,31 +27,61 @@ class PDFReportService {
 
     getBulletedLines(text, limit = 10) {
         if (!text) return [];
-        return text.split(/\r?\n/)
-            .filter(line => line.includes('•'))
-            .map(line => line.replace(/•/g, '').trim())
-            .filter(line => line.length > 0)
-            .slice(0, limit);
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length === 0) return [];
+
+        const bulleted = lines.filter(line => line.includes('•'));
+        if (bulleted.length > 0) {
+            return bulleted.map(line => line.replace(/•/g, '').trim()).slice(0, limit);
+        }
+
+        // Fallback: If no dots found, just return the lines (useful for custom text)
+        return lines.slice(0, limit);
+    }
+
+    fetchImageBuffer(url) {
+        return new Promise((resolve) => {
+            const client = url.startsWith('https') ? https : http;
+            client.get(url, (res) => {
+                const chunks = [];
+                res.on('data', (chunk) => chunks.push(chunk));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
+                res.on('error', () => resolve(null));
+            }).on('error', () => resolve(null));
+        });
     }
 
     async generateReport(data, stream) {
-        const doc = new PDFDocument({ size: "A4", margin: 50, bufferPages: true });
+        const doc = await this._buildDoc(data);
         doc.pipe(stream);
+        doc.end();
+    }
 
+    async generateReportBuffer(data) {
+        const doc = await this._buildDoc(data);
+        return new Promise((resolve, reject) => {
+            const chunks = [];
+            doc.on('data', chunk => chunks.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(chunks)));
+            doc.on('error', reject);
+            doc.end();
+        });
+    }
+
+    async _buildDoc(data) {
+        const doc = new PDFDocument({ size: "A4", margin: 50, bufferPages: true });
         const { report, user, aiInsight } = data;
         const userName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "Participant";
         const orgName = user?.orgName || "Talent By Design";
         const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-        // Build Pages
-        // Build Pages
         if (data.isMasterReport) {
-            this.drawMasterCover(doc, data.orgName, dateStr);
+            await this.drawMasterCover(doc, data.orgName, dateStr);
             doc.addPage();
             this.drawHeader(doc, data.orgName);
             await this.drawMasterOrgSummary(doc, data.orgName, data.comparisonData);
         } else {
-            this.drawCover(doc, userName, orgName, dateStr);
+            await this.drawCover(doc, userName, orgName, dateStr);
 
             doc.addPage();
             this.drawHeader(doc, userName);
@@ -66,40 +101,64 @@ class PDFReportService {
                 await this.drawDomainDetailedPage(doc, domain, dData, userName);
             }
 
-            // --- NEW: Comparison & Alignment Page ---
-            if (data.comparisonData) {
+            // --- Comparison & Alignment Page (only if real score data exists) ---
+            const hasTeamData = data.comparisonData && Object.keys(data.comparisonData.teamAvg || {}).length > 0;
+            if (hasTeamData) {
                 doc.addPage();
                 this.drawHeader(doc, userName);
                 await this.drawComparisonPage(doc, userName, data.comparisonData, report.scores?.domains || {});
             }
 
-            // Appendix: Detailed Raw Responses
-            if (report.responses && report.responses.length > 0) {
+            /* Appendix: Detailed Raw Responses (only if there are meaningful responses)
+            if (report.responses && report.responses.length > 5) {
                 doc.addPage();
                 this.drawHeader(doc, userName);
                 await this.drawAppendixResponses(doc, report.responses);
-            }
+            } */
         }
 
         this.applyPageNumbers(doc);
-        doc.end();
+
+        // ── Remove trailing blank pages ──────────────────────────────
+        const range = doc.bufferedPageRange();
+        if (range.count > 1) {
+            doc.switchToPage(range.start + range.count - 1);
+            if (doc.y <= 85) {
+                doc.rect(0, 0, 595, 842).fill("#FFFFFF");
+            }
+        }
+
+        return doc;
     }
 
-    drawCover(doc, userName, orgName, dateStr) {
+
+
+    async drawCover(doc, userName, orgName, dateStr) {
         // Decorative background
         doc.rect(0, 0, 595, 842).fill(this.colors.white);
         doc.rect(0, 0, 200, 842).fill(this.colors.ice);
         doc.rect(200, 0, 2, 842).fill(this.colors.border);
 
-        // Logo text
-        doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(25).text("TALENT BY DESIGN", 240, 60);
-        doc.fontSize(8).font("Helvetica").text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 83);
+        // Fetch & embed Cloudinary logo (converted to PNG via URL transform)
+        try {
+            const logoBuffer = await this.fetchImageBuffer(BRAND_LOGO_URL);
+            if (logoBuffer && logoBuffer.length > 0) {
+                doc.image(logoBuffer, 20, 100, { width: 160 });
+            } else {
+                doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(25).text("TALENT BY DESIGN", 240, 60);
+            }
+        } catch (e) {
+            doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(25).text("TALENT BY DESIGN", 240, 60);
+        }
+
+        doc.fontSize(25).font("Helvetica-Bold").fillColor(this.colors.primary).text("TALENT BY DESIGN", 240, 120);
+        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 242, 140);
 
         // Titles
         doc.fontSize(54).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD-360™", 240, 245);
-        doc.fontSize(22).font("Helvetica").text("Confidential Performance Profile", 240, 308);
+        doc.fontSize(22).font("Helvetica").fillColor(this.colors.text).text("Confidential Performance Profile", 240, 308);
 
-        doc.rect(240, 310 + 40, 40, 4).fill(this.colors.secondary);
+        doc.rect(240, 310 + 40, 60, 5).fill(this.colors.secondary);
 
         // Subject Info
         doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("PARTICIPANT:", 240, 420);
@@ -111,18 +170,32 @@ class PDFReportService {
         doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("DATE ISSUED:", 240, 530);
         doc.fontSize(14).font("Helvetica").fillColor(this.colors.primary).text(dateStr, 240, 545);
 
+        // Bottom color strip
+        // doc.rect(0, 800, 595, 20024).fill(this.colors.primary);
+        // doc.rect(0, 808, 595, 632).fill(this.colors.secondary);
+
         // Footer
-        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("© 2026 TALENT BY DESIGN. ALL RIGHTS RESERVED.", 240, 780);
+        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("© 2026 TALENT BY DESIGN. ALL RIGHTS RESERVED.", 240, 818);
     }
 
-    drawMasterCover(doc, orgName, dateStr) {
+    async drawMasterCover(doc, orgName, dateStr) {
         // Decorative background
         doc.rect(0, 0, 595, 842).fill(this.colors.white);
         doc.rect(0, 0, 200, 842).fill(this.colors.primary);
 
-        // Logo text
-        doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(18).text("TALENT BY DESIGN", 240, 60);
-        doc.fontSize(8).font("Helvetica").text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 75);
+        // Fetch & embed Cloudinary logo on white area
+        try {
+            const logoBuffer = await this.fetchImageBuffer(BRAND_LOGO_URL);
+            if (logoBuffer && logoBuffer.length > 0) {
+                doc.image(logoBuffer, 240, 52, { width: 160 });
+            } else {
+                doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(18).text("TALENT BY DESIGN", 240, 60);
+            }
+        } catch (e) {
+            doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(18).text("TALENT BY DESIGN", 240, 60);
+        }
+
+        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 90);
 
         // Titles
         doc.fontSize(44).font("Helvetica-Bold").fillColor(this.colors.primary).text("MASTER REPORT", 240, 250);
@@ -142,8 +215,8 @@ class PDFReportService {
     }
 
     drawHeader(doc, userName) {
-        doc.fillColor(this.colors.lightText).fontSize(7).font("Helvetica").text(userName.toUpperCase(), 400, 30, { align: "right" });
-        doc.moveTo(50, 40).lineTo(550, 40).strokeColor(this.colors.border).lineWidth(0.5).stroke();
+        doc.fillColor(this.colors.lightText).fontSize(8).font("Helvetica-Bold").text(userName.toUpperCase(), 400, 30, { align: "right" });
+        doc.moveTo(50, 42).lineTo(550, 42).strokeColor(this.colors.border).lineWidth(1).stroke();
     }
 
     applyPageNumbers(doc) {
@@ -151,15 +224,16 @@ class PDFReportService {
         for (let i = 0; i < pages.count; i++) {
             doc.switchToPage(i);
             if (i === 0) continue;
-            doc.fillColor(this.colors.lightText).fontSize(8).font("Helvetica").text(`© ${new Date().getFullYear()} Talent By Design | POD-360™ System Data`, 50, 800);
-            doc.text(`Page ${i + 1}`, 530, 800);
+            // Footer Line
+            doc.moveTo(50, 805).lineTo(550, 805).strokeColor(this.colors.border).lineWidth(0.5).stroke();
+            doc.fillColor(this.colors.lightText).fontSize(8).font("Helvetica").text(`Page ${i + 1}`, 530, 815);
         }
     }
 
     drawSystemArchitecture(doc) {
-        doc.fontSize(24).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD-360™ Model", 50, 70);
-        doc.moveDown();
-        doc.fontSize(10).font("Helvetica").fillColor(this.colors.text).text("The POD-360™ model evaluates performance across three interdependent dimensions. Sustainability requires balance between these areas; strength in one rarely compensates for a deficit in another over the long term.", { lineGap: 4 });
+        doc.fontSize(28).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD-360™ Model", 50, 70);
+        doc.moveDown(0.5);
+        doc.fontSize(11).font("Helvetica").fillColor(this.colors.text).text("The POD-360™ model evaluates performance across three interdependent dimensions. Sustainability requires balance between these areas; strength in one rarely compensates for a deficit in another over the long term.", { lineGap: 5 });
 
         // Domain boxes
         const domains = [
@@ -168,19 +242,19 @@ class PDFReportService {
             { name: "3. DIGITAL FLUENCY", d: "The adoption of technology, data literacy, and digital collaboration agilely." }
         ];
 
-        let y = 170;
+        let y = 180;
         domains.forEach(d => {
-            doc.rect(50, y, 500, 60).fill(this.colors.ice);
-            doc.fillColor(this.colors.primary).fontSize(11).font("Helvetica-Bold").text(d.name, 70, y + 15);
-            doc.fillColor(this.colors.text).fontSize(9).font("Helvetica").text(d.d, 70, y + 32);
-            y += 75;
+            doc.rect(50, y, 500, 75).fill(this.colors.ice);
+            doc.fillColor(this.colors.primary).fontSize(14).font("Helvetica-Bold").text(d.name, 70, y + 18);
+            doc.fillColor(this.colors.text).fontSize(11).font("Helvetica").text(d.d, 70, y + 38, { width: 440, lineGap: 3 });
+            y += 95;
         });
 
         // Interrelation explaining
-        doc.fontSize(14).font("Helvetica-Bold").fillColor(this.colors.secondary).text("THE DATA SYNERGY", 50, 420);
-        doc.fontSize(10).font("Helvetica").text("Your data is distributed across these domains to create a 'Portfolio Score'. We look for the Equilibrium Point.", { lineGap: 3 });
+        doc.fontSize(18).font("Helvetica-Bold").fillColor(this.colors.primary).text("THE DATA SYNERGY", 50, y + 30);
+        doc.fontSize(12).font("Helvetica").text("Your data is distributed across these domains to create a 'Portfolio Score'. We look for the Equilibrium Point (the center) as the marker for organizational stability. Large deviances indicate potential burnout or systemic fragility.", { lineGap: 5 });
 
-        this.drawPODTriangle(doc, 300, 620, 140, { p: 33.3, o: 33.3, d: 33.3 });
+        this.drawPODTriangle(doc, 300, 710, 110, { p: 40, o: 40, d: 40 });
     }
 
     drawPODTriangle(doc, x, y, size, data) {
@@ -220,36 +294,43 @@ class PDFReportService {
 
         // Gauge
         const score = Math.round(report?.scores?.overall || 0);
-        this.drawGauge(doc, 300, 220, 110, score);
+        this.drawGauge(doc, 300, 240, 100, score); // Larger Gauge
 
         // Classification Card
         const classification = report?.classification || "Medium";
         const color = score >= 75 ? this.colors.success : score <= 50 ? this.colors.accent : this.colors.warning;
+        const desc = aiInsight?.description || "Ongoing system monitoring based on 360 feedback cycles.";
+        const descHeight = doc.heightOfString(desc, { width: 460, lineGap: 4 });
+        const cardHeight = Math.max(100, 80 + descHeight);
+        let currentY = 320; // Moved down even more
 
-        doc.rect(50, 320, 500, 100).fill(this.colors.ice);
-        doc.fillColor(color).fontSize(14).font("Helvetica-Bold").text(classification.toUpperCase() + " PERFORMANCE INDEX", 70, 340);
-        doc.fillColor(this.colors.primary).fontSize(11).text(aiInsight?.title || "Operational Trajectory Established", 70, 365);
-        doc.fillColor(this.colors.text).fontSize(9).font("Helvetica").text(aiInsight?.description || "Ongoing system monitoring based on 360 feedback cycles.", 70, 385, { width: 460 });
+        doc.rect(50, currentY, 500, cardHeight).fill(this.colors.ice);
+        doc.fillColor(color).fontSize(16).font("Helvetica-Bold").text(classification.toUpperCase() + " PERFORMANCE INDEX", 70, currentY + 25);
+        doc.fillColor(this.colors.primary).fontSize(13).font("Helvetica-Bold").text(aiInsight?.title || "Operational Trajectory Established", 70, currentY + 52);
+        doc.fillColor(this.colors.text).fontSize(11).font("Helvetica").text(desc, 70, currentY + 75, { width: 460, lineGap: 4 });
 
-        doc.fontSize(16).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD SYNERGY MAP", 50, 450);
+        currentY += cardHeight + 45;
+
+        doc.fontSize(20).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD SYNERGY MAP", 50, currentY);
+        currentY += 30;
 
         // Dynamic Triangle for actual scores
         const dp = report.scores?.domains?.["People Potential"]?.score || 33.3;
         const doP = report.scores?.domains?.["Operational Steadiness"]?.score || 33.3;
         const dd = report.scores?.domains?.["Digital Fluency"]?.score || 33.3;
-        this.drawPODTriangle(doc, 300, 610, 120, { p: dp, o: doP, d: dd });
+        this.drawPODTriangle(doc, 300, currentY + 120, 120, { p: dp, o: doP, d: dd });
     }
 
     drawGauge(doc, x, y, r, val) {
         doc.save();
         doc.translate(x, y);
         // Track
-        doc.lineWidth(22).lineCap("round").strokeColor(this.colors.border).arc(0, 0, r, Math.PI, 2 * Math.PI).stroke();
+        doc.lineWidth(15).lineCap("round").strokeColor(this.colors.border).arc(0, 0, r, Math.PI, 2 * Math.PI).stroke();
         // Progress
         const color = val >= 75 ? this.colors.success : val <= 50 ? this.colors.accent : this.colors.warning;
         doc.strokeColor(color).arc(0, 0, r, Math.PI, Math.PI + (Math.max(0, Math.min(val, 100)) / 100) * Math.PI).stroke();
         // Values text
-        doc.fillColor(this.colors.primary).fontSize(42).font("Helvetica-Bold").text(`${val}%`, -45, 10, { width: 90, align: "center" });
+        doc.fillColor(this.colors.primary).fontSize(42).font("Helvetica-Bold").text(`${val}%`, -45, -20, { width: 90, align: "center" });
         doc.restore();
     }
 
@@ -264,7 +345,7 @@ class PDFReportService {
             if (item.type === 'kr') itemsHeight += 5; // Extra padding for KR layout
         });
 
-        const totalHeight = Math.max(80, contentHeight + itemsHeight + 15);
+        const totalHeight = Math.max(120, contentHeight + itemsHeight + 25);
 
         if (y + totalHeight > 780) {
             doc.addPage();
@@ -275,30 +356,30 @@ class PDFReportService {
         const fillColor = isIce ? this.colors.ice : this.colors.white;
         doc.rect(50, y, 500, totalHeight).fill(fillColor).strokeColor(isIce ? this.colors.secondary : this.colors.border).lineWidth(1).stroke();
 
-        doc.fillColor(this.colors.primary).fontSize(14).font("Helvetica-Bold").text(title, 70, y + 15);
+        doc.fillColor(this.colors.primary).fontSize(15).font("Helvetica-Bold").text(title, 70, y + 16);
         if (subtitle) {
-            doc.fillColor(this.colors.lightText).fontSize(9).font("Helvetica").text(subtitle, 70, y + 32);
+            doc.fillColor(this.colors.lightText).fontSize(10).font("Helvetica-Oblique").text(subtitle, 70, y + 34);
         }
 
         let currentItemY = y + contentHeight;
 
         items.forEach((item, idx) => {
             if (item.type === 'text') {
-                const textHeight = doc.heightOfString(item.text, { width: 460 });
-                doc.fillColor(item.color || this.colors.primary).fontSize(item.size || 10).font("Helvetica").text(item.text, 70, currentItemY, { width: 460 });
-                currentItemY += textHeight + (item.space || 8);
+                const textHeight = doc.heightOfString(item.text, { width: 460, lineGap: 3 });
+                doc.fillColor(item.color || this.colors.primary).fontSize(11).font("Helvetica").text(item.text, 70, currentItemY, { width: 460, lineGap: 3 });
+                currentItemY += textHeight + (item.space || 10);
             } else if (item.type === 'bullet') {
-                const textHeight = doc.heightOfString(item.text, { width: 440 });
-                doc.circle(75, currentItemY + 5, 2.5).fill(item.bulletColor || this.colors.secondary);
-                doc.fillColor(this.colors.primary).fontSize(9).font("Helvetica").text(item.text, 88, currentItemY, { width: 440 });
-                currentItemY += textHeight + (item.space || 8);
+                const textHeight = doc.heightOfString(item.text, { width: 440, lineGap: 2 });
+                doc.circle(75, currentItemY + 6, 2.5).fill(item.bulletColor || this.colors.secondary);
+                doc.fillColor(this.colors.primary).fontSize(10).font("Helvetica").text(item.text, 88, currentItemY, { width: 440, lineGap: 2 });
+                currentItemY += textHeight + (item.space || 10);
             } else if (item.type === 'kr') {
-                const textHeight = doc.heightOfString(item.text, { width: 420 });
-                doc.circle(85, currentItemY + 12, 12).lineWidth(2).strokeColor(this.colors.primary).stroke();
-                doc.fillColor(this.colors.primary).fontSize(8).font("Helvetica-Bold").text(`${idx + 1}`, 82, currentItemY + 8, { width: 6, align: 'center' });
-                doc.fillColor(this.colors.primary).fontSize(9).font("Helvetica-Bold").text(`KR ${idx + 1}`, 110, currentItemY);
-                doc.fillColor(this.colors.lightText).fontSize(8).font("Helvetica").text(item.text, 110, currentItemY + 14, { width: 420 });
-                currentItemY += textHeight + 25;
+                const textHeight = doc.heightOfString(item.text, { width: 420, lineGap: 2 });
+                doc.circle(85, currentItemY + 14, 12).lineWidth(2).strokeColor(this.colors.primary).stroke();
+                doc.fillColor(this.colors.primary).fontSize(9).font("Helvetica-Bold").text(`${idx + 1}`, 82, currentItemY + 10, { width: 6, align: 'center' });
+                doc.fillColor(this.colors.primary).fontSize(10).font("Helvetica-Bold").text(`KR ${idx + 1}`, 110, currentItemY);
+                doc.fillColor(this.colors.lightText).fontSize(9).font("Helvetica").text(item.text, 110, currentItemY + 16, { width: 420, lineGap: 2 });
+                currentItemY += textHeight + 30;
             }
         });
 
@@ -320,17 +401,17 @@ class PDFReportService {
 
         // Score Distribution & Gauge
         const dScore = Math.round(domainData?.score || 0);
-        this.drawGauge(doc, 300, 160, 65, dScore);
+        this.drawGauge(doc, 300, 240, 100, dScore); // Larger Gauge
 
         // Subdomain Breakdowns (Table format)
-        doc.fontSize(12).font("Helvetica-Bold").fillColor(this.colors.primary).text("SUB-DOMAIN ANALYSIS OVERVIEW", 50, 230);
+        doc.fontSize(14).font("Helvetica-Bold").fillColor(this.colors.primary).text("SUB-DOMAIN ANALYSIS OVERVIEW", 50, 290);
         const subs = domainData?.subdomains || {};
         const subNames = Object.keys(subs);
 
-        let sy = 250;
+        let sy = 310;
         for (const sName of subNames) {
             // Check for page break if subdomains are pushing too low
-            if (sy > 740) {
+            if (sy > 720) {
                 doc.addPage();
                 this.drawHeader(doc, userName);
                 sy = 70;
@@ -340,28 +421,55 @@ class PDFReportService {
             const sVal = Math.round(typeof rawVal === "object" ? (rawVal?.score ?? 0) : (rawVal ?? 0));
             const indColor = sVal >= 75 ? this.colors.success : sVal <= 50 ? this.colors.accent : this.colors.warning;
 
-            doc.rect(50, sy, 500, 32).lineWidth(0.5).strokeColor(this.colors.border).stroke();
-            doc.circle(70, sy + 16, 6).fill(indColor);
-            doc.fillColor(this.colors.primary).fontSize(10).font("Helvetica-Bold").text(sName, 90, sy + 11, { width: 380, ellipsis: true });
-            doc.fillColor(this.colors.primary).fontSize(12).font("Helvetica-Bold").text(`${sVal}%`, 480, sy + 10, { width: 60, align: "right" });
-            sy += 42;
+            doc.rect(50, sy, 500, 38).lineWidth(1).strokeColor(this.colors.border).stroke();
+            doc.circle(75, sy + 19, 7).fill(indColor);
+            doc.fillColor(this.colors.primary).fontSize(11).font("Helvetica-Bold").text(sName, 100, sy + 13, { width: 350, ellipsis: true });
+            doc.fillColor(this.colors.primary).fontSize(14).font("Helvetica-Bold").text(`${sVal}%`, 480, sy + 11, { width: 60, align: "right" });
+            sy += 48;
         }
 
-        let currentY = sy + 25;
+        let currentY = sy + 35;
 
         // --- DYNAMIC BLOCKS ---
 
+        // --- DYNAMIC BLOCKS ---
+
+        // Combine domain-level and subdomain-specific feedback details
+        let combinedInsight = domainData?.feedback?.insight || domainData?.feedback?.modelDescription || "";
+        let combinedCoaching = domainData?.feedback?.coachingTips || "";
+        let combinedPrograms = domainData?.feedback?.recommendedPrograms || "";
+
+        if (domainData?.subdomainFeedback) {
+            Object.keys(domainData.subdomainFeedback).forEach(sub => {
+                const fb = domainData.subdomainFeedback[sub];
+                if (!fb) return;
+
+                // Add unique subdomain content if it's not already in the domain level
+                const subInsight = fb.insight || fb.modelDescription || "";
+                if (subInsight && !combinedInsight.includes(subInsight)) {
+                    combinedInsight += "\n" + subInsight;
+                }
+
+                if (fb.coachingTips && !combinedCoaching.includes(fb.coachingTips)) {
+                    combinedCoaching += "\n" + fb.coachingTips;
+                }
+
+                if (fb.recommendedPrograms && !combinedPrograms.includes(fb.recommendedPrograms)) {
+                    combinedPrograms += "\n" + fb.recommendedPrograms;
+                }
+            });
+        }
+
         // 1. INSIGHT BLOCK
-        const mainInsight = domainData?.feedback?.insight || domainData?.feedback?.modelDescription || "";
-        const insightLines = this.getBulletedLines(mainInsight, 3);
+        const insightLines = this.getBulletedLines(combinedInsight, 5); // Increased limit
         const insightItems = insightLines.map(line => ({ type: 'bullet', text: line, bulletColor: this.colors.secondary }));
 
         if (insightItems.length === 0) insightItems.push({ type: 'text', text: "Analysis pending based on recently observed factors.", color: this.colors.lightText });
 
-        currentY = this.drawDynamicBlock(doc, `Overall Insight for ${domainName}`, "Overall synthesis representation", insightItems, currentY, true, userName);
+        currentY = this.drawDynamicBlock(doc, `Overall Insight for ${domainName}`, "Combined synthesis from all sub-domains", insightItems, currentY, true, userName);
 
         // 2. OKR BLOCK
-        const coachingLines = this.getBulletedLines(domainData?.feedback?.coachingTips || "", 4);
+        const coachingLines = this.getBulletedLines(combinedCoaching, 8); // Increased limit
         const okrItems = coachingLines.map(kr => ({ type: 'kr', text: kr }));
 
         if (okrItems.length === 0) okrItems.push({ type: 'text', text: "No specific key results tailored for this grouping.", color: this.colors.lightText });
@@ -369,7 +477,7 @@ class PDFReportService {
         currentY = this.drawDynamicBlock(doc, "Objectives and Key Results", "Develop essential skills based on domain analysis", okrItems, currentY, false, userName);
 
         // 3. RECOMMENDED OFFERINGS BLOCK
-        const recLines = this.getBulletedLines(domainData?.feedback?.recommendedPrograms || "", 5);
+        const recLines = this.getBulletedLines(combinedPrograms, 6); // Increased limit
         const recItems = recLines.map(rec => ({ type: 'bullet', text: rec, bulletColor: this.colors.primary }));
 
         if (recItems.length === 0) recItems.push({ type: 'text', text: "No supplemental recommendations evaluated presently.", color: this.colors.lightText });
@@ -401,9 +509,9 @@ class PDFReportService {
         // Render the table starting at a specific Y coordinate
         await doc.table(table, {
             start_y: 120,
-            prepareHeader: () => doc.font("Helvetica-Bold").fontSize(8).fillColor(this.colors.primary),
+            prepareHeader: () => doc.font("Helvetica-Bold").fontSize(9).fillColor(this.colors.primary),
             prepareRow: (row, indexColumn, indexRow, rectRow, rectCell) => {
-                doc.font("Helvetica").fontSize(8).fillColor(this.colors.text);
+                doc.font("Helvetica").fontSize(9).fillColor(this.colors.text);
             }
         });
     }
@@ -536,11 +644,11 @@ class PDFReportService {
         this.drawGauge(doc, centerGaugeX, gaugeY, radius, orgHealth);
 
         const healthExDesc = "The Organizational Health Index (OHI) represents the collective performance across all digital transformation domains. This score is aggregated from all member assessments.";
-        const healthExHeight = doc.heightOfString(healthExDesc, { width: 350 });
+        const healthExHeight = doc.heightOfString(healthExDesc, { width: 350, lineGap: 3 });
 
-        doc.fontSize(10).font("Helvetica").fillColor(this.colors.lightText).text(
+        doc.fontSize(11).font("Helvetica").fillColor(this.colors.lightText).text(
             healthExDesc,
-            125, gaugeY + 70, { width: 350, align: "center" }
+            125, gaugeY + 70, { width: 350, align: "center", lineGap: 3 }
         );
 
         // Domain Performance Table

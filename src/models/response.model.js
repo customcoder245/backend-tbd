@@ -77,6 +77,11 @@ const responseSchema = new Schema(
       default: null
     },
 
+    insightPrompt: {
+      type: String,
+      default: null
+    },
+
     subdomainWeight: {
       type: Number,
       required: true,

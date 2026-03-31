@@ -6,7 +6,9 @@ import {
   getMyAssessments,
   getSuperAdminStats,
   getSuperAdminIntelligence,
-  getAdminIntelligence
+  getAdminIntelligence,
+  getLeaderIntelligence,
+  getManagerIntelligence
 } from "../controllers/assessment.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 
@@ -39,5 +41,15 @@ router.get("/super-admin/intelligence", protect, getSuperAdminIntelligence);
  * Admin Intelligence
  */
 router.get("/admin/intelligence", protect, getAdminIntelligence);
+
+/**
+ * Leader Intelligence
+ */
+router.get("/leader/intelligence", protect, getLeaderIntelligence);
+
+/**
+ * Manager Intelligence
+ */
+router.get("/manager/intelligence", protect, getManagerIntelligence);
 
 export default router;

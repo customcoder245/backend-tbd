@@ -1,9 +1,9 @@
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
-import mongoose from "mongoose";
-
 import PDFReportService from "../services/pdfReport.service.js";
+import mongoose from "mongoose";
+import { sendReportReleasedEmail } from "../utils/sendEmail.js";
 
 const normalizeRole = (role = "") => role.toLowerCase().replace(/[_\s-]/g, "");
 
@@ -62,8 +62,79 @@ const getScopedAccessContext = async (loggedInUserId, queryUserId, queryEmailPay
  */
 const getLatestReportData = async (req, res, targetRole, returnData = false) => {
     try {
-        const { userId: queryUserId, email: queryEmailPayload } = req.query;
+        const { userId: queryUserId, email: queryEmailPayload, orgName: queryOrgName } = req.query;
         const loggedInUserId = req.user.userId;
+
+        // 🆕 ORG COLLECTIVE REPORT PATH (if orgName is provided and no specific user)
+        if (!queryUserId && !queryEmailPayload && (queryOrgName || req.user.orgName)) {
+            const orgToSearch = queryOrgName || req.user.orgName;
+            const orgRegex = new RegExp(`^${orgToSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
+            // Find all assessments for this organization
+            const allOrgAssessments = await SubmittedAssessment.find({
+                "userDetails.orgName": orgRegex
+            }).lean();
+
+            if (allOrgAssessments.length > 0) {
+                // AGGREGATE SCORES
+                const collectiveReport = {
+                    _id: "collective_report_" + orgToSearch,
+                    isReleased: true, // Collective is always released
+                    stakeholder: "Organization Collective",
+                    scores: {
+                        overall: 0,
+                        domains: {}
+                    },
+                    userDetails: {
+                        firstName: orgToSearch,
+                        lastName: "Collective Report",
+                        orgName: orgToSearch
+                    }
+                };
+
+                // Domain Map for averaging
+                const domainMap = {};
+                allOrgAssessments.forEach(report => {
+                    if (!report.scores?.domains) return;
+                    Object.entries(report.scores.domains).forEach(([dName, dData]) => {
+                        if (!domainMap[dName]) domainMap[dName] = { total: 0, count: 0, subdomains: {} };
+                        domainMap[dName].total += (dData.score || 0);
+                        domainMap[dName].count++;
+
+                        if (dData.subdomains) {
+                            Object.entries(dData.subdomains).forEach(([sName, sVal]) => {
+                                if (!domainMap[dName].subdomains[sName]) domainMap[dName].subdomains[sName] = { total: 0, count: 0 };
+                                domainMap[dName].subdomains[sName].total += (typeof sVal === 'number' ? sVal : sVal.score || 0);
+                                domainMap[dName].subdomains[sName].count++;
+                            });
+                        }
+                    });
+                });
+
+                // Finalize Averages
+                Object.entries(domainMap).forEach(([dName, dMeta]) => {
+                    collectiveReport.scores.domains[dName] = {
+                        score: Math.round(dMeta.total / dMeta.count),
+                        subdomains: {}
+                    };
+                    Object.entries(dMeta.subdomains).forEach(([sName, sMeta]) => {
+                        collectiveReport.scores.domains[dName].subdomains[sName] = Math.round(sMeta.total / sMeta.count);
+                    });
+                });
+
+                const overallAvg = Object.values(collectiveReport.scores.domains).reduce((acc, d) => acc + (d.score || 0), 0) / (Object.keys(collectiveReport.scores.domains).length || 1);
+                collectiveReport.scores.overall = Math.round(overallAvg);
+
+                return res.status(200).json({
+                    report: collectiveReport,
+                    firstReport: collectiveReport,
+                    user: collectiveReport.userDetails,
+                    isReleased: true,
+                    hasReport: true,
+                    isCollective: true
+                });
+            }
+        }
 
         const userId = queryUserId || loggedInUserId;
         const access = await getScopedAccessContext(loggedInUserId, queryUserId, queryEmailPayload);
@@ -105,6 +176,7 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
                     description: `Average score of ${Math.round(avgScore)}% across all domains.`,
                     type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
                 },
+                isReleased: report.isReleased || false,
                 hasReport: true
             };
 
@@ -168,6 +240,8 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
             report: latestReport,
             firstReport: firstReport,
             user: targetUser || latestReport.userDetails,
+            aiInsight: aiInsight, // Ensure aiInsight is included
+            isReleased: latestReport.isReleased || false,
             hasReport: true
         });
     } catch (error) {
@@ -262,6 +336,10 @@ export const getDomainDetailedReport = async (req, res) => {
 
         // Check for specific subdomain feedback, otherwise fallback to domain-level feedback
         let feedback = {};
+        let aggregatedInsights = [];
+        let aggregatedCoachingTips = [];
+        let aggregatedRecommendations = [];
+
         if (subdomain && domainData.subdomainFeedback) {
             // Try exact match first
             if (domainData.subdomainFeedback[subdomain]) {
@@ -279,6 +357,14 @@ export const getDomainDetailedReport = async (req, res) => {
             }
         } else {
             feedback = domainData.feedback || {};
+            // Aggregate all subdomain-level feedback when viewing domain-level
+            if (domainData.subdomainFeedback) {
+                Object.values(domainData.subdomainFeedback).forEach(subFb => {
+                    if (subFb.insight) aggregatedInsights.push(subFb.insight);
+                    if (subFb.coachingTips) aggregatedCoachingTips.push(subFb.coachingTips);
+                    if (subFb.recommendedPrograms) aggregatedRecommendations.push(subFb.recommendedPrograms);
+                });
+            }
         }
 
         const insightTitleLabel = subdomain ? `Insight for ${subdomain}` : `Insight for ${domain}`;
@@ -314,37 +400,61 @@ export const getDomainDetailedReport = async (req, res) => {
                 .filter(line => line.length > 0);
         };
 
+        // Aggregation logic for mainText
+        let finalInsight = feedback.insight || "";
+        if (aggregatedInsights.length > 0 && !subdomain) {
+            finalInsight = aggregatedInsights.join('\n\n');
+        }
+
+        let finalCoachingTips = feedback.coachingTips || "";
+        if (aggregatedCoachingTips.length > 0 && !subdomain) {
+            finalCoachingTips = aggregatedCoachingTips.join('\n\n');
+        }
+
+        let finalRecommendations = feedback.recommendedPrograms || "";
+        if (aggregatedRecommendations.length > 0 && !subdomain) {
+            finalRecommendations = aggregatedRecommendations.join('\n\n');
+        }
+
         // 1. Insights Pod (Domain analysis)
         const insightsPod = {
             title: feedback.pod360Title || insightTitleLabel,
             subtitle: feedback.pod360Description || "Overall analysis based on your responses",
-            mainText: filterBulletedLines(feedback.insight) || `No specific insights available for ${subdomain || domain} yet.`,
+            mainText: filterBulletedLines(finalInsight) || `No specific insights available for ${subdomain || domain} yet.`,
             modelDescription: filterBulletedLines(feedback.modelDescription) || "",
             phase: feedback.phaseIndicator || ""
         };
 
-        // 2. Objectives (OKRs) Pod - Derived from coaching tips
-        const actionItems = getBulletedItems(feedback.coachingTips);
+        // 2. Objectives (OKRs) Pod - Derived ONLY from manual objectives field
+        const actionItems = getBulletedItems(feedback.objectives || "");
 
-        const subdomainScore = (subdomain && domainData.subdomains && domainData.subdomains[subdomain])
-            ? domainData.subdomains[subdomain]
-            : domainData.score;
+        const progressValue = (feedback.progressScore !== undefined && feedback.progressScore !== null)
+            ? feedback.progressScore
+            : 0;
 
         const objectivesPod = {
             title: "Objectives And Key Results",
             subtitle: "Develop essential leadership and EI skills",
             items: actionItems, // Return all items as KRs
-            progress: Math.round(subdomainScore) || 0
+            progress: progressValue || 0
         };
 
         // 3. Recommended Offering Pod
-        const recommendations = getBulletedItems(feedback.recommendedPrograms);
+        const recommendations = getBulletedItems(finalRecommendations);
 
         const recommendationsPod = {
             title: "Talent By Design Recommended Offering",
             subtitle: `Strategic recommendations for ${subdomain || domain}`,
             items: recommendations,
             icon: "offering"
+        };
+
+        // 4. Coaching Tips Pod (Added explicitly)
+        const coachingTipsItems = getBulletedItems(finalCoachingTips);
+        const coachingTipsPod = {
+            title: "Coaching Tips",
+            subtitle: `Targeted guidance for ${subdomain || domain}`,
+            items: coachingTipsItems
         };
 
         res.status(200).json({
@@ -354,9 +464,12 @@ export const getDomainDetailedReport = async (req, res) => {
                 insights: insightsPod,
                 objectives: objectivesPod,
                 recommendations: recommendationsPod,
+                coachingTips: coachingTipsPod,
                 rawFeedback: {
                     insight: feedback.insight || "",
                     coachingTips: feedback.coachingTips || "",
+                    objectives: feedback.objectives || "",
+                    progressScore: feedback.progressScore !== undefined ? feedback.progressScore : 0,
                     recommendedPrograms: feedback.recommendedPrograms || "",
                     pod360Title: feedback.pod360Title || "",
                     pod360Description: feedback.pod360Description || "",
@@ -379,7 +492,7 @@ export const getDomainDetailedReport = async (req, res) => {
  */
 export const updateDomainDetailedReport = async (req, res) => {
     try {
-        const { userId: queryUserId, email: queryEmailPayload, domain, subdomain, insight, coachingTips, recommendedPrograms, pod360Title, pod360Description, modelDescription } = req.body;
+        const { userId: queryUserId, email: queryEmailPayload, domain, subdomain, insight, coachingTips, recommendedPrograms, pod360Title, pod360Description, modelDescription, objectives, progressScore } = req.body;
         const loggedInUserId = req.user.userId;
         const userId = queryUserId || loggedInUserId;
 
@@ -388,8 +501,11 @@ export const updateDomainDetailedReport = async (req, res) => {
         }
 
         const requester = await User.findById(loggedInUserId);
-        if (requester?.role?.toLowerCase() !== "superadmin" && requester?.role?.toLowerCase() !== "super_admin") {
-            return res.status(403).json({ message: "Only Super Admin can update the report details." });
+        const userRole = requester?.role?.toLowerCase();
+        const isAuthorized = userRole === "superadmin" || userRole === "super_admin" || userRole === "admin";
+
+        if (!isAuthorized) {
+            return res.status(403).json({ message: "Only Super Admin and Admin can update the report details." });
         }
 
         let targetUser = null;
@@ -399,64 +515,117 @@ export const updateDomainDetailedReport = async (req, res) => {
 
         let queryEmail = queryEmailPayload;
         let isGuest = false;
+        let inviteOrgName = null;
         if (!targetUser && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
             const invite = await Invitation.findById(queryUserId);
             if (invite) {
                 queryEmail = invite.email;
                 isGuest = true;
+                inviteOrgName = invite.orgName;
             }
         }
 
         let assessment = null;
         if (isGuest || queryEmail) {
-            const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`, 'i');
+            const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
             assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 });
         } else {
             assessment = await SubmittedAssessment.findOne({ userId }).sort({ submittedAt: -1 });
             if (!assessment && targetUser?.email) {
-                const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`, 'i');
+                const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
                 assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 });
             }
         }
 
-        if (!assessment || !assessment.scores || !assessment.scores.domains) {
-            return res.status(404).json({ message: "No scores found for this user." });
+        // Identify orgName first (important if assessment is null)
+        const orgName = assessment?.userDetails?.orgName || targetUser?.orgName || inviteOrgName || requester?.orgName;
+
+        if (!assessment && !orgName) {
+            return res.status(404).json({ message: "No assessment or organization found for this context." });
         }
 
-        let domainData = assessment.scores.domains[domain];
-        if (!domainData) {
-            return res.status(404).json({ message: `No data found for domain: ${domain}` });
+        // --- PREPARE PAYLOAD ---
+        const actualDomain = domain; // Fallback to provided domain
+        const updatePayload = {};
+        const prefix = subdomain
+            ? `scores.domains.${actualDomain}.subdomainFeedback.${subdomain}`
+            : `scores.domains.${actualDomain}.feedback`;
+
+        if (insight !== undefined) updatePayload[`${prefix}.insight`] = insight;
+        if (coachingTips !== undefined) updatePayload[`${prefix}.coachingTips`] = coachingTips;
+        if (recommendedPrograms !== undefined) updatePayload[`${prefix}.recommendedPrograms`] = recommendedPrograms;
+        if (pod360Title !== undefined) updatePayload[`${prefix}.pod360Title`] = pod360Title;
+        if (pod360Description !== undefined) updatePayload[`${prefix}.pod360Description`] = pod360Description;
+        if (modelDescription !== undefined) updatePayload[`${prefix}.modelDescription`] = modelDescription;
+        if (objectives !== undefined) updatePayload[`${prefix}.objectives`] = objectives;
+        if (progressScore !== undefined) updatePayload[`${prefix}.progressScore`] = progressScore;
+
+        if (progressScore !== undefined && progressScore !== null) {
+            const scorePath = subdomain
+                ? `scores.domains.${actualDomain}.subdomains.${subdomain}`
+                : `scores.domains.${actualDomain}.score`;
+            updatePayload[scorePath] = progressScore;
         }
 
-        if (subdomain) {
-            if (!domainData.subdomainFeedback) domainData.subdomainFeedback = {};
-            if (!domainData.subdomainFeedback[subdomain]) domainData.subdomainFeedback[subdomain] = {};
-            domainData.subdomainFeedback[subdomain].insight = insight;
-            domainData.subdomainFeedback[subdomain].coachingTips = coachingTips;
-            domainData.subdomainFeedback[subdomain].recommendedPrograms = recommendedPrograms;
-            domainData.subdomainFeedback[subdomain].pod360Title = pod360Title;
-            domainData.subdomainFeedback[subdomain].pod360Description = pod360Description;
-            domainData.subdomainFeedback[subdomain].modelDescription = modelDescription;
-        } else {
-            if (!domainData.feedback) domainData.feedback = {};
-            domainData.feedback.insight = insight;
-            domainData.feedback.coachingTips = coachingTips;
-            domainData.feedback.recommendedPrograms = recommendedPrograms;
-            domainData.feedback.pod360Title = pod360Title;
-            domainData.feedback.pod360Description = pod360Description;
-            domainData.feedback.modelDescription = modelDescription;
-        }
-        if (pod360Title || pod360Description) {
-            if (!assessment.customAiInsight) assessment.customAiInsight = {};
-            if (pod360Title) assessment.customAiInsight.title = pod360Title;
-            if (pod360Description) assessment.customAiInsight.description = pod360Description;
-            assessment.markModified('customAiInsight');
+        // 1. Update individual assessment if it exists
+        if (assessment) {
+            // Re-find actual key for exact individual match (casing)
+            const domainKey = (assessment.scores?.domains)
+                ? Object.keys(assessment.scores.domains).find(k => k.toLowerCase().trim() === domain.toLowerCase().trim())
+                : null;
+
+            const currentActualDomain = domainKey || domain;
+            const itemPrefix = subdomain ? `subdomainFeedback.${subdomain}` : `feedback`;
+
+            if (!assessment.scores.domains[currentActualDomain]) assessment.scores.domains[currentActualDomain] = { score: 0 };
+            const domainData = assessment.scores.domains[currentActualDomain];
+
+            if (subdomain) {
+                if (!domainData.subdomainFeedback) domainData.subdomainFeedback = {};
+                if (!domainData.subdomainFeedback[subdomain]) domainData.subdomainFeedback[subdomain] = {};
+                const subF = domainData.subdomainFeedback[subdomain];
+                Object.assign(subF, { insight, coachingTips, recommendedPrograms, pod360Title, pod360Description, modelDescription, objectives, progressScore });
+                if (progressScore !== undefined && progressScore !== null) {
+                    if (!domainData.subdomains) domainData.subdomains = {};
+                    domainData.subdomains[subdomain] = progressScore;
+                }
+            } else {
+                if (!domainData.feedback) domainData.feedback = {};
+                Object.assign(domainData.feedback, { insight, coachingTips, recommendedPrograms, pod360Title, pod360Description, modelDescription, objectives, progressScore });
+                if (progressScore !== undefined && progressScore !== null) domainData.score = progressScore;
+            }
+
+            if (pod360Title || pod360Description) {
+                if (!assessment.customAiInsight) assessment.customAiInsight = {};
+                if (pod360Title) assessment.customAiInsight.title = pod360Title;
+                if (pod360Description) assessment.customAiInsight.description = pod360Description;
+                assessment.markModified('customAiInsight');
+            }
+            assessment.markModified('scores');
+            await assessment.save();
         }
 
-        assessment.markModified('scores');
-        await assessment.save();
+        // 2. Propagation Logic (Update EVERY person in the org)
+        if (orgName && Object.keys(updatePayload).length > 0) {
+            console.log(`[Propagation] Updating org: ${orgName} for domain: ${actualDomain}`);
+            await SubmittedAssessment.updateMany(
+                { "userDetails.orgName": orgName },
+                { $set: updatePayload }
+            );
 
-        res.status(200).json({ message: "Report details updated successfully." });
+            // Handle overall AI insight if provided
+            if (pod360Title || pod360Description) {
+                const aiUpdate = {};
+                if (pod360Title) aiUpdate["customAiInsight.title"] = pod360Title;
+                if (pod360Description) aiUpdate["customAiInsight.description"] = pod360Description;
+                await SubmittedAssessment.updateMany(
+                    { "userDetails.orgName": orgName },
+                    { $set: aiUpdate }
+                );
+            }
+        }
+
+        res.status(200).json({ message: "Report details updated successfully for the entire organization." });
     } catch (error) {
         console.error("Error in updateDomainDetailedReport:", error);
         res.status(500).json({ message: "Error updating detailed report", error: error.message });
@@ -467,25 +636,34 @@ export const updateDomainDetailedReport = async (req, res) => {
  * Shared helper to aggregate organization/team averages
  */
 async function getOrganizationContextData(req, res) {
-    const { userId: queryUserId, email: queryEmailPayload, includeSelf, department: queryDept } = req.query;
+    const { userId: queryUserId, email: queryEmailPayload, includeSelf, department: queryDept, orgName: queryOrgName } = req.query;
     const loggedInUserId = req.user.userId;
-    const targetUserId = queryUserId || loggedInUserId;
-    const requesterRole = normalizeRole(req.user?.role);
+    var contextManager = null;
 
-    // 1. Identify the manager
-    let managerUser = await User.findById(targetUserId);
-    if (!managerUser && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
-        const invite = await Invitation.findById(queryUserId);
-        if (invite) {
-            managerUser = { email: invite.email, orgName: invite.orgName, department: invite.department };
+    let targetOrg = queryOrgName;
+    let targetDept = queryDept;
+
+    if (!targetOrg) {
+        const targetUserId = queryUserId || loggedInUserId;
+
+        // 1. Identify the manager
+        contextManager = await User.findById(targetUserId);
+        if (!contextManager && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
+            const invite = await Invitation.findById(queryUserId);
+            if (invite) {
+                contextManager = { email: invite.email, orgName: invite.orgName, department: invite.department };
+            }
+        }
+        if (contextManager) {
+            targetOrg = contextManager.orgName;
+            if (!targetDept) targetDept = contextManager.department;
         }
     }
-    if (!managerUser) return null;
 
-    const orgName = managerUser.orgName;
-    const managerDept = (queryDept || managerUser.department || "").trim().toLowerCase();
+    if (!targetOrg) return null;
 
-    if (!orgName) return null;
+    const orgName = targetOrg;
+    const managerDept = (targetDept || "").trim().toLowerCase();
 
     const safeOrg = orgName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const orgRegex = new RegExp(`^${safeOrg}$`, 'i');
@@ -504,8 +682,8 @@ async function getOrganizationContextData(req, res) {
         isDeleted: { $ne: true }
     }).select("userId userDetails scores submittedAt").sort({ submittedAt: -1 }).lean();
 
-    if (!includeSelf) {
-        const managerEmail = (managerUser.email || "").toLowerCase();
+    if (!includeSelf && contextManager) {
+        const managerEmail = (contextManager.email || "").toLowerCase();
         allAssessments = allAssessments.filter(a => (a.userDetails?.email || "").toLowerCase() !== managerEmail);
     }
 
@@ -586,16 +764,11 @@ async function getOrganizationContextData(req, res) {
 
 export const exportPdfReport = async (req, res) => {
     try {
-        const requesterRole = normalizeRole(req.user?.role);
-        if (["leader", "manager"].includes(requesterRole)) {
-            return res.status(403).json({ message: "Export is not available for this role." });
-        }
+        const { userId: queryUserId, email: queryEmailPayload, orgName: queryOrgName } = req.query;
 
-        const { userId: queryUserId, email: queryEmailPayload } = req.query;
-
-        // 1. Fetch Participant Data (if userId exists)
+        // 1. Fetch Participant Data (if userId or orgName exists)
         let data = null;
-        if (queryUserId || queryEmailPayload) {
+        if (queryUserId || queryEmailPayload || queryOrgName) {
             data = await getLatestReportData(req, res, "employee", true);
         }
 
@@ -604,11 +777,13 @@ export const exportPdfReport = async (req, res) => {
 
         if (data && data.hasReport) {
             data.comparisonData = comparisonData;
-        } else if (!queryUserId && !queryEmailPayload) {
-            // No user selected => Generate MASTER ORG REPORT
+            if (queryOrgName && !queryUserId) data.isMasterReport = true;
+        } else if (!queryUserId && !queryEmailPayload && !queryOrgName) {
+            // No user or org selected => Generate DEFAULT MASTER ORG REPORT for Admin
+            const orgName = req.user.orgName || "Organization";
             data = {
                 isMasterReport: true,
-                orgName: req.user.orgName || "Organization",
+                orgName: orgName,
                 comparisonData: comparisonData,
                 user: req.user, // The Admin
                 hasReport: true
@@ -727,5 +902,117 @@ export const getManagerTeamAvg = async (req, res) => {
     } catch (error) {
         console.error("getManagerTeamAvg error:", error);
         res.status(500).json({ message: "Error fetching team averages", error: error.message });
+    }
+};
+
+/**
+ * 🆕 RELEASE REPORT API
+ * Updates isReleased to true and sends notification email to the user
+ */
+export const releaseReport = async (req, res) => {
+    try {
+        const { userId, email } = req.body;
+        const loggedInUserId = req.user.userId;
+
+        const requester = await User.findById(loggedInUserId);
+        const rRole = requester?.role?.toLowerCase();
+        const isAuthorized = rRole === "superadmin" || rRole === "super_admin";
+
+        if (!isAuthorized) {
+            return res.status(403).json({ message: "Only Super Admin and Admin can release reports." });
+        }
+
+        let assessment = null;
+        if (email) {
+            const emailRegex = new RegExp(`^${email.replace(/[.*+?^${}()|[\\\]\\]/g, '\\$&')}$`, 'i');
+            assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 });
+        } else if (userId) {
+            assessment = await SubmittedAssessment.findOne({ userId }).sort({ submittedAt: -1 });
+        }
+
+        if (!assessment) {
+            return res.status(404).json({ message: "No assessment found to release." });
+        }
+
+        if (assessment.isReleased) {
+            return res.status(400).json({ message: "Report is already released." });
+        }
+
+        assessment.isReleased = true;
+        await assessment.save();
+
+        // 📧 GENERATE PDF & SEND ATTACHMENT
+        try {
+            const targetUser = assessment.userDetails;
+            const reportType = assessment.stakeholder || "Professional Assessment";
+
+            // 1. Prepare data for PDF (including comparison)
+            const domainScoresArray = Object.values(assessment.scores?.domains || {});
+            const avgScore = domainScoresArray.length > 0
+                ? domainScoresArray.reduce((acc, d) => acc + (d.score || 0), 0) / domainScoresArray.length : 0;
+            const aiInsight = {
+                title: avgScore > 75 ? "Excellence Sustained" : avgScore < 50 ? "Opportunity for Shift" : "Performance Trajectory",
+                description: `Average score of ${Math.round(avgScore)}% across all domains.`,
+                type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
+            };
+
+            // Mocking comparisonData or fetching if possible (simplified for email)
+            const data = {
+                report: assessment,
+                user: targetUser,
+                aiInsight,
+                hasReport: true
+            };
+
+            const pdfBuffer = await PDFReportService.generateReportBuffer(data);
+            await sendReportReleasedEmail(targetUser, reportType, pdfBuffer);
+        } catch (err) {
+            console.error("[ReleaseReport] Delivery failed but status updated:", err.message);
+        }
+
+        res.status(200).json({
+            message: "Report successfully released and user notified.",
+            isReleased: true
+        });
+    } catch (error) {
+        console.error("Error in releaseReport:", error);
+        res.status(500).json({ message: "Error releasing report", error: error.message });
+    }
+};
+
+/**
+ * 🆕 PUBLIC DOWNLOAD REPORT (FOR GUEST EMPLOYEES)
+ * No auth required, but MUST be released
+ */
+export const publicDownloadReport = async (req, res) => {
+    try {
+        const { email } = req.query;
+        if (!email) return res.status(400).json({ message: "Email is required" });
+
+        const emailRegex = new RegExp(`^${email.replace(/[.*+?^${}()|[\\\]\\]/g, '\\$&')}$`, 'i');
+        const report = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 }).lean();
+
+        if (!report) return res.status(404).json({ message: "No report found for this email address." });
+        if (!report.isReleased) return res.status(403).json({ message: "This report has not been officially released by an administrator yet." });
+
+        const data = {
+            report,
+            user: report.userDetails,
+            hasReport: true
+        };
+
+        const userName = `${data.user?.firstName || ""} ${data.user?.lastName || ""}`.trim() || data.user?.email || "Participant";
+        const sanitizedUserName = userName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const fileName = `POD360_Report_${sanitizedUserName}_${new Date().toISOString().substring(0, 10)}.pdf`;
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+        await PDFReportService.generateReport(data, res);
+    } catch (error) {
+        console.error("Public Download Error:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: "Failed to download report", error: error.message });
+        }
     }
 };

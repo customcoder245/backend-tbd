@@ -591,23 +591,20 @@ export const getAdminIntelligence = async (req, res) => {
       return res.status(400).json({ message: "Admin organization not found" });
     }
 
-    const { range } = req.query;
-
-    // --- DATE FILTERING LOGIC ---
-    let dateFilter = {};
+    const { quarter, year: queryYear } = req.query;
     const now = new Date();
-    if (range === "This Week") {
-      const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-      startOfWeek.setHours(0, 0, 0, 0);
-      dateFilter = { createdAt: { $gte: startOfWeek } };
-    } else if (range === "This Month") {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      dateFilter = { createdAt: { $gte: startOfMonth } };
-    } else if (range === "Quarterly") {
-      const currentQuarter = Math.floor(now.getMonth() / 3);
-      const startOfQuarter = new Date(now.getFullYear(), currentQuarter * 3, 1);
-      dateFilter = { createdAt: { $gte: startOfQuarter } };
-    }
+    const selectedYear = queryYear ? parseInt(queryYear) : now.getFullYear();
+    const selectedQuarter = quarter ? parseInt(quarter) : Math.floor(now.getMonth() / 3) + 1;
+
+    const cycleMap = {
+      1: { start: new Date(selectedYear, 0, 1), end: new Date(selectedYear, 2, 31, 23, 59, 59) },
+      2: { start: new Date(selectedYear, 3, 1), end: new Date(selectedYear, 5, 30, 23, 59, 59) },
+      3: { start: new Date(selectedYear, 6, 1), end: new Date(selectedYear, 8, 30, 23, 59, 59) },
+      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59) },
+    };
+
+    const period = cycleMap[selectedQuarter];
+    let dateFilter = { $or: [{ createdAt: { $gte: period.start, $lte: period.end } }, { submittedAt: { $gte: period.start, $lte: period.end } }] };
 
     const teamFilter = { orgName, role: { $ne: "admin" } };
     // Apply date filter to assessments
@@ -774,5 +771,316 @@ export const getAdminIntelligence = async (req, res) => {
   } catch (error) {
     console.error("Admin Intelligence Error:", error);
     res.status(500).json({ message: "Error fetching admin intelligence data" });
+  }
+};
+
+/**
+ * GET LEADER INTELLIGENCE (Department Dashboard Data)
+ */
+export const getLeaderIntelligence = async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.userId).lean();
+    const { orgName, department: requesterDept } = requester || req.user;
+    if (!orgName) {
+      return res.status(400).json({ message: "Organization not found" });
+    }
+
+    const { quarter, year: queryYear } = req.query;
+    const now = new Date();
+    const selectedYear = queryYear ? parseInt(queryYear) : now.getFullYear();
+    const selectedQuarter = quarter ? parseInt(quarter) : Math.floor(now.getMonth() / 3) + 1;
+
+    const cycleMap = {
+      1: { start: new Date(selectedYear, 0, 1), end: new Date(selectedYear, 2, 31, 23, 59, 59) },
+      2: { start: new Date(selectedYear, 3, 1), end: new Date(selectedYear, 5, 30, 23, 59, 59) },
+      3: { start: new Date(selectedYear, 6, 1), end: new Date(selectedYear, 8, 30, 23, 59, 59) },
+      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59) },
+    };
+
+    const period = cycleMap[selectedQuarter];
+    let dateFilter = { $or: [{ createdAt: { $gte: period.start, $lte: period.end } }, { submittedAt: { $gte: period.start, $lte: period.end } }] };
+
+    // Leader sees manager and employee in their department
+    const teamFilter = {
+      orgName,
+      department: requesterDept,
+      role: { $in: ["manager", "employee"] }
+    };
+
+    // Fallback if department is empty (meaning they shouldn't see anyone if they aren't assigned a department properly, except maybe if the data is messy, but let's be strict or lenient?)
+    // Let's rely on JavaScript filtering to be safe, so we fetch broadly and filter
+    const broadFilter = { orgName, role: { $in: ["manager", "employee"] } };
+    const assessmentFilter = { orgName, ...dateFilter };
+
+    const [assessments, registeredUsers, activeInviteCount, recentInvites] = await Promise.all([
+      Assessment.find({ ...assessmentFilter, isDeleted: { $ne: true } }).lean(),
+      User.find(broadFilter).lean(),
+      Invitation.countDocuments({ ...broadFilter, used: false, department: requesterDept }),
+      Invitation.find({ ...broadFilter, ...dateFilter }).sort({ createdAt: -1 }).limit(20).lean() // fetch more, filter later
+    ]);
+
+    const peopleMap = new Map();
+
+    registeredUsers.forEach(u => {
+      // Apply strict dept matching
+      if (requesterDept && u.department && u.department !== requesterDept) return;
+
+      const email = u.email.toLowerCase();
+      peopleMap.set(email, {
+        email,
+        name: u.firstName !== "-" ? `${u.firstName} ${u.lastName}` : u.email,
+        role: u.role,
+        status: "Registered",
+        assessmentStatus: "Not Started",
+        lastScore: u.lastAssessmentScore || 0,
+        classification: u.lastAssessmentClassification || null
+      });
+    });
+
+    assessments.forEach(a => {
+      const email = a.employeeEmail?.toLowerCase() || a.userDetails?.email?.toLowerCase();
+      const role = (a.userDetails?.role || a.stakeholder || "").toLowerCase();
+      const dept = a.userDetails?.department || "";
+
+      if (!email) return;
+      if (!["manager", "employee"].includes(role)) return;
+      if (requesterDept && dept && dept !== requesterDept) return;
+
+      const existing = peopleMap.get(email);
+      // If strict filter removed them, and we only have them in assessment, check dept
+      if (!existing && requesterDept && dept !== requesterDept) return;
+
+      const name = a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : (existing?.name || email);
+
+      peopleMap.set(email, {
+        email,
+        name,
+        role: a.userDetails?.role || existing?.role || "Employee",
+        status: a.isCompleted ? "Completed" : "Active",
+        assessmentStatus: a.isCompleted ? "Completed" : "In Progress",
+        lastActivity: a.submittedAt || a.updatedAt || a.createdAt,
+        lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : (existing?.lastScore || 0),
+        classification: a.isCompleted ? a.classification : (existing?.classification || null)
+      });
+    });
+
+    const uniquePeople = Array.from(peopleMap.values());
+    const completedCount = uniquePeople.filter(p => p.assessmentStatus === "Completed").length;
+    const inProgressCount = uniquePeople.filter(p => p.assessmentStatus === "In Progress").length;
+    const notStartedCount = uniquePeople.filter(p => p.assessmentStatus === "Not Started").length;
+
+    const participationRate = uniquePeople.length > 0 ? Math.round((completedCount / uniquePeople.length) * 100) : 0;
+
+    const stats = {
+      totalMembers: uniquePeople.length,
+      activeInvites: activeInviteCount, // note: only counts strict
+      completedAssessments: completedCount,
+      inProgressAssessments: inProgressCount,
+      notStartedAssessments: notStartedCount,
+      participationRate: participationRate,
+      completionRate: participationRate
+    };
+
+    const roleStats = {
+      manager: uniquePeople.filter(p => p.role?.toLowerCase() === "manager").length,
+      employee: uniquePeople.filter(p => p.role?.toLowerCase() === "employee").length,
+    };
+
+    // Filter invites strictly now
+    const filteredInvites = recentInvites.filter(i => !requesterDept || i.department === requesterDept).slice(0, 5);
+
+    const activityStream = [
+      ...assessments
+        .filter(a => {
+          const role = (a.userDetails?.role || a.stakeholder || "").toLowerCase();
+          const dept = a.userDetails?.department;
+          return ["manager", "employee"].includes(role) && (!requesterDept || dept === requesterDept);
+        })
+        .map(a => ({
+          id: a._id,
+          user: a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : a.employeeEmail,
+          action: a.isCompleted ? "Completed assessment" : "Started assessment",
+          time: a.submittedAt || a.createdAt,
+          type: a.isCompleted ? "completion" : "start",
+          role: a.userDetails?.role || "Participant"
+        })),
+      ...filteredInvites.map(i => ({
+        id: i._id,
+        user: i.name || i.email,
+        action: "Invitation sent",
+        time: i.createdAt,
+        type: "invitation",
+        role: i.role
+      }))
+    ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5);
+
+    let insight = "Assessment phase initiated for your department.";
+    if (participationRate > 75) {
+      insight = "Excellent engagement within your department! Ready to review specific operational feedback.";
+    } else if (participationRate > 40) {
+      insight = "Steady departmental progress. Follow up with pending members.";
+    }
+
+    res.status(200).json({
+      stats,
+      roleBreakdown: roleStats,
+      activityStream,
+      orgName,
+      people: uniquePeople,
+      strategicInsight: insight,
+      department: requesterDept
+    });
+  } catch (error) {
+    console.error("Leader Intelligence Error:", error);
+    res.status(500).json({ message: "Error fetching leader intelligence data" });
+  }
+};
+
+/**
+ * GET MANAGER INTELLIGENCE (Team Dashboard Data)
+ */
+export const getManagerIntelligence = async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.userId).lean();
+    const { orgName, department: requesterDept } = requester || req.user;
+    if (!orgName) {
+      return res.status(400).json({ message: "Organization not found" });
+    }
+
+    const { quarter, year: queryYear } = req.query;
+    const now = new Date();
+    const selectedYear = queryYear ? parseInt(queryYear) : now.getFullYear();
+    const selectedQuarter = quarter ? parseInt(quarter) : Math.floor(now.getMonth() / 3) + 1;
+
+    const cycleMap = {
+      1: { start: new Date(selectedYear, 0, 1), end: new Date(selectedYear, 2, 31, 23, 59, 59) },
+      2: { start: new Date(selectedYear, 3, 1), end: new Date(selectedYear, 5, 30, 23, 59, 59) },
+      3: { start: new Date(selectedYear, 6, 1), end: new Date(selectedYear, 8, 30, 23, 59, 59) },
+      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59) },
+    };
+
+    const period = cycleMap[selectedQuarter];
+    let dateFilter = { $or: [{ createdAt: { $gte: period.start, $lte: period.end } }, { submittedAt: { $gte: period.start, $lte: period.end } }] };
+
+    // Manager sees ONLY employees in their department
+    const broadFilter = { orgName, role: "employee" };
+    const assessmentFilter = { orgName, ...dateFilter };
+
+    const [assessments, registeredUsers, activeInviteCount, recentInvites] = await Promise.all([
+      Assessment.find({ ...assessmentFilter, isDeleted: { $ne: true } }).lean(),
+      User.find(broadFilter).lean(),
+      Invitation.countDocuments({ ...broadFilter, used: false, department: requesterDept }),
+      Invitation.find({ ...broadFilter, ...dateFilter }).sort({ createdAt: -1 }).limit(20).lean()
+    ]);
+
+    const peopleMap = new Map();
+
+    registeredUsers.forEach(u => {
+      if (requesterDept && u.department && u.department !== requesterDept) return;
+
+      const email = u.email.toLowerCase();
+      peopleMap.set(email, {
+        email,
+        name: u.firstName !== "-" ? `${u.firstName} ${u.lastName}` : u.email,
+        role: u.role,
+        status: "Registered",
+        assessmentStatus: "Not Started",
+        lastScore: u.lastAssessmentScore || 0,
+        classification: u.lastAssessmentClassification || null
+      });
+    });
+
+    assessments.forEach(a => {
+      const email = a.employeeEmail?.toLowerCase() || a.userDetails?.email?.toLowerCase();
+      const role = (a.userDetails?.role || a.stakeholder || "").toLowerCase();
+      const dept = a.userDetails?.department || "";
+
+      if (!email || role !== "employee") return;
+      if (requesterDept && dept && dept !== requesterDept) return;
+
+      const existing = peopleMap.get(email);
+      if (!existing && requesterDept && dept !== requesterDept) return;
+
+      const name = a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : (existing?.name || email);
+
+      peopleMap.set(email, {
+        email,
+        name,
+        role: a.userDetails?.role || existing?.role || "Employee",
+        status: a.isCompleted ? "Completed" : "Active",
+        assessmentStatus: a.isCompleted ? "Completed" : "In Progress",
+        lastActivity: a.submittedAt || a.updatedAt || a.createdAt,
+        lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : (existing?.lastScore || 0),
+        classification: a.isCompleted ? a.classification : (existing?.classification || null)
+      });
+    });
+
+    const uniquePeople = Array.from(peopleMap.values());
+    const completedCount = uniquePeople.filter(p => p.assessmentStatus === "Completed").length;
+    const inProgressCount = uniquePeople.filter(p => p.assessmentStatus === "In Progress").length;
+    const notStartedCount = uniquePeople.filter(p => p.assessmentStatus === "Not Started").length;
+
+    const participationRate = uniquePeople.length > 0 ? Math.round((completedCount / uniquePeople.length) * 100) : 0;
+
+    const stats = {
+      totalMembers: uniquePeople.length,
+      activeInvites: activeInviteCount,
+      completedAssessments: completedCount,
+      inProgressAssessments: inProgressCount,
+      notStartedAssessments: notStartedCount,
+      participationRate: participationRate,
+      completionRate: participationRate
+    };
+
+    const roleStats = {
+      employee: uniquePeople.length,
+    };
+
+    const filteredInvites = recentInvites.filter(i => !requesterDept || i.department === requesterDept).slice(0, 5);
+
+    const activityStream = [
+      ...assessments
+        .filter(a => {
+          const role = (a.userDetails?.role || a.stakeholder || "").toLowerCase();
+          const dept = a.userDetails?.department;
+          return role === "employee" && (!requesterDept || dept === requesterDept);
+        })
+        .map(a => ({
+          id: a._id,
+          user: a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : a.employeeEmail,
+          action: a.isCompleted ? "Completed assessment" : "Started assessment",
+          time: a.submittedAt || a.createdAt,
+          type: a.isCompleted ? "completion" : "start",
+          role: a.userDetails?.role || "Participant"
+        })),
+      ...filteredInvites.map(i => ({
+        id: i._id,
+        user: i.name || i.email,
+        action: "Invitation sent",
+        time: i.createdAt,
+        type: "invitation",
+        role: i.role
+      }))
+    ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5);
+
+    let insight = "Team assessment phase initiated.";
+    if (participationRate > 75) {
+      insight = "Your immediate team is fully engaged! Review individual feedback for specific guidance.";
+    } else if (participationRate > 40) {
+      insight = "Team progress is underway. A quick reminder to your direct reports could help.";
+    }
+
+    res.status(200).json({
+      stats,
+      roleBreakdown: roleStats,
+      activityStream,
+      orgName,
+      people: uniquePeople,
+      strategicInsight: insight,
+      department: requesterDept
+    });
+  } catch (error) {
+    console.error("Manager Intelligence Error:", error);
+    res.status(500).json({ message: "Error fetching manager intelligence data" });
   }
 };

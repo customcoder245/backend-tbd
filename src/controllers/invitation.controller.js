@@ -48,9 +48,7 @@ export const sendInvitation = async (req, res) => {
         const targetRole = role.toLowerCase();
         const rolePermissions = {
             superadmin: ["admin"],
-            admin: ["leader", "manager", "employee"],
-            leader: ["manager", "employee"],
-            manager: ["employee"]
+            admin: ["leader", "manager", "employee"]
         };
 
         if (!rolePermissions[inviterRole]?.includes(targetRole)) {
@@ -469,9 +467,7 @@ export const sendBulkInvitations = async (req, res) => {
 
         const rolePermissions = {
             superadmin: ["admin"],
-            admin: ["leader", "manager", "employee"],
-            leader: ["manager", "employee"],
-            manager: ["employee"]
+            admin: ["leader", "manager", "employee"]
         };
 
         let successCount = 0;
