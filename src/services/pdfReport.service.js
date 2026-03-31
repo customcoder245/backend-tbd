@@ -104,12 +104,12 @@ class PDFReportService {
                 await this.drawComparisonPage(doc, userName, data.comparisonData, report.scores?.domains || {});
             }
 
-            // Appendix: Detailed Raw Responses (only if there are meaningful responses)
+            /* Appendix: Detailed Raw Responses (only if there are meaningful responses)
             if (report.responses && report.responses.length > 5) {
                 doc.addPage();
                 this.drawHeader(doc, userName);
                 await this.drawAppendixResponses(doc, report.responses);
-            }
+            } */
         }
 
         this.applyPageNumbers(doc);
