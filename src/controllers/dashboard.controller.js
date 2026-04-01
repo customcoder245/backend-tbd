@@ -573,33 +573,12 @@ export const updateDomainDetailedReport = async (req, res) => {
             await assessment.save();
         }
 
-        // 2. Propagation Logic (Update EVERY person in the org)
-        if (orgName && Object.keys(updatePayload).length > 0) {
-            console.log(`[Propagation] Updating org: ${orgName} for domain: ${actualDomain}`);
-            await SubmittedAssessment.updateMany(
-                { "userDetails.orgName": orgName },
-                { $set: updatePayload }
-            );
-
-            // Handle overall AI insight if provided
-            if (pod360Title || pod360Description) {
-                const aiUpdate = {};
-                if (pod360Title) aiUpdate["customAiInsight.title"] = pod360Title;
-                if (pod360Description) aiUpdate["customAiInsight.description"] = pod360Description;
-                await SubmittedAssessment.updateMany(
-                    { "userDetails.orgName": orgName },
-                    { $set: aiUpdate }
-                );
-            }
-        }
-
-        res.status(200).json({ message: "Report details updated successfully for the entire organization." });
+        res.status(200).json({ message: "Report feedback details updated successfully for the selected user." });
     } catch (error) {
         console.error("Error in updateDomainDetailedReport:", error);
         res.status(500).json({ message: "Error updating detailed report", error: error.message });
     }
 };
-
 /**
  * Shared helper to aggregate organization/team averages
  */
