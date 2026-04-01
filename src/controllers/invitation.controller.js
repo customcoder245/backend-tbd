@@ -3,7 +3,7 @@ import Invitation from "../models/invitation.model.js";
 import Assessment from "../models/assessment.model.js";
 import { sendInvitationEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
-import { createNotification } from "../utils/notification.utils.js";
+import { createNotification, notifyHierarchy } from "../utils/notification.utils.js";
 import fs from "fs";
 import csv from "csv-parser";
 
@@ -107,7 +107,16 @@ export const sendInvitation = async (req, res) => {
             });
         }
 
+        // --- HIERARCHICAL NOTIFICATION ---
+        notifyHierarchy({
+            initiatorId: inviterId,
+            title: "Invitation Sent",
+            message: `${inviter.firstName || inviter.email} has invited ${email} as ${role} for ${inviter.orgName}.`,
+            type: "info"
+        }).catch(err => console.error("[Hierarchy Notification Error]", err));
+
         res.status(200).json({ message: "Invitation sent successfully" });
+
     } catch (error) {
         console.error("Send invitation error:", error);
         res.status(500).json({ message: "Server error: " + error.message });

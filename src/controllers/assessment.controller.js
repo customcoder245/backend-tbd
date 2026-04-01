@@ -3,7 +3,7 @@ import User from "../models/user.model.js";
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Response from "../models/response.model.js";
 import mongoose from "mongoose";
-import { createNotification, notifySuperAdmins, notifyOrgAdmins } from "../utils/notification.utils.js";
+import { createNotification, notifySuperAdmins, notifyOrgAdmins, notifyHierarchy } from "../utils/notification.utils.js";
 import Invitation from "../models/invitation.model.js";
 import { ASSESSMENT_CYCLE_MONTHS, getAssessmentCycleStartDate } from "../config/assessment.config.js";
 import { calculateAssessmentScores } from "../utils/scoring.utils.js";
@@ -286,16 +286,14 @@ export const submitAssessment = async (req, res) => {
       type: "success"
     }).catch(err => console.error("[Notification Error]", err));
 
-    // 2. Notify their Organization Admins
-    if (user.orgName) {
-      notifyOrgAdmins({
-        orgName: user.orgName,
-        title: "Assessment Completed",
-        message: `${user.firstName} ${user.lastName} (${user.role}) has completed the assessment.`,
-        type: "success",
-        excludeUser: userId
-      }).catch(err => console.error("[Org Admin Notification Error]", err));
-    }
+    // 2. Hierarchical Notification (Manager -> Leader -> Admin)
+    notifyHierarchy({
+      initiatorId: userId,
+      title: "Assessment Submitted",
+      message: `${user.firstName} ${user.lastName} (${user.role}) has completed their assessment.`,
+      type: "success"
+    }).catch(err => console.error("[Hierarchy Notification Error]", err));
+
 
     // 3. Notify Super Admins
     notifySuperAdmins({
