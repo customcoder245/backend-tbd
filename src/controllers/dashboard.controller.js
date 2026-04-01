@@ -4,6 +4,7 @@ import Invitation from "../models/invitation.model.js";
 import PDFReportService from "../services/pdfReport.service.js";
 import mongoose from "mongoose";
 import { sendReportReleasedEmail } from "../utils/sendEmail.js";
+import feedbackData from "../data/domainSubdomainFeedback.js";
 
 /**
  * Shared helper to fetch the latest report for a user
@@ -335,13 +336,34 @@ export const getDomainDetailedReport = async (req, res) => {
             }
         } else {
             feedback = domainData.feedback || {};
-            // Aggregate all subdomain-level feedback when viewing domain-level
-            if (domainData.subdomainFeedback) {
-                Object.values(domainData.subdomainFeedback).forEach(subFb => {
-                    if (subFb.insight) aggregatedInsights.push(subFb.insight);
-                    if (subFb.coachingTips) aggregatedCoachingTips.push(subFb.coachingTips);
-                    if (subFb.recommendedPrograms) aggregatedRecommendations.push(subFb.recommendedPrograms);
-                });
+            // ❌ REMOVED aggregation logic that caused "all insights in one place" bug
+        }
+
+        // --- AUTOMATED FALLBACKS ---
+        // If manual feedback is empty, fetch defaults from feedbackData
+        if (!feedback.insight || !feedback.coachingTips) {
+            const roleKey = targetUser?.role?.toLowerCase() || "admin";
+            const currentSubdomain = subdomain || "";
+            const currentRoleData = feedbackData[roleKey] || feedbackData["admin"];
+
+            // Calculate level based on score
+            const currentScore = subdomain
+                ? (domainData.subdomains?.[subdomain] || 0)
+                : (domainData.score || 0);
+            const level = currentScore >= 76 ? "High" : currentScore >= 50 ? "Medium" : "Low";
+
+            // Find matching default feedback
+            let defaultSource = null;
+            if (currentSubdomain && currentRoleData[currentSubdomain]) {
+                defaultSource = currentRoleData[currentSubdomain][level];
+            }
+
+            if (defaultSource) {
+                if (!feedback.insight) feedback.insight = defaultSource.insight;
+                if (!feedback.coachingTips) feedback.coachingTips = defaultSource.coachingTips;
+                if (!feedback.recommendedPrograms) feedback.recommendedPrograms = defaultSource.recommendedPrograms;
+                if (!feedback.modelDescription) feedback.modelDescription = defaultSource.modelDescription;
+                if (!feedback.objectives) feedback.objectives = defaultSource.objectives || "";
             }
         }
 
@@ -378,21 +400,10 @@ export const getDomainDetailedReport = async (req, res) => {
                 .filter(line => line.length > 0);
         };
 
-        // Aggregation logic for mainText
+        // Aggregation logic removed to prevent data overload (insights in one place bug)
         let finalInsight = feedback.insight || "";
-        if (aggregatedInsights.length > 0 && !subdomain) {
-            finalInsight = aggregatedInsights.join('\n\n');
-        }
-
         let finalCoachingTips = feedback.coachingTips || "";
-        if (aggregatedCoachingTips.length > 0 && !subdomain) {
-            finalCoachingTips = aggregatedCoachingTips.join('\n\n');
-        }
-
         let finalRecommendations = feedback.recommendedPrograms || "";
-        if (aggregatedRecommendations.length > 0 && !subdomain) {
-            finalRecommendations = aggregatedRecommendations.join('\n\n');
-        }
 
         // 1. Insights Pod (Domain analysis)
         const insightsPod = {
