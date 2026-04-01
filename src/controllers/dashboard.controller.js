@@ -297,7 +297,17 @@ export const getDomainDetailedReport = async (req, res) => {
             return res.status(404).json({ message: "No scores found for this user.", hasReport: false });
         }
 
-        const domainData = assessment.scores.domains[domain];
+        let domainData = assessment.scores.domains[domain];
+        if (!domainData) {
+            // Case-insensitive fallback
+            const domainKey = Object.keys(assessment.scores.domains).find(
+                k => k.toLowerCase().trim() === domain.toLowerCase().trim()
+            );
+            if (domainKey) {
+                domainData = assessment.scores.domains[domainKey];
+            }
+        }
+
         if (!domainData) {
             return res.status(404).json({ message: `No data found for domain: ${domain}` });
         }
@@ -437,7 +447,9 @@ export const getDomainDetailedReport = async (req, res) => {
                     insight: feedback.insight || "",
                     coachingTips: feedback.coachingTips || "",
                     objectives: feedback.objectives || "",
-                    progressScore: feedback.progressScore !== undefined ? feedback.progressScore : 0,
+                    progressScore: feedback.progressScore !== undefined
+                        ? feedback.progressScore
+                        : (subdomain ? (domainData.subdomains?.[subdomain] || 0) : (domainData.score || 0)),
                     recommendedPrograms: feedback.recommendedPrograms || "",
                     pod360Title: feedback.pod360Title || "",
                     pod360Description: feedback.pod360Description || "",
@@ -513,11 +525,20 @@ export const updateDomainDetailedReport = async (req, res) => {
         }
 
         // --- PREPARE PAYLOAD ---
-        const actualDomain = domain; // Fallback to provided domain
         const updatePayload = {};
+
+        // Identify existing domain key (handle casing)
+        let actualDomainKey = domain;
+        if (assessment?.scores?.domains) {
+            const match = Object.keys(assessment.scores.domains).find(
+                k => k.toLowerCase().trim() === domain.toLowerCase().trim()
+            );
+            if (match) actualDomainKey = match;
+        }
+
         const prefix = subdomain
-            ? `scores.domains.${actualDomain}.subdomainFeedback.${subdomain}`
-            : `scores.domains.${actualDomain}.feedback`;
+            ? `scores.domains.${actualDomainKey}.subdomainFeedback.${subdomain}`
+            : `scores.domains.${actualDomainKey}.feedback`;
 
         if (insight !== undefined) updatePayload[`${prefix}.insight`] = insight;
         if (coachingTips !== undefined) updatePayload[`${prefix}.coachingTips`] = coachingTips;
@@ -530,8 +551,8 @@ export const updateDomainDetailedReport = async (req, res) => {
 
         if (progressScore !== undefined && progressScore !== null) {
             const scorePath = subdomain
-                ? `scores.domains.${actualDomain}.subdomains.${subdomain}`
-                : `scores.domains.${actualDomain}.score`;
+                ? `scores.domains.${actualDomainKey}.subdomains.${subdomain}`
+                : `scores.domains.${actualDomainKey}.score`;
             updatePayload[scorePath] = progressScore;
         }
 
