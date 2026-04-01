@@ -162,8 +162,11 @@ export const submitAssessment = async (req, res) => {
       return res.status(400).json({ message: "Assessment already submitted" });
     }
 
-    // 2️⃣ Fetch responses (JOIN)
-    const responses = await Response.find({ assessmentId: assessmentObjectId });
+    // 2️⃣ Fetch responses (JOIN) - 🆕 Filter out deleted ones (important for Resets)
+    const responses = await Response.find({
+      assessmentId: assessmentObjectId,
+      isDeleted: { $ne: true }
+    });
 
     if (!responses || responses.length === 0) {
       console.warn(`[Assessment Submission] No responses found for assessment ${assessmentId}.`);

@@ -21,9 +21,12 @@ export const updateTooltip = async (req, res) => {
     try {
         const { tooltipId, content, title } = req.body;
 
+        const updateData = { content, lastUpdatedBy: req.user.userId };
+        if (title !== undefined) updateData.title = title;
+
         let tooltip = await Tooltip.findOneAndUpdate(
             { tooltipId },
-            { content, title, lastUpdatedBy: req.user.userId },
+            updateData,
             { new: true, upsert: true }
         );
 

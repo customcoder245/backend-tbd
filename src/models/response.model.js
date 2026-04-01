@@ -26,7 +26,7 @@ const responseSchema = new Schema(
 
     stakeholder: {
       type: String,
-      enum: ["leader", "manager", "employee"],
+      enum: ["leader", "manager", "employee", "admin"],
       required: true
     },
 
