@@ -587,9 +587,16 @@ export const getSuperAdminIntelligence = async (req, res) => {
  */
 export const getAdminIntelligence = async (req, res) => {
   try {
-    const { orgName } = req.user;
+    let orgName = req.user.orgName;
+    const requesterRole = req.user.role?.toLowerCase();
+
+    // If Super Admin, allow getting orgName from query params
+    if (requesterRole === "superadmin" && req.query.orgName) {
+      orgName = req.query.orgName;
+    }
+
     if (!orgName) {
-      return res.status(400).json({ message: "Admin organization not found" });
+      return res.status(400).json({ message: "Organization not found" });
     }
 
     const { quarter, year: queryYear } = req.query;
