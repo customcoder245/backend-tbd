@@ -145,6 +145,18 @@ export const completeProfile = async (req, res) => {
 
     if (user.role === "admin") {
       if (!orgName) return res.status(400).json({ message: "Organization name is required for Admins." });
+
+      // Check if another ADMIN already has this organization name
+      const existingOrg = await User.findOne({
+        orgName: { $regex: new RegExp("^" + orgName.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + "$", "i") },
+        role: "admin",
+        _id: { $ne: user._id }
+      });
+
+      if (existingOrg) {
+        return res.status(400).json({ message: "This organization name is already registered. Please choose a different name." });
+      }
+
       user.orgName = orgName;
     } else {
       // Inherit from Invitation or Inviter
@@ -328,7 +340,7 @@ export const login = async (req, res) => {
 
     // --- OPTIMIZED ASSESSMENT STATUS CHECK ---
     let assessmentStatus = "NONE";
-    const rolesWithAssessment = ["employee", "admin", "leader", "manager"];
+    const rolesWithAssessment = ["employee", "leader", "manager"];
 
     if (rolesWithAssessment.includes(user.role?.toLowerCase())) {
       // Use lean() and projection to reduce payload

@@ -33,9 +33,9 @@ export const startAssessment = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 🚫 Super Admins are not permitted to take assessments
-    if (user.role === "superAdmin") {
-      return res.status(403).json({ message: "Super Admins are not permitted to take assessments." });
+    // Super Admins and Admin are not permitted to take assessments
+    if (user.role === "superAdmin" || user.role === "admin") {
+      return res.status(403).json({ message: "Admins are not permitted to take assessments." });
     }
 
     // 2. Check the latest COMPLETED assessment first (determines the cycle)

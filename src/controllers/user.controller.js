@@ -59,7 +59,7 @@ export const getMe = async (req, res) => {
 
         let assessmentStatus = "NOT_REQUIRED";
         const userRole = user.role;
-        if (["admin", "leader", "manager"].includes(userRole)) {
+        if (["leader", "manager"].includes(userRole)) {
             const [incomplete, complete] = await Promise.all([
                 Assessment.findOne({ userId: user._id, isCompleted: false, isDeleted: { $ne: true } }).lean(),
                 Assessment.findOne({ userId: user._id, isCompleted: true, isDeleted: { $ne: true } }).sort({ submittedAt: -1 }).lean()
