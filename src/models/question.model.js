@@ -42,6 +42,10 @@ const questionSchema = new Schema(
       type: String,
       default: null // null means Master Template
     },
+    department: {
+      type: String,
+      default: null // null means Organization-wide or Master Template
+    },
 
     questionStem: {
       type: String,
@@ -90,8 +94,8 @@ const questionSchema = new Schema(
   { timestamps: true }
 );
 
-questionSchema.index({ questionCode: 1, orgName: 1, stakeholder: 1 }, { unique: true });
-questionSchema.index({ orgName: 1, stakeholder: 1, isDeleted: 1, order: 1 });
+questionSchema.index({ questionCode: 1, orgName: 1, department: 1, stakeholder: 1 }, { unique: true });
+questionSchema.index({ orgName: 1, department: 1, stakeholder: 1, isDeleted: 1, order: 1 });
 questionSchema.index({ stakeholder: 1, isDeleted: 1, order: 1 });
 questionSchema.index({ isDeleted: 1 });
 

@@ -68,9 +68,11 @@ export const createMultipleQuestions = async (req, res) => {
   try {
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
-    let orgName = (role === "superadmin" && req.body.orgName !== undefined) ? req.body.orgName : userOrg;
+    const { orgName: targetOrg, department, questions: questionsInput } = req.body;
+    let orgName = (role === "superadmin" && targetOrg !== undefined) ? targetOrg : userOrg;
     if (orgName === "") orgName = null; // Normalize empty string to null for Master Template
-    const questions = req.body.questions || req.body;
+    const targetDept = (department === "" || department === undefined || department === "All") ? null : department;
+    const questions = questionsInput || req.body;
 
     // Ensure questions are provided
     if (Object.keys(questions).length === 0) {
@@ -217,6 +219,7 @@ export const createMultipleQuestions = async (req, res) => {
           questionType,
           questionCode: generatedCode,
           orgName,
+          department: targetDept,
           questionStem,
           scale,
           insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
@@ -250,16 +253,19 @@ export const cloneTemplate = async (req, res) => {
   try {
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
-    let targetOrg = (role === "superadmin" && req.body.orgName !== undefined) ? req.body.orgName : userOrg;
+    const { orgName: targetOrg, department } = req.body;
+    let orgName = (role === "superadmin" && targetOrg !== undefined) ? targetOrg : userOrg;
 
-    if (!targetOrg) {
+    if (!orgName) {
       return res.status(400).json({ success: false, message: "Organization name is required." });
     }
 
-    // 1. Check if already initialized
-    const existingCount = await Question.countDocuments({ orgName: targetOrg });
+    const targetDept = (department === "" || department === undefined || department === "All") ? null : department;
+
+    // 1. Check if already initialized for this org/dept context
+    const existingCount = await Question.countDocuments({ orgName, department: targetDept });
     if (existingCount > 0) {
-      return res.status(400).json({ success: false, message: `Organization "${targetOrg}" already has questions. Clone aborted.` });
+      return res.status(400).json({ success: false, message: `Organization "${orgName}"${targetDept ? ` and department "${targetDept}"` : ""} already has questions. Clone aborted.` });
     }
 
     // 2. Fetch masters
@@ -289,7 +295,8 @@ export const cloneTemplate = async (req, res) => {
       delete qObj.__v;
       delete qObj.createdAt;
       delete qObj.updatedAt;
-      qObj.orgName = targetOrg;
+      qObj.orgName = orgName;
+      qObj.department = targetDept;
       tenantQuestions.push(qObj);
     });
 
@@ -563,16 +570,29 @@ export const getAllQuestions = async (req, res) => {
     // Normalize empty strings and undefined to null for filter logic
     if (orgName === "" || orgName === undefined) orgName = null;
 
-    const { stakeholder, domain, subdomain } = req.query;
+    const { stakeholder, domain, subdomain, department } = req.query;
+
+    // Normalize department: empty string or "All" leads to null (which usually means org-wide)
+    let targetDept = (department === "" || department === undefined || department === "All") ? null : department;
 
     const orgFilter = (orgName === null)
       ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
       : { orgName };
 
-    console.log(`getAllQuestions: role=${role}, userOrg=${userOrg}, targetOrg=${orgName}, filter=${JSON.stringify(orgFilter)}`);
-
     // Build filter object
     const filter = { isDeleted: false, ...orgFilter };
+
+    if (targetDept !== null) {
+      filter.department = targetDept;
+    } else if (orgName !== null) {
+      // If we are looking for "All" departments in an organization, 
+      // we might want to see both org-wide (null) and specific dept questions.
+      // However, usually "All Department" selection in UI might mean "Show all without dept filter"
+      // or "Show only org-wide". 
+      // The user image shows "All Department" as a specific choice.
+      // If "All Department" is selected, we should probably NOT filter by department field at all.
+      // BUT, if the user picks a specific department, we filter.
+    }
 
     if (stakeholder) {
       filter.stakeholder = stakeholder;
@@ -722,8 +742,10 @@ export const uploadQuestions = async (req, res) => {
 
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
-    let orgName = (role === "superadmin" && req.body.orgName !== undefined) ? req.body.orgName : userOrg;
+    const { orgName: targetOrg, department } = req.body;
+    let orgName = (role === "superadmin" && targetOrg !== undefined) ? targetOrg : userOrg;
     if (orgName === "") orgName = null;
+    const targetDept = (department === "" || department === undefined || department === "All") ? null : department;
 
     // Read excel file
     const workbook = xlsx.readFile(req.file.path);
@@ -811,6 +833,7 @@ export const uploadQuestions = async (req, res) => {
         questionType,
         questionCode: generatedCode,
         orgName,
+        department: targetDept,
         questionStem,
         scale,
         insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
@@ -853,22 +876,28 @@ export const deleteOrganizationQuestions = async (req, res) => {
   try {
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
-    const { orgName: targetOrg } = req.body;
+    const { orgName: targetOrg, department } = req.body;
 
     let orgName = (role === "superadmin" && targetOrg !== undefined) ? targetOrg : userOrg;
-
     if (orgName === "") orgName = null;
 
-    const orgFilter = (orgName === null)
-      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
-      : { orgName };
+    const filter = { isDeleted: false };
+    if (orgName === null) {
+      filter.$or = [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }];
+    } else {
+      filter.orgName = orgName;
+    }
+
+    if (department && department !== "All") {
+      filter.department = department;
+    }
 
     // Perform hard delete
-    const result = await Question.deleteMany({ orgName });
+    const result = await Question.deleteMany(filter);
 
     return res.status(200).json({
       success: true,
-      message: `Successfully deleted all questions for organization "${orgName || "Master Template"}".`,
+      message: `Successfully deleted all questions for organization "${orgName || "Master Template"}"${department && department !== "All" ? ` and department "${department}"` : ""}.`,
       count: result.deletedCount
     });
   } catch (error) {
