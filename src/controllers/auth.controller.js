@@ -4,6 +4,7 @@ import Assessment from "../models/assessment.model.js";
 import Question from "../models/question.model.js";
 import { sendVerificationEmail, sendResetEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
+import Organization from "../models/organization.model.js";
 import { createNotification, notifySuperAdmins } from "../utils/notification.utils.js";
 import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 
@@ -163,9 +164,10 @@ export const completeProfile = async (req, res) => {
       if (invitation) {
         user.orgName = invitation.orgName || user.orgName;
         user.adminId = invitation.adminId || user.adminId;
-        // Inherit department from invitation if user didn't provide one
-        if (!department && invitation.department) {
-          user.department = invitation.department;
+        // Strict Enforcement: If invitation has a department, FORCE IT.
+        if (invitation.department) {
+            user.department = invitation.department;
+            department = invitation.department; // Override any incoming body department
         }
       }
 
@@ -180,7 +182,15 @@ export const completeProfile = async (req, res) => {
 
     user.firstName = firstName;
     user.lastName = lastName;
-    if (department) user.department = department;
+    if (department) {
+      if (user.role !== "admin") {
+        const org = await Organization.findOne({ name: user.orgName });
+        if (org && org.departments.length > 0 && !org.departments.includes(department)) {
+          return res.status(400).json({ message: "Invalid department selected. Please pick from the approved list." });
+        }
+      }
+      user.department = department;
+    }
     user.titles = titles;
     user.profileCompleted = true;
     user.profileCompletedAfterRegistration = true; // Secondary flag
@@ -192,6 +202,23 @@ export const completeProfile = async (req, res) => {
     }
 
     await user.save();
+
+    // --- Organization record maintenance ---
+    if (user.role === "admin" && user.orgName) {
+      try {
+        const existingOrg = await Organization.findOne({ name: user.orgName });
+        if (!existingOrg) {
+          await Organization.create({
+            name: user.orgName,
+            createdBy: user._id,
+            departments: []
+          });
+          console.log(`Initialized Organization record for: ${user.orgName}`);
+        }
+      } catch (orgError) {
+        console.error(`Error initializing Organization record for ${user.orgName}:`, orgError);
+      }
+    }
 
     // --- MULTI-TENANT: Copy Master Question Template for new Admins ---
     if (user.role === "admin" && user.orgName) {
@@ -280,11 +307,14 @@ export const getCurrentUserSession = async (req, res) => {
       }
     }
 
+    const organization = await Organization.findOne({ name: inheritedOrgName }).select("departments").lean();
+
     res.status(200).json({
       email: user.email,
       role: user.role,
       inheritedOrgName: inheritedOrgName,
-      department: inheritedDept
+      department: inheritedDept,
+      allowedDepartments: organization?.departments || []
     });
   } catch (error) {
     console.error("getCurrentUserSession error:", error);

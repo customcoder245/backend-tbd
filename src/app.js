@@ -11,6 +11,7 @@ import employeeAssessmentRoutes from "./routes/employeeAssessment.routes.js";
 import questionRoutes from "./routes/question.routes.js";
 import responseRoutes from "./routes/response.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
+import organizationRoutes from "./routes/organization.routes.js";
 
 const app = express();
 
@@ -58,5 +59,6 @@ app.use("/api/v1/employee-assessment", employeeAssessmentRoutes);
 app.use("/api/v1/questions", questionRoutes);
 app.use("/api/v1/responses", responseRoutes);
 app.use("/api/v1/dashboard", dashboardRoutes);
+app.use("/api/v1/organization", organizationRoutes);
 
 export { app };

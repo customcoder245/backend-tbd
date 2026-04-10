@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
 import Assessment from "../models/assessment.model.js";
+import Organization from "../models/organization.model.js";
 import { sendInvitationEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
 import { createNotification, notifyHierarchy } from "../utils/notification.utils.js";
@@ -14,7 +15,7 @@ const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 export const sendInvitation = async (req, res) => {
     try {
         console.log(">>> [SERVER RECEIVED INVITE REQ]:", JSON.stringify(req.body, null, 2));
-        let { email, role } = req.body;
+        let { email, role, department } = req.body;
 
         if (!email || !role) {
             return res.status(400).json({ message: "Email and role are required" });
@@ -27,24 +28,44 @@ export const sendInvitation = async (req, res) => {
         }
 
         const inviterId = req.user.userId;
+        const inviterRole = req.user.role?.toLowerCase();
+        const inviterOrg = req.user.orgName;
 
-        // --- OPTIMIZATION: Parallelize all checks ---
-        const [inviter, existingUser, existingInvite] = await Promise.all([
+        // --- FETCH EVERYTHING IN PARALLEL ---
+        const [inviter, organization, existingUser, existingInvite] = await Promise.all([
             User.findById(inviterId).select("role orgName adminId department").lean(),
+            Organization.findOne({ name: inviterOrg }),
             User.findOne({ email }).select("_id").lean(),
             Invitation.findOne({ email, used: false }).lean()
         ]);
 
         if (!inviter) {
-            return res.status(404).json({ message: "Inviter not found" });
+            return res.status(404).json({ message: "Inviter account not found" });
         }
 
+        // --- DEPARTMENT GOVERNANCE ---
+        if (inviterRole === "admin") {
+            const hasDepartments = organization && organization.departments && organization.departments.length > 0;
+            
+            if (!hasDepartments) {
+                return res.status(400).json({ 
+                    message: "No departments defined. Please add at least one department first." 
+                });
+            }
+
+            if (!department) {
+                return res.status(400).json({ message: "Department is required for invitations." });
+            }
+
+            if (!organization.departments.includes(department)) {
+                return res.status(400).json({ message: "Invalid department selected." });
+            }
+        }
         if (existingUser) {
             return res.status(400).json({ message: "User with this email already exists" });
         }
 
         // --- HIERARCHY CHECK ---
-        const inviterRole = inviter.role?.toLowerCase();
         const targetRole = role.toLowerCase();
         const rolePermissions = {
             superadmin: ["admin"],
@@ -73,7 +94,7 @@ export const sendInvitation = async (req, res) => {
             : Date.now() + 60 * 60 * 1000;
 
         const token = jwt.sign(
-            { email, role, invitedId: inviterId, orgName: inviter.orgName },
+            { email, role, invitedId: inviterId, orgName: inviter.orgName, department: department || null },
             process.env.JWT_SECRET,
             { expiresIn: tokenExpiry }
         );
@@ -86,7 +107,7 @@ export const sendInvitation = async (req, res) => {
             invitedBy: inviterId,
             adminId: inviter.adminId || inviterId,
             orgName: inviter.orgName,
-            department: inviter.department || null,
+            department: department || inviter.department || null,
             expiredAt: dbExpiry,
         });
 
@@ -192,10 +213,13 @@ export const getInvitationDetails = async (req, res) => {
             return res.status(400).json({ message: "Invitation expired" });
         }
 
+        const organization = await Organization.findOne({ name: invitation.orgName }).select("departments").lean();
+
         res.status(200).json({
             email: invitation.email,
             role: invitation.role,
-            orgName: invitation.orgName
+            orgName: invitation.orgName,
+            allowedDepartments: organization?.departments || []
         });
     } catch (error) {
         console.error("Get invitation details error:", error);
@@ -394,7 +418,8 @@ export const createAndSendInvite = async (email, role, inviter, department) => {
             email,
             role,
             invitedId: inviter._id,
-            orgName: inviter.orgName
+            orgName: inviter.orgName,
+            department: department || null
         },
         process.env.JWT_SECRET,
         { expiresIn: "1h" }
@@ -431,10 +456,21 @@ export const sendBulkInvitations = async (req, res) => {
 
         const inviter = await User.findById(userId).select("role orgName adminId department").lean();
         if (!inviter) {
-            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+            if (req.file.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
             return res.status(404).json({ message: "Inviter not found" });
         }
 
+        // --- DEPT CHECK FOR BULK ---
+        const organization = await Organization.findOne({ name: inviter.orgName });
+        if (inviterRole === "admin") {
+            const hasDepts = organization && organization.departments && organization.departments.length > 0;
+            if (!hasDepts) {
+                if (req.file.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+                return res.status(400).json({
+                    message: "Cannot send bulk invites: No departments defined. Please define departments first."
+                });
+            }
+        }
         const rawInvitations = [];
         const failed = [];
         const allowedRoles = inviterRole.toLowerCase() === "superadmin" ? ["admin"] : ["leader", "manager", "employee"];
