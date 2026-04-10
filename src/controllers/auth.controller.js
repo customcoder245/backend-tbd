@@ -8,6 +8,16 @@ import Organization from "../models/organization.model.js";
 import { createNotification, notifySuperAdmins } from "../utils/notification.utils.js";
 import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 
+// ================= GET ALL ORGANIZATIONS =================
+export const getAllOrganizations = async (req, res) => {
+  try {
+    const organizations = await Organization.find({}).select("name").lean();
+    res.status(200).json({ organizations: organizations.map(org => org.name) });
+  } catch (error) {
+    console.error("Error fetching organizations:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 // ================= REGISTER =================
 export const register = async (req, res) => {
   try {
@@ -129,7 +139,7 @@ export const verifyEmail = async (req, res) => {
 export const completeProfile = async (req, res) => {
   try {
     const tokenFromCookie = req.cookies.verifyToken || req.headers["x-verify-token"];
-    const { firstName, lastName, department, titles, orgName } = req.body;
+    let { firstName, lastName, department, titles, orgName } = req.body;
 
     if (!tokenFromCookie) {
       return res.status(401).json({ message: "Verification session expired." });
@@ -166,8 +176,8 @@ export const completeProfile = async (req, res) => {
         user.adminId = invitation.adminId || user.adminId;
         // Strict Enforcement: If invitation has a department, FORCE IT.
         if (invitation.department) {
-            user.department = invitation.department;
-            department = invitation.department; // Override any incoming body department
+          user.department = invitation.department;
+          department = invitation.department; // Override any incoming body department
         }
       }
 
