@@ -10,7 +10,9 @@ import {
   resetPasswordRedirect,
   getCurrentUserSession,
   changePassword,
-  getAllOrganizations
+  getAllOrganizations,
+  getOrganizationMembers,
+  getOrganizationFilters
 } from "../controllers/auth.controller.js";
 
 import {
@@ -50,6 +52,8 @@ router.post("/change-password", protect, changePassword);
 router.post("/resend-verification-email", resendVerificationEmail);
 router.get("/current-user-session", getCurrentUserSession);
 router.get("/organizations", protect, getAllOrganizations);
+router.get("/organization/:name", protect, getOrganizationMembers);
+router.get("/organization-filters/:name", protect, getOrganizationFilters);
 
 // Invitation Routes
 router.post("/send-invitation", protect, sendInvitation);

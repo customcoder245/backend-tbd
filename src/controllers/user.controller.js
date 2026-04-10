@@ -1,5 +1,6 @@
 import User from "../models/user.model.js";
 import Assessment from "../models/assessment.model.js";
+import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 
@@ -14,10 +15,19 @@ export const getMe = async (req, res) => {
         // FALLBACK: If no user found (e.g. Employee via invite token)
         if (!user && req.guest) {
             const { email, invitationId } = req.guest;
-            const assessment = await Assessment.findOne({
-                isDeleted: { $ne: true },
-                $or: [{ invitationId }, { employeeEmail: email }]
-            }).sort({ submittedAt: -1 });
+            const [assessment, submitted] = await Promise.all([
+                Assessment.findOne({
+                    isDeleted: { $ne: true },
+                    $or: [{ invitationId }, { employeeEmail: email }]
+                }).sort({ submittedAt: -1 }).lean(),
+                SubmittedAssessment.findOne({
+                    $or: [{ "userDetails.email": email }, { assessmentId: invitationId }] // Note: guest might use invitationId as a ref
+                }).sort({ submittedAt: -1 }).lean()
+            ]);
+
+            const latest = (submitted?.submittedAt > assessment?.submittedAt) ? submitted : (assessment || submitted);
+            const isCompleted = latest?.isCompleted || !!submitted;
+            const submittedAt = latest?.submittedAt;
 
             let assessmentStatus = "NOT_STARTED";
             let orgLogo = "";
@@ -26,20 +36,20 @@ export const getMe = async (req, res) => {
             let role = req.guest.role || "employee";
             let orgName = assessment?.orgName || req.guest.orgName || "";
 
-            if (assessment) {
-                if (assessment.isCompleted) {
+            if (latest) {
+                if (isCompleted) {
                     assessmentStatus = "COMPLETED";
                     const cycleStart = getAssessmentCycleStartDate();
-                    if (assessment.submittedAt < cycleStart) {
+                    if (submittedAt < cycleStart) {
                         assessmentStatus = "DUE";
                     }
                 } else {
                     assessmentStatus = "PENDING";
                 }
-                firstName = assessment.userDetails?.firstName || "";
-                lastName = assessment.userDetails?.lastName || "";
+                firstName = latest.userDetails?.firstName || "";
+                lastName = latest.userDetails?.lastName || "";
 
-                const inviter = await User.findById(assessment.invitedBy).select("orgLogo");
+                const inviter = await User.findById(latest.invitedBy || latest.adminId).select("orgLogo");
                 if (inviter) orgLogo = inviter.orgLogo;
             }
 
@@ -58,19 +68,27 @@ export const getMe = async (req, res) => {
         if (!user) return res.status(404).json({ message: "User not found" });
 
         let assessmentStatus = "NOT_REQUIRED";
-        const userRole = user.role;
-        if (["leader", "manager"].includes(userRole)) {
-            const [incomplete, complete] = await Promise.all([
+        const userRole = user.role?.toLowerCase();
+        const rolesWithAssessment = ["employee", "leader", "manager"];
+
+        if (rolesWithAssessment.includes(userRole)) {
+            // Check Live (Assessment) and Finalized (SubmittedAssessment)
+            const [incomplete, liveComplete, submitted] = await Promise.all([
                 Assessment.findOne({ userId: user._id, isCompleted: false, isDeleted: { $ne: true } }).lean(),
-                Assessment.findOne({ userId: user._id, isCompleted: true, isDeleted: { $ne: true } }).sort({ submittedAt: -1 }).lean()
+                Assessment.findOne({ userId: user._id, isCompleted: true, isDeleted: { $ne: true } }).sort({ submittedAt: -1 }).lean(),
+                SubmittedAssessment.findOne({ userId: user._id }).sort({ submittedAt: -1 }).lean()
             ]);
+
+            const latestCompleted = (submitted?.submittedAt > liveComplete?.submittedAt)
+                ? submitted : (liveComplete || submitted);
+
             if (incomplete) {
                 assessmentStatus = "PENDING";
-            } else if (!complete) {
+            } else if (!latestCompleted) {
                 assessmentStatus = "DUE";
             } else {
                 const cycleStart = getAssessmentCycleStartDate();
-                assessmentStatus = complete.submittedAt < cycleStart ? "DUE" : "COMPLETED";
+                assessmentStatus = latestCompleted.submittedAt < cycleStart ? "DUE" : "COMPLETED";
             }
         }
 

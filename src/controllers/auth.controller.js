@@ -2,6 +2,7 @@ import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
 import Assessment from "../models/assessment.model.js";
 import Question from "../models/question.model.js";
+import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import { sendVerificationEmail, sendResetEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
 import Organization from "../models/organization.model.js";
@@ -383,20 +384,21 @@ export const login = async (req, res) => {
     const rolesWithAssessment = ["employee", "leader", "manager"];
 
     if (rolesWithAssessment.includes(user.role?.toLowerCase())) {
-      // Use lean() and projection to reduce payload
-      const completedAssessment = await Assessment.findOne({
-        userId: user._id,
-        isCompleted: true
-      })
-        .select("submittedAt")
-        .sort({ submittedAt: -1 })
-        .lean();
+      // Check both Live (Assessment) and Finalized (SubmittedAssessment)
+      const [liveAssessment, submittedAssessment] = await Promise.all([
+        Assessment.findOne({ userId: user._id, isCompleted: true }).select("submittedAt").sort({ submittedAt: -1 }).lean(),
+        SubmittedAssessment.findOne({ userId: user._id }).select("submittedAt").sort({ submittedAt: -1 }).lean()
+      ]);
 
-      if (!completedAssessment) {
+      const latestCompleted = (submittedAssessment?.submittedAt > liveAssessment?.submittedAt)
+        ? submittedAssessment
+        : (liveAssessment || submittedAssessment);
+
+      if (!latestCompleted) {
         assessmentStatus = "PENDING";
       } else {
         const cycleStart = getAssessmentCycleStartDate();
-        assessmentStatus = completedAssessment.submittedAt < cycleStart ? "DUE" : "COMPLETED";
+        assessmentStatus = latestCompleted.submittedAt < cycleStart ? "DUE" : "COMPLETED";
       }
     }
 
@@ -580,5 +582,157 @@ export const logout = async (req, res) => {
     return res.status(500).json({
       message: "Logout failed",
     });
+  }
+};
+
+// ==================== GET ORGANIZATION MEMBERS (SuperAdmin) ====================
+export const getOrganizationMembers = async (req, res) => {
+  try {
+    const { name: orgName } = req.params;
+
+    if (!orgName) {
+      return res.status(400).json({ message: "Organization name is required." });
+    }
+
+    // 1. Fetch organization details (meta info)
+    const organization = await Organization.findOne({ name: orgName }).lean();
+
+    // 2. Fetch all registered users for this org
+    const registeredUsers = await User.find({ orgName })
+      .select("firstName lastName email role department createdAt profileCompleted")
+      .lean();
+
+    // 3. Fetch assessments from both Live/In-progress and Submitted collections
+    const orgRegex = new RegExp(`^${orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
+    const [liveAssessments, submittedAssessments] = await Promise.all([
+      Assessment.find({ orgName: orgRegex }).select("employeeEmail isCompleted _id submittedAt").lean(),
+      SubmittedAssessment.find({ "userDetails.orgName": orgRegex }).select("userDetails.email assessmentId _id submittedAt").lean()
+    ]);
+
+    // Create a map of latest assessment for each user/email
+    const latestAssessments = new Map();
+
+    // Map live assessments first (can be overwritten by submitted if more recent/relevant)
+    liveAssessments.forEach(ass => {
+      const email = ass.employeeEmail?.toLowerCase();
+      if (!email) return;
+      latestAssessments.set(email, {
+        id: ass._id,
+        status: ass.isCompleted ? "Completed" : "In Progress",
+        date: ass.submittedAt || ass.createdAt
+      });
+    });
+
+    // Submitted assessments represent final "Completed" state
+    submittedAssessments.forEach(ass => {
+      const email = ass.userDetails?.email?.toLowerCase();
+      if (!email) return;
+      const existing = latestAssessments.get(email);
+      // Always prefer SubmittedAssessment as it's the final report
+      if (!existing || existing.status !== "Completed") {
+        latestAssessments.set(email, {
+          id: ass._id,
+          status: "Completed",
+          date: ass.submittedAt
+        });
+      }
+    });
+
+    // Mapping registered users
+    const activeMembers = registeredUsers.map(u => {
+      const assessment = latestAssessments.get(u.email.toLowerCase());
+      return {
+        _id: u._id,
+        firstName: u.firstName || "-",
+        lastName: u.lastName || "",
+        email: u.email,
+        role: u.role,
+        department: u.department || "-",
+        createdAt: u.createdAt,
+        status: "Accept",
+        assessmentStatus: assessment?.status || "Not Started",
+        lastAssessmentId: assessment?.status === "Completed" ? assessment.id : null
+      };
+    });
+
+    // 4. Fetch all pending/expired invitations for this org 
+    const registeredEmails = new Set(registeredUsers.map(u => u.email.toLowerCase()));
+
+    const invitations = await Invitation.find({
+      orgName,
+      used: false
+    }).lean();
+
+    const pendingMembers = invitations
+      .filter(inv => !registeredEmails.has(inv.email.toLowerCase()))
+      .map(inv => {
+        const assessment = latestAssessments.get(inv.email.toLowerCase());
+        return {
+          _id: inv._id,
+          firstName: "-",
+          lastName: "",
+          email: inv.email,
+          role: inv.role,
+          department: inv.department || "-",
+          createdAt: inv.createdAt,
+          status: new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending",
+          assessmentStatus: assessment?.status || "Not Started",
+          lastAssessmentId: assessment?.status === "Completed" ? assessment.id : null
+        };
+      });
+
+    const allMembers = [...activeMembers, ...pendingMembers];
+
+    res.status(200).json({
+      details: {
+        orgName: orgName,
+        createdAt: organization?.createdAt || "-",
+        status: organization ? "Active" : "Pending Setup",
+        totalTeamMember: allMembers.length
+      },
+      members: allMembers
+    });
+
+  } catch (error) {
+    console.error("getOrganizationMembers error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getOrganizationFilters = async (req, res) => {
+  try {
+    const { name: orgName } = req.params;
+    if (!orgName) {
+      return res.status(400).json({ message: "Organization name is required." });
+    }
+
+    const isSuperAdmin = req.user.role?.toLowerCase() === "superadmin";
+    if (!isSuperAdmin && req.user.orgName !== orgName) {
+      return res.status(403).json({ message: "Access denied. You can only view your own organization's data." });
+    }
+
+    // 1. Fetch registered users
+    const users = await User.find({ orgName }).select("_id firstName lastName email role department").lean();
+
+    // 2. Format users for dropdown
+    const members = users.map(u => ({
+      _id: u._id,
+      name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
+      email: u.email,
+      role: u.role,
+      department: u.department
+    }));
+
+    // 3. Fetch departments
+    const organization = await Organization.findOne({ name: orgName }).select("departments").lean();
+
+    res.status(200).json({
+      members,
+      departments: organization?.departments || []
+    });
+  } catch (error) {
+    console.error("getOrganizationFilters error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
