@@ -548,26 +548,45 @@ export const getQuestionsByStakeholder = async (req, res) => {
       });
     }
 
-    // 1. Try to find questions for the specific organization first
+    // 1. Try to find questions for the specific organization and department first
     let questions = [];
     if (orgName && orgName !== "") {
+      const { stakeholder, department: queryDept } = req.query;
+      const userDept = queryDept || user.department || 'All';
+
+      console.log(`getQuestionsByStakeholder: Fetching for Org: ${orgName}, Dept: ${userDept}, Stakeholder: ${stakeholder}`);
+
+      // Attempt 1: Specific department questions
       questions = await Question.find({
         stakeholder,
         orgName,
+        department: userDept,
         isDeleted: false
       }).sort({ order: 1 });
-      console.log(`getQuestionsByStakeholder: Found ${questions.length} questions for organization "${orgName}"`);
+
+      // Attempt 2: Fallback to 'All' (Global) if no specific questions found AND user wasn't already looking for 'All'
+      if (questions.length === 0 && userDept !== 'All') {
+        console.log(`getQuestionsByStakeholder: No questions for department "${userDept}". Falling back to Global ("All").`);
+        questions = await Question.find({
+          stakeholder,
+          orgName,
+          $or: [{ department: 'All' }, { department: null }, { department: "" }],
+          isDeleted: false
+        }).sort({ order: 1 });
+      }
+
+      console.log(`getQuestionsByStakeholder: Found ${questions.length} questions for organization "${orgName}" (Dept Context: ${userDept})`);
     }
 
     // 2. Fallback: If no organization questions found (or no orgName), fetch from Master Template
     if (questions.length === 0) {
       console.log(`getQuestionsByStakeholder: No organization questions found. Falling back to Master Template.`);
-      const masterFilter = { $or: [{ orgName: null }, { orgName: "" }, { orgName: { $exists: false } }] };
-      questions = await Question.find({
+      const masterFilter = {
         stakeholder,
-        ...masterFilter,
+        $or: [{ orgName: null }, { orgName: "" }, { orgName: { $exists: false } }],
         isDeleted: false
-      }).sort({ order: 1 });
+      };
+      questions = await Question.find(masterFilter).sort({ order: 1 });
     }
 
     return res.status(200).json({
@@ -800,28 +819,29 @@ export const uploadQuestions = async (req, res) => {
     const maxOrderPerSubdomain = {};
 
     for (const row of data) {
-      const stakeholder = row.stakeholder?.toLowerCase();
-      const domain = row.domain;
-      const subdomain = row.subdomain;
-      const questionType = row.questionType;
-      const questionStem = row.questionStem;
-      const scale = row.scale;
-      const insightPrompt = row.insightPrompt;
+      const stakeholder = row.stakeholder?.toString().trim().toLowerCase();
+      const domain = row.domain?.toString().trim();
+      const subdomain = row.subdomain?.toString().trim();
+      const questionType = row.questionType?.toString().trim();
+      const questionStem = row.questionStem?.toString().trim();
+      const scale = row.scale?.toString().trim();
+      const insightPrompt = row.insightPrompt?.toString().trim();
 
       const forcedChoice = (scale === "FORCED_CHOICE" && row["forcedChoice.optionA.label"]) ? {
         optionA: {
-          label: row["forcedChoice.optionA.label"],
-          insightPrompt: row["forcedChoice.optionA.insightPrompt"] || ""
+          label: row["forcedChoice.optionA.label"]?.toString().trim(),
+          insightPrompt: row["forcedChoice.optionA.insightPrompt"]?.toString().trim() || ""
         },
         optionB: {
-          label: row["forcedChoice.optionB.label"],
-          insightPrompt: row["forcedChoice.optionB.insightPrompt"] || ""
+          label: row["forcedChoice.optionB.label"]?.toString().trim(),
+          insightPrompt: row["forcedChoice.optionB.insightPrompt"]?.toString().trim() || ""
         },
-        higherValueOption: row["forcedChoice.higherValueOption"] || "A"
+        higherValueOption: (row["forcedChoice.higherValueOption"]?.toString().trim() || "A").toUpperCase()
       } : null;
 
       if (!stakeholder || !domain || !subdomain || !questionType || !questionStem || !scale) {
-        continue; // Skip rows with missing mandatory fields
+        console.log(`uploadQuestions: Skipping row due to missing values: ${JSON.stringify(row)}`);
+        continue;
       }
 
       // Generate Code
@@ -833,7 +853,11 @@ export const uploadQuestions = async (req, res) => {
 
       if (prefixBaseMax[prefix] === undefined) {
         const regex = new RegExp(`^${prefix}(\\d+)$`);
-        const existingDocs = await Question.find({ questionCode: regex, orgName }, { questionCode: 1 }).lean();
+        const query = { questionCode: regex };
+        if (orgName) query.orgName = orgName;
+        else query.$or = [{ orgName: null }, { orgName: "" }, { orgName: { $exists: false } }];
+
+        const existingDocs = await Question.find(query, { questionCode: 1 }).lean();
         let maxOfPrefix = 0;
         existingDocs.forEach(doc => {
           const match = doc.questionCode.match(regex);
@@ -880,19 +904,27 @@ export const uploadQuestions = async (req, res) => {
     }
 
     if (createdQuestions.length === 0) {
-      return res.status(400).json({ success: false, message: "No valid questions found in Excel file" });
+      return res.status(400).json({ success: false, message: "No valid questions found in Excel file. Please check for missing mandatory columns (stakeholder, domain, subdomain, questionType, questionStem, scale)." });
     }
 
-    const savedQuestions = await Question.insertMany(createdQuestions);
-
     // Clean up file
-    fs.unlinkSync(req.file.path);
+    if (req.file) fs.unlinkSync(req.file.path);
 
-    return res.status(201).json({
-      success: true,
-      message: `${savedQuestions.length} questions uploaded successfully`,
-      data: savedQuestions
-    });
+    try {
+      const savedQuestions = await Question.insertMany(createdQuestions, { ordered: true });
+      return res.status(200).json({
+        success: true,
+        message: `Successfully uploaded ${savedQuestions.length} questions.`,
+        data: savedQuestions
+      });
+    } catch (saveError) {
+      console.error("Error inserting questions:", saveError);
+      return res.status(400).json({
+        success: false,
+        message: "Data validation failed during upload. Ensure all columns match the master categories exactly (including capitalization and special characters like '&').",
+        error: saveError.message
+      });
+    }
 
   } catch (error) {
     if (req.file) fs.unlinkSync(req.file.path);

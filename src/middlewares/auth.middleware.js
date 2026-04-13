@@ -71,6 +71,7 @@ export const flexibleProtect = async (req, res, next) => {
           role: decoded.role || invitation.role,
           invitedBy: invitation.invitedBy,
           orgName: invitation.orgName,
+          department: invitation.department,
           invitationId: invitation._id
         };
         // For backwards compatibility with controllers expecting req.employee
