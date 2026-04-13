@@ -772,23 +772,63 @@ export const getOrganizationFilters = async (req, res) => {
       return res.status(403).json({ message: "Access denied. You can only view your own organization's data." });
     }
 
-    // 1. Fetch registered users
-    const users = await User.find({ orgName }).select("_id firstName lastName email role department").lean();
+    // --- REUSE LOGIC FROM getOrganizationMembers FOR CONSISTENCY ---
+    const orgRegex = new RegExp(`^${orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
 
-    // 2. Format users for dropdown
-    const members = users.map(u => ({
-      _id: u._id,
-      name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
-      email: u.email,
-      role: u.role,
-      department: u.department
-    }));
+    // 1. Fetch data in parallel
+    const [users, invitations, assessments, organization] = await Promise.all([
+      User.find({ orgName: orgRegex }).select("_id firstName lastName email role department").lean(),
+      Invitation.find({ orgName: orgRegex, used: false }).select("email role department").lean(),
+      SubmittedAssessment.find({ "userDetails.orgName": orgRegex }).select("userDetails.email userDetails.firstName userDetails.lastName userDetails.role userDetails.department userId").lean(),
+      Organization.findOne({ name: orgRegex }).select("departments").lean()
+    ]);
 
-    // 3. Fetch departments
-    const organization = await Organization.findOne({ name: orgName }).select("departments").lean();
+    const membersMap = new Map();
+
+    // 2. Process Registered Users
+    users.forEach(u => {
+      membersMap.set(u.email.toLowerCase(), {
+        _id: u._id,
+        name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
+        email: u.email,
+        role: u.role,
+        department: u.department
+      });
+    });
+
+    // 3. Process Pending Invitations
+    invitations.forEach(i => {
+      const emailLower = i.email.toLowerCase();
+      if (!membersMap.has(emailLower)) {
+        membersMap.set(emailLower, {
+          _id: `pending_${i.email}`, // Placeholder ID
+          name: i.email,
+          email: i.email,
+          role: i.role,
+          department: i.department
+        });
+      }
+    });
+
+    // 4. Process Assessment Submissions (Catch Guests)
+    assessments.forEach(a => {
+      const email = a.userDetails?.email;
+      if (!email) return;
+      const emailLower = email.toLowerCase();
+
+      if (!membersMap.has(emailLower)) {
+        membersMap.set(emailLower, {
+          _id: a.userId || `guest_${email}`,
+          name: `${a.userDetails.firstName || ""} ${a.userDetails.lastName || ""}`.trim() || email,
+          email: email,
+          role: a.userDetails.role || "employee",
+          department: a.userDetails.department
+        });
+      }
+    });
 
     res.status(200).json({
-      members,
+      members: Array.from(membersMap.values()),
       departments: organization?.departments || []
     });
   } catch (error) {
