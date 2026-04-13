@@ -363,12 +363,13 @@ export const getSuperAdminStats = async (req, res) => {
 
     // 2. Aggregate Invitations (Emails per org)
     const inviteStats = await Invitation.aggregate([
+      { $match: { role: { $ne: "admin" } } },
       { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
     ]);
 
     // 3. Aggregate Users (Emails per org) - All roles
     const userStats = await User.aggregate([
-      { $match: { orgName: { $exists: true, $ne: null } } },
+      { $match: { orgName: { $exists: true, $ne: null }, role: { $ne: "admin" } } },
       { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
     ]);
 
@@ -469,8 +470,8 @@ export const getSuperAdminIntelligence = async (req, res) => {
         "userDetails.role": { $regex: /employee/i },
         isDeleted: { $ne: true }
       }, "userDetails.email").lean(),
-      Invitation.countDocuments(),
-      User.countDocuments({ role: "admin" }),
+      Invitation.countDocuments({ role: { $ne: "admin" } }),
+      User.countDocuments({ role: "admin" }), // Keep for role stats but don't use for participation
       Assessment.countDocuments({ isCompleted: true, isDeleted: { $ne: true } }),
       Assessment.aggregate([
         { $match: { isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter } },
@@ -501,7 +502,7 @@ export const getSuperAdminIntelligence = async (req, res) => {
     };
     const totalUsers = Object.values(roleStats).reduce((a, b) => a + b, 0);
 
-    const totalAssigned = inviteCount + adminCount;
+    const totalAssigned = inviteCount; // exclude adminCount here
     const totalPending = totalAssigned > totalCompleted ? totalAssigned - totalCompleted : 0;
 
     const roleCompletionRates = {

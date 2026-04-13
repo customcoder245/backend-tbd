@@ -4,6 +4,7 @@ import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
+import Organization from "../models/organization.model.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -261,11 +262,35 @@ export const cloneTemplate = async (req, res) => {
     }
 
     const targetDept = (department === "" || department === undefined || department === "All") ? null : department;
+    const allDepartments = req.body.allDepartments === true;
 
-    // 1. Check if already initialized for this org/dept context
-    const existingCount = await Question.countDocuments({ orgName, department: targetDept });
-    if (existingCount > 0) {
-      return res.status(400).json({ success: false, message: `Organization "${orgName}"${targetDept ? ` and department "${targetDept}"` : ""} already has questions. Clone aborted.` });
+    // 1. Context validation & collision check
+    if (allDepartments) {
+      const org = await Organization.findOne({ name: orgName }).lean();
+      const depts = org?.departments || [];
+      const deptsToCheck = [null, ...depts];
+
+      const existingDocs = await Question.find({
+        orgName,
+        department: { $in: deptsToCheck }
+      }).select('department').lean();
+
+      if (existingDocs.length > 0) {
+        return res.status(400).json({
+          success: false,
+          isCollision: true,
+          message: `This organization already has questions in one or more departments. Overwriting will delete existing data across all departments.`
+        });
+      }
+    } else {
+      const existingCount = await Question.countDocuments({ orgName, department: targetDept });
+      if (existingCount > 0) {
+        return res.status(400).json({
+          success: false,
+          isCollision: true,
+          message: `This organization${targetDept ? ` and department "${targetDept}"` : ""} already has questions. Clone aborted.`
+        });
+      }
     }
 
     // 2. Fetch masters
@@ -279,25 +304,30 @@ export const cloneTemplate = async (req, res) => {
     }
 
     // 3. Map to new organization
-    const seen = new Set();
     const tenantQuestions = [];
+    const org = await Organization.findOne({ name: orgName }).lean();
+    const depts = org?.departments || [];
+    const targetDepts = allDepartments ? [null, ...depts] : [targetDept];
 
-    masters.forEach(mq => {
-      const qCode = mq.questionCode;
-      const qStakeholder = mq.stakeholder || "unknown";
-      const key = `${qCode}-${qStakeholder}`;
+    targetDepts.forEach(dept => {
+      const seen = new Set();
+      masters.forEach(mq => {
+        const qCode = mq.questionCode;
+        const qStakeholder = mq.stakeholder || "unknown";
+        const key = `${qCode}-${qStakeholder}`;
 
-      if (!qCode || seen.has(key)) return;
-      seen.add(key);
+        if (!qCode || seen.has(key)) return;
+        seen.add(key);
 
-      const qObj = { ...mq };
-      delete qObj._id;
-      delete qObj.__v;
-      delete qObj.createdAt;
-      delete qObj.updatedAt;
-      qObj.orgName = orgName;
-      qObj.department = targetDept;
-      tenantQuestions.push(qObj);
+        const qObj = { ...mq };
+        delete qObj._id;
+        delete qObj.__v;
+        delete qObj.createdAt;
+        delete qObj.updatedAt;
+        qObj.orgName = orgName;
+        qObj.department = dept;
+        tenantQuestions.push(qObj);
+      });
     });
 
     if (tenantQuestions.length === 0) {
@@ -579,20 +609,13 @@ export const getAllQuestions = async (req, res) => {
       ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
       : { orgName };
 
-    // Build filter object
-    const filter = { isDeleted: false, ...orgFilter };
+    // Build filter object: Strictly filter by department to ensure isolation
+    const filter = {
+      isDeleted: false,
+      ...orgFilter,
+      department: targetDept // null matches questions with no department (Org-wide)
+    };
 
-    if (targetDept !== null) {
-      filter.department = targetDept;
-    } else if (orgName !== null) {
-      // If we are looking for "All" departments in an organization, 
-      // we might want to see both org-wide (null) and specific dept questions.
-      // However, usually "All Department" selection in UI might mean "Show all without dept filter"
-      // or "Show only org-wide". 
-      // The user image shows "All Department" as a specific choice.
-      // If "All Department" is selected, we should probably NOT filter by department field at all.
-      // BUT, if the user picks a specific department, we filter.
-    }
 
     if (stakeholder) {
       filter.stakeholder = stakeholder;
@@ -746,6 +769,19 @@ export const uploadQuestions = async (req, res) => {
     let orgName = (role === "superadmin" && targetOrg !== undefined) ? targetOrg : userOrg;
     if (orgName === "") orgName = null;
     const targetDept = (department === "" || department === undefined || department === "All") ? null : department;
+    const force = req.body.force === "true" || req.body.force === true;
+
+    // 0. Collision Check
+    if (!force) {
+      const existingCount = await Question.countDocuments({ orgName, department: targetDept, isDeleted: false });
+      if (existingCount > 0) {
+        return res.status(400).json({
+          success: false,
+          isCollision: true,
+          message: `This ${targetDept ? `department ("${targetDept}")` : "organization"} already has questions. Do you want to override?`
+        });
+      }
+    }
 
     // Read excel file
     const workbook = xlsx.readFile(req.file.path);

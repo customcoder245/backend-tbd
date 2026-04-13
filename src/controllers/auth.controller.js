@@ -602,31 +602,38 @@ export const getOrganizationMembers = async (req, res) => {
       .select("firstName lastName email role department createdAt profileCompleted")
       .lean();
 
-    // 3. Fetch assessments from both Live/In-progress and Submitted collections
-    const orgRegex = new RegExp(`^${orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    // 3. Fetch assessments from both Live/In-progress and Submitted collections (trim to be safe)
+    const escapedName = orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, 'i');
 
     const [liveAssessments, submittedAssessments] = await Promise.all([
-      Assessment.find({ orgName: orgRegex }).select("employeeEmail isCompleted _id submittedAt").lean(),
-      SubmittedAssessment.find({ "userDetails.orgName": orgRegex }).select("userDetails.email assessmentId _id submittedAt").lean()
+      Assessment.find({ orgName: orgRegex, isDeleted: { $ne: true } }).select("employeeEmail isCompleted _id submittedAt userDetails").lean(),
+      SubmittedAssessment.find({ "userDetails.orgName": orgRegex, isDeleted: { $ne: true } }).select("userDetails assessmentId _id submittedAt scores.overall createdAt").lean()
     ]);
+
+    console.log(`[getOrganizationMembers] DEBUG: Org: ${orgName}`);
+    console.log(`[getOrganizationMembers] DEBUG: Registered Users: ${registeredUsers.length}`);
+    console.log(`[getOrganizationMembers] DEBUG: Submitted Assessments: ${submittedAssessments.length}`);
+    console.log(`[getOrganizationMembers] DEBUG: Submitted emails found: ${submittedAssessments.map(s => s.userDetails?.email).join(', ')}`);
 
     // Create a map of latest assessment for each user/email
     const latestAssessments = new Map();
 
     // Map live assessments first (can be overwritten by submitted if more recent/relevant)
     liveAssessments.forEach(ass => {
-      const email = ass.employeeEmail?.toLowerCase();
+      const email = ass.employeeEmail?.trim().toLowerCase();
       if (!email) return;
       latestAssessments.set(email, {
         id: ass._id,
         status: ass.isCompleted ? "Completed" : "In Progress",
-        date: ass.submittedAt || ass.createdAt
+        date: ass.submittedAt || ass.createdAt,
+        userDetails: ass.userDetails
       });
     });
 
     // Submitted assessments represent final "Completed" state
     submittedAssessments.forEach(ass => {
-      const email = ass.userDetails?.email?.toLowerCase();
+      const email = ass.userDetails?.email?.trim().toLowerCase();
       if (!email) return;
       const existing = latestAssessments.get(email);
       // Always prefer SubmittedAssessment as it's the final report
@@ -634,25 +641,37 @@ export const getOrganizationMembers = async (req, res) => {
         latestAssessments.set(email, {
           id: ass._id,
           status: "Completed",
-          date: ass.submittedAt
+          date: ass.submittedAt,
+          score: ass.scores?.overall || 0,
+          userDetails: ass.userDetails, // Store for potential ghost members
+          createdAt: ass.createdAt
         });
       }
     });
 
+    console.log(`[getOrganizationMembers] DEBUG: LatestAssessments Map Keys: ${Array.from(latestAssessments.keys()).join(', ')}`);
+
     // Mapping registered users
     const activeMembers = registeredUsers.map(u => {
       const assessment = latestAssessments.get(u.email.toLowerCase());
+      const assDetails = assessment?.userDetails || {};
+
+      const fName = (assDetails.firstName && assDetails.firstName !== "-") ? assDetails.firstName : (u.firstName && u.firstName !== "-" ? u.firstName : "");
+      const lName = assDetails.lastName || u.lastName || "";
+
       return {
         _id: u._id,
-        firstName: u.firstName || "-",
-        lastName: u.lastName || "",
+        firstName: (fName || lName) ? fName : u.email,
+        lastName: (fName || lName) ? lName : "",
         email: u.email,
         role: u.role,
-        department: u.department || "-",
+        department: (assDetails.department && assDetails.department !== "-") ? assDetails.department : (u.department && u.department !== "-" ? u.department : "-"),
         createdAt: u.createdAt,
         status: "Accept",
         assessmentStatus: assessment?.status || "Not Started",
-        lastAssessmentId: assessment?.status === "Completed" ? assessment.id : null
+        lastAssessmentId: assessment?.status === "Completed" ? assessment.id : null,
+        score: assessment?.score || null,
+        submittedAt: assessment?.date || null
       };
     });
 
@@ -668,21 +687,62 @@ export const getOrganizationMembers = async (req, res) => {
       .filter(inv => !registeredEmails.has(inv.email.toLowerCase()))
       .map(inv => {
         const assessment = latestAssessments.get(inv.email.toLowerCase());
+        const assDetails = assessment?.userDetails || {};
+
+        const fName = (assDetails.firstName && assDetails.firstName !== "-") ? assDetails.firstName : (inv.name && inv.name !== "-" ? inv.name : "");
+        const lName = assDetails.lastName || "";
+
         return {
           _id: inv._id,
-          firstName: "-",
-          lastName: "",
+          firstName: (fName || lName) ? fName : inv.email,
+          lastName: (fName || lName) ? lName : "",
           email: inv.email,
           role: inv.role,
-          department: inv.department || "-",
+          department: (assDetails.department && assDetails.department !== "-") ? assDetails.department : (inv.department && inv.department !== "-" ? inv.department : "-"),
           createdAt: inv.createdAt,
           status: new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending",
           assessmentStatus: assessment?.status || "Not Started",
-          lastAssessmentId: assessment?.status === "Completed" ? assessment.id : null
+          lastAssessmentId: assessment?.status === "Completed" ? assessment.id : null,
+          score: assessment?.score || null,
+          submittedAt: assessment?.date || null
         };
       });
 
     const allMembers = [...activeMembers, ...pendingMembers];
+
+    // 5. Catch any "ghost" members who submitted an assessment but don't have a user/invitation
+    const handledEmails = new Set(allMembers.map(m => m.email.toLowerCase()));
+
+    latestAssessments.forEach((data, email) => {
+      if (data.status === "Completed" && !handledEmails.has(email)) {
+        const details = data.userDetails || {};
+        const fName = (details.firstName && details.firstName !== "-") ? details.firstName : "";
+        const lName = details.lastName || "";
+
+        console.log(`[getOrganizationMembers] GHOST DETECTED: ${email}`);
+
+        allMembers.push({
+          _id: data.id,
+          firstName: (fName || lName) ? fName : (details.email || email), // Fallback to email if no name at all
+          lastName: (fName || lName) ? lName : "",
+          email: details.email || email,
+          role: details.role || "employee",
+          department: (details.department && details.department !== "-") ? details.department : "-",
+          createdAt: data.createdAt || data.date,
+          status: "Accept", // They finished, so treat as accepted/active
+          assessmentStatus: "Completed",
+          lastAssessmentId: data.id,
+          score: data.score || null,
+          submittedAt: data.date || null
+        });
+        handledEmails.add(email);
+      }
+    });
+
+    const target = allMembers.find(m => m.email.toLowerCase() === "tbdemployee@yopmail.com");
+    if (target) {
+      console.log(`[getOrganizationMembers] DEBUG: Target Member Found: ${JSON.stringify(target)}`);
+    }
 
     res.status(200).json({
       details: {

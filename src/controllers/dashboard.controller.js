@@ -102,6 +102,12 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
             if (invite) {
                 queryEmail = invite.email;
                 isGuest = true;
+            } else {
+                const reportCheck = await SubmittedAssessment.findById(queryUserId).lean();
+                if (reportCheck) {
+                    queryEmail = reportCheck.userDetails?.email;
+                    isGuest = true;
+                }
             }
         }
 
@@ -267,6 +273,12 @@ export const getDomainDetailedReport = async (req, res) => {
             if (invite) {
                 queryEmail = invite.email;
                 isGuest = true;
+            } else {
+                const reportCheck = await SubmittedAssessment.findById(queryUserId).lean();
+                if (reportCheck) {
+                    queryEmail = reportCheck.userDetails?.email;
+                    isGuest = true;
+                }
             }
         }
 
@@ -513,6 +525,13 @@ export const updateDomainDetailedReport = async (req, res) => {
                 queryEmail = invite.email;
                 isGuest = true;
                 inviteOrgName = invite.orgName;
+            } else {
+                const reportCheck = await SubmittedAssessment.findById(queryUserId).lean();
+                if (reportCheck) {
+                    queryEmail = reportCheck.userDetails?.email;
+                    isGuest = true;
+                    inviteOrgName = reportCheck.userDetails?.orgName;
+                }
             }
         }
 

@@ -46,10 +46,10 @@ export const sendInvitation = async (req, res) => {
         // --- DEPARTMENT GOVERNANCE ---
         if (inviterRole === "admin") {
             const hasDepartments = organization && organization.departments && organization.departments.length > 0;
-            
+
             if (!hasDepartments) {
-                return res.status(400).json({ 
-                    message: "No departments defined. Please add at least one department first." 
+                return res.status(400).json({
+                    message: "No departments defined. Please add at least one department first."
                 });
             }
 
@@ -238,7 +238,9 @@ export const getInvitations = async (req, res) => {
         const userOrg = req.user.orgName;
         const userId = req.user.userId;
 
-        if (role === "superadmin") {
+        const { orgName: queryOrgName } = req.query;
+
+        if (role === "superadmin" && !queryOrgName) {
             const orgStats = await Invitation.aggregate([
                 { $match: { role: "admin" } },
                 {
@@ -295,7 +297,7 @@ export const getInvitations = async (req, res) => {
 
         } else {
             const dept = req.user.department;
-            const filter = { orgName: userOrg };
+            const filter = { orgName: queryOrgName || userOrg };
 
             if (role === "leader") {
                 filter.role = { $in: ["manager", "employee"] };
@@ -303,7 +305,7 @@ export const getInvitations = async (req, res) => {
             } else if (role === "manager") {
                 filter.role = "employee";
                 if (dept) filter.department = dept;
-            } else if (role !== "admin") {
+            } else if (role !== "admin" && role !== "superadmin") {
                 filter.invitedBy = userId;
             }
 
