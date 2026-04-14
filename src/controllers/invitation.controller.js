@@ -241,61 +241,72 @@ export const getInvitations = async (req, res) => {
         const { orgName: queryOrgName } = req.query;
 
         if (role === "superadmin" && !queryOrgName) {
-            const orgStats = await Invitation.aggregate([
-                { $match: { role: "admin" } },
-                {
-                    $group: {
-                        _id: "$email",
-                        orgNameFromInvite: { $first: "$orgName" },
-                        createdAt: { $first: "$createdAt" },
-                        status: { $first: "$used" },
-                        expiredAt: { $first: "$expiredAt" }
-                    }
-                },
-                { $sort: { createdAt: -1 } }
+            // 1. Fetch all Admin Users and Admin Invitations
+            const [adminUsers, adminInvites] = await Promise.all([
+                User.find({ role: "admin" }).select("email orgName createdAt").lean(),
+                Invitation.find({ role: "admin" }).select("email orgName used expiredAt createdAt").lean()
             ]);
 
-            const adminEmails = orgStats.map(item => item._id);
-            const users = await User.find({ email: { $in: adminEmails } }).select("email orgName").lean();
+            const adminsMap = new Map();
 
-            const userMap = {};
-            users.forEach(u => { userMap[u.email.toLowerCase()] = u; });
-
-            const finalOrgNames = orgStats.map(item => {
-                const adminUser = userMap[item._id.toLowerCase()];
-                return adminUser?.orgName || item.orgNameFromInvite || "Pending Setup";
-            });
-
-            const uniqueOrgNames = [...new Set(finalOrgNames)];
-
-            const allCounts = await Invitation.aggregate([
-                { $match: { orgName: { $in: uniqueOrgNames } } },
-                { $group: { _id: "$orgName", count: { $sum: 1 } } }
-            ]);
-
-            const countMap = {};
-            allCounts.forEach(c => { countMap[c._id] = c.count; });
-
-            const formattedData = orgStats.map((item) => {
-                const adminUser = userMap[item._id.toLowerCase()];
-                const finalOrgName = adminUser?.orgName || item.orgNameFromInvite || "Pending Setup";
-
-                let currentStatus = item.status ? "Accept" :
-                    (item.expiredAt && new Date(item.expiredAt) < new Date() ? "Expire" : "Pending");
-
-                return {
-                    _id: item._id,
-                    orgName: finalOrgName,
-                    email: item._id,
-                    createdAt: item.createdAt,
-                    totalUsers: countMap[finalOrgName] || 0,
-                    status: currentStatus,
+            // Process Invitations first (as baseline)
+            adminInvites.forEach(inv => {
+                const email = inv.email.toLowerCase();
+                adminsMap.set(email, {
+                    _id: inv._id,
+                    email: inv.email,
+                    orgName: inv.orgName || "Pending Setup",
+                    createdAt: inv.createdAt,
+                    status: inv.used ? "Accept" : (new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending"),
                     role: "admin"
-                };
+                });
             });
-            return res.status(200).json(formattedData);
 
-        } else {
+            // Process Registered Users (override/supplement)
+            adminUsers.forEach(u => {
+                const email = u.email.toLowerCase();
+                const existing = adminsMap.get(email);
+
+                adminsMap.set(email, {
+                    _id: u._id,
+                    email: u.email,
+                    orgName: u.orgName || existing?.orgName || "Unnamed Org",
+                    createdAt: u.createdAt || existing?.createdAt,
+                    status: "Accept", // If they are in User table, they are accepted
+                    role: "admin"
+                });
+            });
+
+            const uniqueAdmins = Array.from(adminsMap.values()).sort((a, b) =>
+                new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
+            const uniqueOrgNames = [...new Set(uniqueAdmins.map(a => a.orgName).filter(name => name !== "Pending Setup"))];
+
+            // 2. Optimized counting: Get counts from both Users and Invitations per Org
+            const [userCounts, inviteCounts] = await Promise.all([
+                User.aggregate([
+                    { $match: { orgName: { $in: uniqueOrgNames } } },
+                    { $group: { _id: "$orgName", count: { $sum: 1 } } }
+                ]),
+                Invitation.aggregate([
+                    { $match: { orgName: { $in: uniqueOrgNames }, used: false } },
+                    { $group: { _id: "$orgName", count: { $sum: 1 } } }
+                ])
+            ]);
+
+            const totalMap = {};
+            uniqueOrgNames.forEach(name => { totalMap[name] = 0; });
+            userCounts.forEach(c => { totalMap[c._id] = (totalMap[c._id] || 0) + c.count; });
+            inviteCounts.forEach(c => { totalMap[c._id] = (totalMap[c._id] || 0) + c.count; });
+
+            const formattedData = uniqueAdmins.map(admin => ({
+                ...admin,
+                totalUsers: totalMap[admin.orgName] || 0
+            }));
+
+            return res.status(200).json(formattedData);
+        }
+        else {
             const dept = req.user.department;
             const filter = { orgName: queryOrgName || userOrg };
 
