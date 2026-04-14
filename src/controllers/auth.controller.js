@@ -598,9 +598,15 @@ export const getOrganizationMembers = async (req, res) => {
     const organization = await Organization.findOne({ name: orgName }).lean();
 
     // 2. Fetch all registered users for this org
-    const registeredUsers = await User.find({ orgName })
+    let userQuery = { orgName };
+    if (orgName === "Unnamed Org" || orgName === "Pending Setup") {
+      userQuery = { role: "admin", orgName: { $in: [null, "", "Unnamed Org", "Pending Setup"] } };
+    }
+
+    const registeredUsers = await User.find(userQuery)
       .select("firstName lastName email role department createdAt profileCompleted")
       .lean();
+
 
     // 3. Fetch assessments from both Live/In-progress and Submitted collections (trim to be safe)
     const escapedName = orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -678,10 +684,13 @@ export const getOrganizationMembers = async (req, res) => {
     // 4. Fetch all pending/expired invitations for this org 
     const registeredEmails = new Set(registeredUsers.map(u => u.email.toLowerCase()));
 
-    const invitations = await Invitation.find({
-      orgName,
-      used: false
-    }).lean();
+    let invitationQuery = { orgName, used: false };
+    if (orgName === "Pending Setup" || orgName === "Unnamed Org") {
+      invitationQuery = { role: "admin", used: false, orgName: { $in: [null, "", "Pending Setup", "Unnamed Org"] } };
+    }
+
+    const invitations = await Invitation.find(invitationQuery).lean();
+
 
     const pendingMembers = invitations
       .filter(inv => !registeredEmails.has(inv.email.toLowerCase()))
@@ -775,13 +784,27 @@ export const getOrganizationFilters = async (req, res) => {
     // --- REUSE LOGIC FROM getOrganizationMembers FOR CONSISTENCY ---
     const orgRegex = new RegExp(`^${orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
 
+    let userQuery = { orgName: orgRegex };
+    let inviteQuery = { orgName: orgRegex, used: false };
+    let assessmentQuery = { "userDetails.orgName": orgRegex };
+    let orgQuery = { name: orgRegex };
+
+    if (orgName === "Pending Setup" || orgName === "Unnamed Org") {
+      const missingOrgNames = [null, "", "Pending Setup", "Unnamed Org"];
+      userQuery = { role: "admin", orgName: { $in: missingOrgNames } };
+      inviteQuery = { role: "admin", used: false, orgName: { $in: missingOrgNames } };
+      assessmentQuery = { "userDetails.role": "admin", "userDetails.orgName": { $in: missingOrgNames } };
+      orgQuery = { name: { $in: missingOrgNames } };
+    }
+
     // 1. Fetch data in parallel
     const [users, invitations, assessments, organization] = await Promise.all([
-      User.find({ orgName: orgRegex }).select("_id firstName lastName email role department").lean(),
-      Invitation.find({ orgName: orgRegex, used: false }).select("email role department").lean(),
-      SubmittedAssessment.find({ "userDetails.orgName": orgRegex }).select("userDetails.email userDetails.firstName userDetails.lastName userDetails.role userDetails.department userId").lean(),
-      Organization.findOne({ name: orgRegex }).select("departments").lean()
+      User.find(userQuery).select("_id firstName lastName email role department").lean(),
+      Invitation.find(inviteQuery).select("email role department").lean(),
+      SubmittedAssessment.find(assessmentQuery).select("userDetails.email userDetails.firstName userDetails.lastName userDetails.role userDetails.department userId").lean(),
+      Organization.findOne(orgQuery).select("departments").lean()
     ]);
+
 
     const membersMap = new Map();
 

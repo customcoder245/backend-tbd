@@ -362,22 +362,30 @@ export const getSuperAdminStats = async (req, res) => {
     ]);
 
     // 2. Aggregate Invitations (Emails per org)
-    const inviteStats = await Invitation.aggregate([
-      { $match: { role: { $ne: "admin" } } },
-      { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
-    ]);
-
     // 3. Aggregate Users (Emails per org) - All roles
-    const userStats = await User.aggregate([
-      { $match: { orgName: { $exists: true, $ne: null }, role: { $ne: "admin" } } },
-      { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
+    const [inviteStats, assessableInviteStats, userStats, assessableUserStats] = await Promise.all([
+      Invitation.aggregate([
+        { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
+      ]),
+      Invitation.aggregate([
+        { $match: { role: { $ne: "admin" } } },
+        { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
+      ]),
+      User.aggregate([
+        { $match: { orgName: { $exists: true, $ne: null } } },
+        { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
+      ]),
+      User.aggregate([
+        { $match: { orgName: { $exists: true, $ne: null }, role: { $ne: "admin" } } },
+        { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
+      ])
     ]);
 
     // 4. Merge Data for Unique Participant Count
     const statsMap = {};
 
     const getOrg = (name) => {
-      if (!statsMap[name]) statsMap[name] = { orgName: name, emailSet: new Set(), completed: 0 };
+      if (!statsMap[name]) statsMap[name] = { orgName: name, emailSet: new Set(), assessableEmailSet: new Set(), completed: 0 };
       return statsMap[name];
     };
 
@@ -385,18 +393,26 @@ export const getSuperAdminStats = async (req, res) => {
     inviteStats.forEach(i => {
       if (!i._id) return;
       const org = getOrg(i._id);
-      if (i.emails && Array.isArray(i.emails)) {
-        i.emails.forEach(e => e && org.emailSet.add(e.toLowerCase()));
-      }
+      if (i.emails && Array.isArray(i.emails)) i.emails.forEach(e => e && org.emailSet.add(e.toLowerCase()));
+    });
+
+    assessableInviteStats.forEach(i => {
+      if (!i._id) return;
+      const org = getOrg(i._id);
+      if (i.emails && Array.isArray(i.emails)) i.emails.forEach(e => e && org.assessableEmailSet.add(e.toLowerCase()));
     });
 
     // Add Users
     userStats.forEach(a => {
       if (!a._id) return;
       const org = getOrg(a._id);
-      if (a.emails && Array.isArray(a.emails)) {
-        a.emails.forEach(e => e && org.emailSet.add(e.toLowerCase()));
-      }
+      if (a.emails && Array.isArray(a.emails)) a.emails.forEach(e => e && org.emailSet.add(e.toLowerCase()));
+    });
+
+    assessableUserStats.forEach(a => {
+      if (!a._id) return;
+      const org = getOrg(a._id);
+      if (a.emails && Array.isArray(a.emails)) a.emails.forEach(e => e && org.assessableEmailSet.add(e.toLowerCase()));
     });
 
     // Add Assessments
@@ -409,7 +425,8 @@ export const getSuperAdminStats = async (req, res) => {
     // Transform to final array
     const result = Object.values(statsMap).map(org => ({
       orgName: org.orgName,
-      users: org.emailSet.size, // Unique count
+      users: org.emailSet.size, // Unique count for ALL roles
+      assessableUsers: org.assessableEmailSet.size, // Unique count for EXCLUDING admins
       completed: org.completed
     })).sort((a, b) => b.completed - a.completed);
 
