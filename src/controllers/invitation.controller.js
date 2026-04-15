@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Invitation from "../models/invitation.model.js";
 import Assessment from "../models/assessment.model.js";
+import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Organization from "../models/organization.model.js";
 import { sendInvitationEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
@@ -282,26 +283,43 @@ export const getInvitations = async (req, res) => {
             );
             const uniqueOrgNames = [...new Set(uniqueAdmins.map(a => a.orgName).filter(name => name !== "Pending Setup"))];
 
-            // 2. Optimized counting: Get counts from both Users and Invitations per Org
-            const [userCounts, inviteCounts] = await Promise.all([
+            // 2. Accurate counting: Merge Users + Invitations + Anonymous Assessment takers per Org
+            const [userCountsRaw, inviteCountsRaw, submittedEmailsRaw] = await Promise.all([
                 User.aggregate([
                     { $match: { orgName: { $in: uniqueOrgNames } } },
-                    { $group: { _id: "$orgName", count: { $sum: 1 } } }
+                    { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
                 ]),
                 Invitation.aggregate([
                     { $match: { orgName: { $in: uniqueOrgNames }, used: false } },
-                    { $group: { _id: "$orgName", count: { $sum: 1 } } }
+                    { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
+                ]),
+                SubmittedAssessment.aggregate([
+                    { $match: { "userDetails.orgName": { $in: uniqueOrgNames }, isDeleted: { $ne: true } } },
+                    { $group: { _id: "$userDetails.orgName", emails: { $addToSet: "$userDetails.email" } } }
                 ])
             ]);
 
+            // Merge all email sources per org using a Set to deduplicate
             const totalMap = {};
-            uniqueOrgNames.forEach(name => { totalMap[name] = 0; });
-            userCounts.forEach(c => { totalMap[c._id] = (totalMap[c._id] || 0) + c.count; });
-            inviteCounts.forEach(c => { totalMap[c._id] = (totalMap[c._id] || 0) + c.count; });
+            uniqueOrgNames.forEach(name => { totalMap[name] = new Set(); });
+
+            userCountsRaw.forEach(c => {
+                if (totalMap[c._id]) c.emails.forEach(e => e && totalMap[c._id].add(e.toLowerCase()));
+            });
+            inviteCountsRaw.forEach(c => {
+                if (totalMap[c._id]) c.emails.forEach(e => e && totalMap[c._id].add(e.toLowerCase()));
+            });
+            submittedEmailsRaw.forEach(c => {
+                // Match case-insensitively
+                const matchedKey = uniqueOrgNames.find(n => n.toLowerCase() === (c._id || "").toLowerCase());
+                if (matchedKey && totalMap[matchedKey]) {
+                    c.emails.forEach(e => e && totalMap[matchedKey].add(e.toLowerCase()));
+                }
+            });
 
             const formattedData = uniqueAdmins.map(admin => ({
                 ...admin,
-                totalUsers: totalMap[admin.orgName] || 0
+                totalUsers: totalMap[admin.orgName] ? totalMap[admin.orgName].size : 0
             }));
 
             return res.status(200).json(formattedData);
