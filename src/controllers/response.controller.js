@@ -41,14 +41,10 @@ export const saveResponse = async (req, res) => {
         }
       }
       else if (question.scale === "FORCED_CHOICE") {
-        const hvOption = question.forcedChoice?.higherValueOption;
-
-        if (answer === hvOption && !comment?.trim()) {
+        if (!comment?.trim()) {
           return res.status(400).json({
-            message: `Comment is required for higher value option (${hvOption})`
+            message: `Comment is required for chosen option`
           });
-        } else if (answer !== hvOption) {
-          finalComment = null;
         }
       }
 
