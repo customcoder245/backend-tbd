@@ -4,7 +4,7 @@ import Assessment from "../models/assessment.model.js";
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Organization from "../models/organization.model.js";
 import Response from "../models/response.model.js";
-import { sendInvitationEmail } from "../utils/sendEmail.js";
+import { sendInvitationEmail, sendAssessmentResetEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
 import { createNotification, notifyHierarchy } from "../utils/notification.utils.js";
 import fs from "fs";
@@ -596,9 +596,9 @@ export const resetAssessment = async (req, res) => {
         }
 
         const [user, invitation, assessment] = await Promise.all([
-            User.findById(id).select("email").lean(),
-            Invitation.findById(id).select("email").lean(),
-            Assessment.findById(id).select("employeeEmail userDetails").lean()
+            User.findById(id).select("email role orgName department").lean(),
+            Invitation.findById(id).select("email role orgName department token token1").lean(),
+            Assessment.findById(id).select("employeeEmail userDetails orgName stakeholder").lean()
         ]);
 
         let targetEmail = null;
@@ -642,9 +642,18 @@ export const resetAssessment = async (req, res) => {
         }
 
         // Perform the reset
+        // We SOFT DELETE the assessment. 
+        // 1. This ensures that the next time they start, a BRAND NEW assessment ID is created.
+        // 2. The admin list still shows them because the Invitation persists.
         await Promise.all([
             Response.deleteMany({ assessmentId: targetAssessmentId }),
-            Assessment.deleteOne({ _id: targetAssessmentId }),
+            Assessment.findByIdAndUpdate(targetAssessmentId, {
+                $set: {
+                    isDeleted: true,
+                    deletedAt: new Date(),
+                    deletedReason: "Admin Reset"
+                }
+            }),
             SubmittedAssessment.deleteOne({ assessmentId: targetAssessmentId })
         ]);
 
@@ -656,7 +665,54 @@ export const resetAssessment = async (req, res) => {
             });
         }
 
-        res.status(200).json({ message: "Assessment has been reset. The user can now restart." });
+        // 🔓 UNLOCK OR RE-INVITE
+        // If they are a registered user, we just send a reset notification.
+        // If they are NOT registered (Ghost/Invitee), we generate a FRESH invitation just like a new invite.
+        const invToReplace = invitation || await Invitation.findOne({ email: targetEmail }).sort({ createdAt: -1 });
+        const assessmentRecord = assessment || await Assessment.findById(targetAssessmentId).lean();
+        const role = user?.role || invToReplace?.role || assessmentRecord?.stakeholder || "employee";
+        const department = user?.department || invToReplace?.department || assessmentRecord?.userDetails?.department || "-";
+
+        if (!user && role === "employee") {
+            console.log(`[ResetAssessment] Re-inviting non-registered employee: ${targetEmail}`);
+
+            // 1. Delete old invitation to avoid "duplicate" errors
+            if (invToReplace) {
+                await Invitation.deleteOne({ _id: invToReplace._id });
+            }
+
+            // 2. Create fresh invitation (this generates a new JWT and sends the email)
+            // We use the same helper as the "Invite" button
+            const inviter = await User.findById(req.user.userId).lean();
+            await createAndSendInvite(targetEmail, "employee", inviter, department);
+
+            return res.status(200).json({ message: "Assessment has been reset and a fresh invitation link has been sent." });
+        }
+
+        // --- REGISTERED USERS OR OTHERS ---
+        if (invToReplace) {
+            await Invitation.findByIdAndUpdate(invToReplace._id, { $set: { used: false } });
+        }
+
+        try {
+            const frontendUrl = (process.env.FRONTEND_URL || "").endsWith("/")
+                ? (process.env.FRONTEND_URL || "").slice(0, -1)
+                : (process.env.FRONTEND_URL || "");
+
+            let resetLink = `${frontendUrl}/start-assessment`;
+            if (invToReplace && invToReplace.token1) {
+                resetLink = `${frontendUrl}/start-assessment?token=${invToReplace.token1}`;
+            }
+
+            const firstName = user?.firstName || assessmentRecord?.userDetails?.firstName || invToReplace?.name || "Participant";
+            const orgName = user?.orgName || assessmentRecord?.orgName || invToReplace?.orgName || "Talent By Design";
+
+            await sendAssessmentResetEmail(targetEmail, resetLink, firstName, orgName);
+        } catch (emailError) {
+            console.error("[ResetAssessment] Email failed:", emailError.message);
+        }
+
+        res.status(200).json({ message: "Assessment has been reset and notification email sent." });
 
     } catch (error) {
         console.error("Reset assessment error:", error);
