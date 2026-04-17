@@ -3,6 +3,7 @@ import Invitation from "../models/invitation.model.js";
 import Assessment from "../models/assessment.model.js";
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Organization from "../models/organization.model.js";
+import Response from "../models/response.model.js";
 import { sendInvitationEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
 import { createNotification, notifyHierarchy } from "../utils/notification.utils.js";
@@ -583,5 +584,82 @@ export const sendBulkInvitations = async (req, res) => {
     } catch (err) {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         res.status(500).json({ message: "Bulk invite failed", error: err.message });
+    }
+};
+// ==================== Reset Assessment ====================
+export const resetAssessment = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(400).json({ message: "Member ID is required" });
+        }
+
+        const [user, invitation, assessment] = await Promise.all([
+            User.findById(id).select("email").lean(),
+            Invitation.findById(id).select("email").lean(),
+            Assessment.findById(id).select("employeeEmail userDetails").lean()
+        ]);
+
+        let targetEmail = null;
+        let targetAssessmentId = null;
+
+        if (user) {
+            targetEmail = user.email;
+        } else if (invitation) {
+            targetEmail = invitation.email;
+        } else if (assessment) {
+            targetEmail = assessment.employeeEmail || assessment.userDetails?.email;
+            targetAssessmentId = assessment._id;
+        }
+
+        if (!targetEmail) {
+            // Check if it's an email directly (some IDs might be emails in legacy code)
+            if (EMAIL_REGEX.test(id)) {
+                targetEmail = id.toLowerCase();
+            } else {
+                return res.status(404).json({ message: "Member not found" });
+            }
+        }
+
+        // Find the latest assessment for this email if we didn't get a specific ID
+        if (!targetAssessmentId) {
+            const latest = await Assessment.findOne({
+                $or: [
+                    { employeeEmail: targetEmail },
+                    { "userDetails.email": targetEmail }
+                ],
+                isDeleted: { $ne: true }
+            }).sort({ createdAt: -1 });
+
+            if (latest) {
+                targetAssessmentId = latest._id;
+            }
+        }
+
+        if (!targetAssessmentId) {
+            return res.status(404).json({ message: "No active or completed assessment found to reset." });
+        }
+
+        // Perform the reset
+        await Promise.all([
+            Response.deleteMany({ assessmentId: targetAssessmentId }),
+            Assessment.deleteOne({ _id: targetAssessmentId }),
+            SubmittedAssessment.deleteOne({ assessmentId: targetAssessmentId })
+        ]);
+
+        // Cleanup user fields if matched
+        const userToUpdate = user || await User.findOne({ email: targetEmail });
+        if (userToUpdate) {
+            await User.findByIdAndUpdate(userToUpdate._id, {
+                $unset: { lastAssessmentScore: 1, lastAssessmentClassification: 1 }
+            });
+        }
+
+        res.status(200).json({ message: "Assessment has been reset. The user can now restart." });
+
+    } catch (error) {
+        console.error("Reset assessment error:", error);
+        res.status(500).json({ message: "Failed to reset assessment: " + error.message });
     }
 };

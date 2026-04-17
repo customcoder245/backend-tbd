@@ -26,6 +26,7 @@ import {
   acceptInvitation,
   getInvitations,
   deleteInvitation,
+  resetAssessment,
   sendBulkInvitations,
   getInvitationDetails
 } from "../controllers/invitation.controller.js";
@@ -60,6 +61,7 @@ router.post("/send-invitation", protect, sendInvitation);
 router.get("/invite/:token", acceptInvitation);
 router.get("/invitations", protect, getInvitations);
 router.delete("/invitation/:id", protect, deleteInvitation);
+router.delete("/reset-assessment/:id", protect, resetAssessment);
 router.post("/send-bulk-invitation", protect, uploadCSV, sendBulkInvitations);
 router.get("/invitation-details/:token", getInvitationDetails);
 
