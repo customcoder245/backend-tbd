@@ -35,7 +35,7 @@ export const sendInvitation = async (req, res) => {
 
         // --- FETCH EVERYTHING IN PARALLEL ---
         const [inviter, organization, existingUser, existingInvite] = await Promise.all([
-            User.findById(inviterId).select("role orgName adminId department").lean(),
+            User.findById(inviterId).select("firstName email role orgName adminId department").lean(),
             Organization.findOne({ name: inviterOrg }),
             User.findOne({ email }).select("_id").lean(),
             Invitation.findOne({ email, used: false }).lean()
