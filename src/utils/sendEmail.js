@@ -355,7 +355,7 @@ export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {
       </a>
     </div>
     <p style="font-size: 14px; color: #64748b; font-style: italic;">
-      Note: This invitation link is personal to you and will expire in ${isEmployee ? "10 days" : "1 hour"}.
+      Note: This invitation link is personal to you and will expire in ${isEmployee ? "10 days" : "7 days"}.
     </p>
   `;
 

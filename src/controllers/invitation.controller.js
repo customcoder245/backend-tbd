@@ -90,10 +90,10 @@ export const sendInvitation = async (req, res) => {
 
         // --- PREPARE TOKEN & EXPIRY ---
         const isEmployee = targetRole === "employee";
-        const tokenExpiry = isEmployee ? "10d" : "1h";
+        const tokenExpiry = isEmployee ? "10d" : "7d";
         const dbExpiry = isEmployee
             ? Date.now() + 10 * 24 * 60 * 60 * 1000
-            : Date.now() + 60 * 60 * 1000;
+            : Date.now() + 7 * 24 * 60 * 60 * 1000;
 
         const token = jwt.sign(
             { email, role, invitedId: inviterId, orgName: inviter.orgName, department: department || null },
@@ -446,10 +446,10 @@ export const createAndSendInvite = async (email, role, inviter, department) => {
     if (existingInvite) throw new Error("ALREADY_INVITED");
 
     const isEmployee = role?.toLowerCase() === "employee";
-    const tokenExpiry = isEmployee ? "10d" : "1h";
+    const tokenExpiry = isEmployee ? "10d" : "7d";
     const dbExpiry = isEmployee
         ? Date.now() + 10 * 24 * 60 * 60 * 1000
-        : Date.now() + 60 * 60 * 1000;
+        : Date.now() + 7 * 24 * 60 * 60 * 1000;
 
     const token = jwt.sign(
         {
