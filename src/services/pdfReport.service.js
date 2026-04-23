@@ -25,16 +25,16 @@ class PDFReportService {
         };
 
         this.subdomainDescriptions = {
-            "Mindset & Adaptability": "The ability to stay resilient, learn from setbacks, and adapt to changing conditions and priorities.",
-            "Psychological Health & Safety": "The environment of trust where people feel safe to speak up, share ideas, and raise concerns without fear.",
-            "Relational & Emotional Intelligence": "The quality of interpersonal communication, empathy, and constructive conflict resolution across teams.",
-            "Prioritization": "The clarity and discipline in focusing on the highest-value work while managing competing requests.",
-            "Workflow Clarity": "The transparency of roles, processes, and handoffs that ensure work moves forward without unnecessary bottlenecks.",
-            "Effective Resource Management": "The alignment of time, talent, and capacity to support sustainable delivery and prevent overload.",
-            "Data, AI & Automation Readiness": "The ability to access data and use emerging technologies to improve decision-making and reduce manual friction.",
-            "Digital Communication & Collaboration": "The effective use of shared digital tools and norms to keep teams synchronized and productive.",
-            "Mindset, Confidence and Change Readiness": "The openness and confidence of individuals to adopt new digital tools and ways of working.",
-            "Tool & System Proficiency": "The practical skill and confidence in using the organization's core systems and technological infrastructure."
+            "Mindset & Adaptability": "The ability to stay resilient, learn from setbacks, and adapt to changing conditions and priorities. This measures how well the organization handles shifting pressures and evolving work requirements.",
+            "Psychological Health & Safety": "The environment of trust where people feel safe to speak up, share ideas, and raise concerns without fear of negative consequences. It is the foundation of high-performing cultures.",
+            "Relational & Emotional Intelligence": "The quality of interpersonal communication, empathy, and constructive conflict resolution across teams. It determines how well individuals work together under pressure.",
+            "Prioritization": "The clarity and discipline in focusing on the highest-value work while managing competing requests. It identifies where focus drifts when urgent requests or local pressures rise.",
+            "Workflow Clarity": "The transparency of roles, processes, and handoffs that ensure work moves forward without unnecessary bottlenecks or individual dependency.",
+            "Effective Resource Management": "The alignment of time, talent, and capacity to support sustainable delivery and prevent overload. It measures the balance between delivery and sustainable workload.",
+            "Data, AI & Automation Readiness": "The ability to access data and use emerging technologies to improve decision-making and reduce manual friction. It evaluates how well value is embedded into everyday work.",
+            "Digital Communication & Collaboration": "The effective use of shared digital tools and norms to keep teams synchronized and productive. It measures the consistency needed for seamless collaboration at scale.",
+            "Mindset, Confidence and Change Readiness": "The openness and confidence of individuals to adopt new digital tools and ways of working. It identifies where support and reinforcement are needed most.",
+            "Tool & System Proficiency": "The practical skill and confidence in using the organization's core systems and technological infrastructure. It measures how effectively tools are being leveraged to their full value."
         };
 
         this.synergyIntro = "Your data is distributed across these domains to create a 'Portfolio Score'. We look for the Equilibrium Point (the center) as the marker for organizational stability. Large deviances indicate potential burnout or systemic fragility.";
@@ -407,12 +407,98 @@ class PDFReportService {
         </div>
 
         <div class="inner-footer">
-            <div>Confidential Assessment Report • {{../../userName}}</div>
+            <div>Confidential Assessment Report • {{../userName}}</div>
             <div>Talent By Design • Page {{add (multiply @index 2) 3}}</div>
+        </div>
+    </div>
+
+    <!-- SUB-DOMAIN DEEP DIVE PAGE -->
+    <div class="page">
+        <div class="inner-header">
+            <div class="report-tag">{{name}} • Sub-Domain Analysis</div>
+            <img src="${BRAND_LOGO_URL}" class="logo-small" />
+        </div>
+
+        <h1 style="margin-top: 5mm;">Sub-Domain Deep Dive</h1>
+        <p style="color: {{colors.text}}; margin-bottom: 8mm;">A granular analysis of the performance drivers within the <strong>{{name}}</strong> domain.</p>
+
+        {{#each subdomains}}
+        <div class="card" style="margin-bottom: 6mm;">
+            <div class="card-accent" style="background: {{gaugeColor score}};"></div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2mm;">
+                <div class="block-title" style="margin: 0; font-size: 12pt;">{{name}}</div>
+                <div style="font-size: 9pt; font-weight: 700; color: {{gaugeColor score}};">{{round score}}% • {{state}}</div>
+            </div>
+            <p style="font-style: italic; font-size: 8.5pt; color: {{colors.primary}}; margin-bottom: 3mm;">{{description}}</p>
+            
+            <div style="background: #f8fafc; padding: 4mm; border-radius: 2mm; border: 1px solid #e2e8f0;">
+                <p style="font-size: 9pt; line-height: 1.5; color: {{colors.text}};">{{insight}}</p>
+            </div>
+        </div>
+        {{/each}}
+
+        <div class="inner-footer">
+            <div>Confidential Assessment Report • {{../userName}}</div>
+            <div>Talent By Design • Page {{add (multiply @index 2) 4}}</div>
         </div>
     </div>
     {{/each}}
 
+    <!-- CONCLUSION PAGE -->
+    <div class="page">
+        <div class="inner-header">
+            <div class="report-tag">POD-360™ • Strategic Path Forward</div>
+            <img src="${BRAND_LOGO_URL}" class="logo-small" />
+        </div>
+
+        <h1 style="margin-top: 10mm; font-size: 28pt;">Conclusion & Path Forward</h1>
+        <p style="color: {{colors.text}}; line-height: 1.6; margin-bottom: 12mm;">
+            This assessment represents a snapshot of your organizational health. The journey from <strong>Friction to Flow</strong> is ongoing, 
+            and these insights provide the roadmap for your next phase of growth.
+        </p>
+
+        <div class="card" style="padding: 8mm; margin-bottom: 10mm;">
+            <div class="card-accent"></div>
+            <div class="block-title" style="margin-bottom: 4mm;">Key Organizational Priority</div>
+            <p style="font-size: 11pt; line-height: 1.6;">
+                Our analysis indicates that the most immediate opportunity for impact lies within your focus areas. 
+                Focusing your resources here will resolve critical bottlenecks and accelerate performance across all other domains.
+            </p>
+        </div>
+
+        <div class="card" style="padding: 8mm;">
+            <div class="card-accent" style="background: {{colors.secondary}};"></div>
+            <div class="block-title" style="margin-bottom: 4mm;">Implementation Roadmap</div>
+            <div style="margin-bottom: 5mm;">
+                <div style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 1mm;">Phase 1: Awareness (Week 1-2)</div>
+                <p style="font-size: 9pt;">Share the POD-360™ findings with leadership to build a shared language around Friction and Flow.</p>
+            </div>
+            <div style="margin-bottom: 5mm;">
+                <div style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 1mm;">Phase 2: Alignment (Week 3-4)</div>
+                <p style="font-size: 9pt;">Integrate the recommended OKRs into your quarterly planning. Assign owners to each priority action.</p>
+            </div>
+            <div>
+                <div style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 1mm;">Phase 3: Activation (Month 2-3)</div>
+                <p style="font-size: 9pt;">Execute the growth tips provided in the Coaching & Development sections. Monitor the "Flow" indicators weekly.</p>
+            </div>
+        </div>
+
+        <div style="margin-top: 15mm; display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <h3 style="color: {{colors.secondary}}; margin-bottom: 2mm;">Scale Your Potential</h3>
+                <p style="font-size: 9pt; color: {{colors.text}};">Reach out to our performance consultants for a tailored workshop.</p>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-weight: 800; color: {{colors.secondary}}; font-size: 14pt;">Talent By Design</div>
+                <div style="font-size: 9pt; color: {{colors.primary}};">www.talentbydesign.com</div>
+            </div>
+        </div>
+
+        <div class="inner-footer">
+            <div>Confidential Assessment Report • {{userName}}</div>
+            <div>Talent By Design • Page 9</div>
+        </div>
+    </div>
     {{/unless}}
 </body>
 </html>
@@ -473,12 +559,48 @@ class PDFReportService {
                 const dData = report.scores?.domains?.[dName];
                 if (!dData) return null;
                 const fb = dData.feedback || {};
+                
+                const subdomains = Object.keys(dData.subdomains || {}).map(sName => {
+                    const subScore = typeof dData.subdomains[sName] === 'object' ? dData.subdomains[sName].score : dData.subdomains[sName];
+                    const subFb = dData.subdomainFeedback?.[sName] || {};
+                    let subInsight = subFb.insight || "";
+                    
+                    if (!subInsight) {
+                        const fallbacks = {
+                            "Mindset & Adaptability": "Adaptability exists in parts of the organization, but it varies by team or leader. The foundation is present, yet not consistent enough to create enterprise-wide resilience.",
+                            "Psychological Health & Safety": "Psychological health and safety are not yet experienced consistently. People may hesitate to raise concerns or challenge ideas, increasing risk to culture.",
+                            "Relational & Emotional Intelligence": "Healthy collaboration exists in places, yet some interactions still create unnecessary strain, confusion, or avoidance between teams.",
+                            "Prioritization": "Strategic priorities are generally defined, but consistency in reinforcement varies. Focus drifts when urgent requests or local pressures rise.",
+                            "Workflow Clarity": "Most workflows are understood, but consistency breaks down across handoffs. Execution depends too much on individual effort instead of reliable routines.",
+                            "Effective Resource Management": "Resources are mostly aligned, but adjustments are often made late. Strain builds when priorities shift faster than resource decisions do.",
+                            "Data, AI & Automation Readiness": "There is growing interest in automation, but usage is inconsistent. The foundation exists, yet value is not fully embedded into everyday work.",
+                            "Digital Communication & Collaboration": "Collaboration tools are in place, but practices vary. The organization lacks the consistency needed for seamless collaboration at scale.",
+                            "Mindset, Confidence and Change Readiness": "There is moderate openness to change, but confidence varies. Some parts of the organization are moving forward while others need more support.",
+                            "Tool & System Proficiency": "Basic proficiency exists, but many users are not fully comfortable using tools to their full value, limiting overall productivity."
+                        };
+                        subInsight = fallbacks[sName] || "Consistency in this area varies across teams, presenting opportunities for further optimization.";
+                    }
+
+                    return {
+                        name: sName,
+                        score: Math.round(subScore),
+                        state: this._getClassification(subScore),
+                        description: this.subdomainDescriptions[sName] || "",
+                        insight: subInsight,
+                        okrs: getBulletedLines(subFb.objectives || "", 3),
+                        coaching: getBulletedLines(subFb.coachingTips || "", 3)
+                    };
+                });
+
                 return {
-                    name: dName, score: dData.score,
+                    name: dName, 
+                    score: Math.round(dData.score),
+                    state: this._getClassification(dData.score),
                     description: this.domainDescriptions[dName] || "",
                     insights: getBulletedLines(fb.insight || fb.modelDescription || "", 5),
                     okrs: getBulletedLines(fb.objectives || "", 5),
-                    coaching: getBulletedLines(fb.coachingTips || "", 5)
+                    coaching: getBulletedLines(fb.coachingTips || "", 5),
+                    subdomains
                 };
             }).filter(p => p !== null);
         }
