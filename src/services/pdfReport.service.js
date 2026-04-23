@@ -67,19 +67,19 @@ class PDFReportService {
 
         try {
             if (process.env.VERCEL) {
-                console.log("[PDFService] Vercel environment detected. Initializing Chromium...");
-                const chromium = (await import('@sparticuz/chromium-min')).default;
+                console.log("[PDFService] Vercel environment detected. Initializing Full Chromium...");
+                const chromium = (await import('@sparticuz/chromium')).default;
                 const puppeteerCore = (await import('puppeteer-core')).default;
 
-                const executablePath = await chromium.executablePath(
-                    'https://github.com/Sparticuz/chromium/releases/download/v123.0.1/chromium-v123.0.1-pack.tar'
-                );
+                // CRITICAL FOR AL2023: Disable graphics mode to avoid libnss3 dependency
+                await chromium.setGraphicsMode(false);
+                await chromium.setHeadlessMode(true);
 
                 console.log("[PDFService] Launching browser...");
                 browser = await puppeteerCore.launch({
-                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
                     defaultViewport: chromium.defaultViewport,
-                    executablePath: executablePath,
+                    executablePath: await chromium.executablePath(),
                     headless: chromium.headless,
                 });
                 console.log("[PDFService] Browser launched.");
