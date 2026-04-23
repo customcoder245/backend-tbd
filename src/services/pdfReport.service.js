@@ -199,15 +199,25 @@ class PDFReportService {
             display: flex; 
             flex-direction: column; 
             background: var(--white); 
-            page-break-after: always !important; 
-            break-after: page !important;
-            clear: both;
+            page-break-after: always; 
+            break-after: page;
         }
-        .force-break { page-break-after: always !important; break-after: page !important; height: 0; }
-        .page:last-child { page-break-after: auto !important; break-after: auto !important; }
+        .page:last-of-type { page-break-after: auto; break-after: auto; }
 
         /* Headers & Footers */
-        .inner-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid var(--border); padding-bottom: 5mm; margin-bottom: 12mm; }
+        .page::before {
+            content: "POD-360";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 150pt;
+            font-weight: 900;
+            color: rgba(241, 245, 249, 0.4);
+            z-index: -1;
+            pointer-events: none;
+        }
+        .inner-header { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid var(--border); padding-bottom: 5mm; margin-bottom: 12mm; }
         .inner-header .report-tag { font-size: 8.5pt; font-weight: 800; color: var(--secondary); text-transform: uppercase; letter-spacing: 1.5px; }
         .inner-header .logo-small { height: 7mm; opacity: 0.9; }
         
@@ -363,7 +373,6 @@ class PDFReportService {
         </div>
         <div class="inner-footer"><div>Confidential Assessment Report • {{userName}}</div><div>Talent By Design • Page 2</div></div>
     </div>
-    <div class="force-break"></div>
 
     {{#each domainPages}}
     <!-- DOMAIN PAGE -->
@@ -391,7 +400,6 @@ class PDFReportService {
         </div>
         <div class="inner-footer"><div>Confidential Assessment Report • {{../userName}}</div><div>Talent By Design • Page {{add (multiply @index 2) 3}}</div></div>
     </div>
-    <div class="force-break"></div>
 
     <!-- SUB-DOMAIN PAGE -->
     <div class="page">
@@ -431,7 +439,6 @@ class PDFReportService {
         {{/each}}
         <div class="inner-footer"><div>Confidential Assessment Report • {{../userName}}</div><div>Talent By Design • Page {{add (multiply @index 2) 4}}</div></div>
     </div>
-    <div class="force-break"></div>
     {{/each}}
 
     <!-- CONCLUSION PAGE -->
@@ -454,7 +461,6 @@ class PDFReportService {
         <div class="inner-footer"><div>Confidential Assessment Report • {{userName}}</div><div>Talent By Design • Page 9</div></div>
     </div>
     {{/unless}}
-    <div style="page-break-after: always; break-after: page;"></div>
 </body>
 </html>
         `;
