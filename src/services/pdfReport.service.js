@@ -67,72 +67,57 @@ class PDFReportService {
 
         try {
             if (process.env.VERCEL) {
-                console.log("[PDFService] Vercel environment detected. Launching @sparticuz/chromium-min...");
+                console.log("[PDFService] Vercel environment detected. Initializing Chromium...");
                 const chromium = (await import('@sparticuz/chromium-min')).default;
                 const puppeteerCore = (await import('puppeteer-core')).default;
 
-                // Ensure chromium is ready
                 const executablePath = await chromium.executablePath(
                     'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
                 );
 
+                console.log("[PDFService] Launching browser...");
                 browser = await puppeteerCore.launch({
-                    args: [
-                        ...chromium.args,
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--disable-dev-shm-usage',
-                        '--disable-gpu',
-                        '--single-process',
-                        '--no-first-run',
-                        '--no-zygote',
-                        '--disable-extensions',
-                        '--hide-scrollbars',
-                        '--disable-web-security'
-                    ],
+                    args: chromium.args,
                     defaultViewport: chromium.defaultViewport,
                     executablePath: executablePath,
                     headless: chromium.headless,
-                    ignoreHTTPSErrors: true,
                 });
-                console.log("[PDFService] Browser launched successfully on Vercel.");
+                console.log("[PDFService] Browser launched.");
             } else {
-                // LOCAL LAUNCH
-                console.log("[PDFService] Local environment detected. Launching puppeteer...");
+                console.log("[PDFService] Local environment detected.");
                 const puppeteer = (await import('puppeteer')).default;
                 browser = await puppeteer.launch({
                     headless: 'new',
-                    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+                    args: ['--no-sandbox', '--disable-setuid-sandbox']
                 });
             }
 
             const page = await browser.newPage();
             
-            // Set timeouts - increased slightly for Vercel stability
-            page.setDefaultNavigationTimeout(15000); 
-            page.setDefaultTimeout(15000);
+            // Set timeouts
+            page.setDefaultNavigationTimeout(8000); 
+            page.setDefaultTimeout(8000);
 
-            console.log("[PDFService] Setting page content...");
+            console.log("[PDFService] Setting content...");
             await page.setContent(html, { 
                 waitUntil: 'domcontentloaded',
-                timeout: 15000 
+                timeout: 8000 
             });
             
-            console.log("[PDFService] Generating PDF buffer...");
+            console.log("[PDFService] Generating PDF...");
             const pdfBuffer = await page.pdf({
                 format: 'A4',
                 printBackground: true,
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
                 displayHeaderFooter: false,
-                timeout: 20000
+                timeout: 8000
             });
 
-            console.log("[PDFService] PDF generated successfully. Buffer size:", pdfBuffer.length);
+            console.log("[PDFService] PDF generated successfully.");
             return pdfBuffer;
         } catch (error) {
-            console.error("CRITICAL PDF GENERATION ERROR:", error);
-            // Provide more context in the error message
-            throw new Error(`PDF Generation failed: ${error.message}`);
+            console.error("PDF GENERATION ERROR:", error.message);
+            throw error;
         } finally {
             if (browser) {
                 console.log("[PDFService] Closing browser...");
@@ -151,8 +136,10 @@ class PDFReportService {
 <!DOCTYPE html>
 <html>
 <head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         
         :root {
             --primary: {{colors.primary}};
