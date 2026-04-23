@@ -5,13 +5,16 @@
       "src": "src/index.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": [
-          "src/data/**"
-        ]
+        "maxDuration": 60,
+        "memory": 1024
       }
     }
   ],
   "routes": [
+    {
+      "src": "/api/v1/dashboard/export-pdf",
+      "dest": "src/index.js"
+    },
     {
       "src": "/(.*)",
       "dest": "src/index.js"
