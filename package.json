@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
-    "@sparticuz/chromium": "^126.0.0",
+    "@sparticuz/chromium-min": "^126.0.0",
     "axios": "^1.13.6",
     "cloudinary": "^2.9.0",
     "cookie-parser": "^1.4.7",
