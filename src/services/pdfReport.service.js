@@ -72,12 +72,12 @@ class PDFReportService {
                 const puppeteerCore = (await import('puppeteer-core')).default;
 
                 const executablePath = await chromium.executablePath(
-                    'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
+                    'https://github.com/Sparticuz/chromium/releases/download/v123.0.1/chromium-v123.0.1-pack.tar'
                 );
 
                 console.log("[PDFService] Launching browser...");
                 browser = await puppeteerCore.launch({
-                    args: chromium.args,
+                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
                     defaultViewport: chromium.defaultViewport,
                     executablePath: executablePath,
                     headless: chromium.headless,
