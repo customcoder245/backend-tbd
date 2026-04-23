@@ -66,22 +66,35 @@ class PDFReportService {
         let browser;
 
         try {
-            const puppeteerCore = (await import('puppeteer-core')).default;
-
-            if (process.env.VERCEL) {
-                console.log("[PDFService] Vercel Node 18 environment. Launching Chromium...");
+            if (process.env.RENDER || process.env.NODE_ENV === 'production') {
+                console.log("[PDFService] Render/Production environment. Launching Puppeteer...");
+                const puppeteer = (await import('puppeteer')).default;
+                browser = await puppeteer.launch({
+                    args: [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-gpu'
+                    ],
+                    headless: 'new'
+                });
+            } else if (process.env.VERCEL) {
+                console.log("[PDFService] Vercel environment. Initializing Chromium with remote pack...");
+                const puppeteerCore = (await import('puppeteer-core')).default;
                 const chromium = (await import('@sparticuz/chromium')).default;
-                
+                const executablePath = await chromium.executablePath(
+                    'https://github.com/Sparticuz/chromium/releases/download/v123.0.1/chromium-v123.0.1-pack.tar'
+                );
+
                 browser = await puppeteerCore.launch({
-                    args: chromium.args,
+                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
                     defaultViewport: chromium.defaultViewport,
-                    executablePath: await chromium.executablePath(),
+                    executablePath: executablePath,
                     headless: chromium.headless,
                 });
-                console.log("[PDFService] Vercel Browser launched.");
             } else {
-                console.log("[PDFService] Local environment detected. Finding local Chrome...");
-                
+                console.log("[PDFService] Local environment. Finding local Chrome...");
+                const puppeteerCore = (await import('puppeteer-core')).default;
                 // Common local paths for Chrome/Edge/Brave
                 const localPaths = [
                     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -99,17 +112,13 @@ class PDFReportService {
                     }
                 }
 
-                if (!executablePath) {
-                    throw new Error("Could not find local Chrome for Puppeteer-Core.");
-                }
-
                 browser = await puppeteerCore.launch({
                     headless: 'new',
                     args: ['--no-sandbox', '--disable-setuid-sandbox'],
-                    executablePath: executablePath
+                    executablePath: executablePath || undefined
                 });
-                console.log("[PDFService] Local Browser launched.");
             }
+            console.log("[PDFService] Browser launched successfully.");
 
             const page = await browser.newPage();
             
