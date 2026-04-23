@@ -62,26 +62,23 @@ class PDFReportService {
     }
 
     async generateReportBuffer(data) {
-        console.log("[PDFService] Starting PDF generation...");
         const html = this._buildHTML(data);
         let browser;
 
         try {
-            if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-                console.log("[PDFService] Detected Vercel/Production environment. Loading @sparticuz/chromium...");
+            if (process.env.VERCEL) {
+                // VERCEL SPECIFIC LAUNCH
                 const chromium = (await import('@sparticuz/chromium')).default;
                 const puppeteerCore = (await import('puppeteer-core')).default;
 
-                console.log("[PDFService] Launching puppeteer-core...");
                 browser = await puppeteerCore.launch({
-                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
                     defaultViewport: chromium.defaultViewport,
                     executablePath: await chromium.executablePath(),
                     headless: chromium.headless,
-                    ignoreHTTPSErrors: true,
                 });
             } else {
-                console.log("[PDFService] Detected Local environment. Loading puppeteer...");
+                // LOCAL LAUNCH
                 const puppeteer = (await import('puppeteer')).default;
                 browser = await puppeteer.launch({
                     headless: 'new',
@@ -89,39 +86,19 @@ class PDFReportService {
                 });
             }
 
-            console.log("[PDFService] Browser launched. Creating page...");
             const page = await browser.newPage();
-            
-            // Set a generous but firm timeout for the page operations
-            page.setDefaultNavigationTimeout(20000); // 20 seconds
-            page.setDefaultTimeout(20000);
-
-            console.log("[PDFService] Setting content...");
-            // Use networkidle2 instead of networkidle0 for better stability on Vercel
-            await page.setContent(html, { 
-                waitUntil: ['domcontentloaded', 'networkidle2'],
-                timeout: 25000 
-            });
-            
-            console.log("[PDFService] Generating PDF...");
-            const pdfBuffer = await page.pdf({
+            await page.setContent(html, { waitUntil: 'networkidle2' });
+            return await page.pdf({
                 format: 'A4',
                 printBackground: true,
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
-                displayHeaderFooter: false,
-                timeout: 25000
+                displayHeaderFooter: false
             });
-
-            console.log("[PDFService] PDF generated successfully. Buffer size:", pdfBuffer.length);
-            return pdfBuffer;
         } catch (error) {
-            console.error("[PDFService] CRITICAL ERROR during PDF generation:", error);
+            console.error("PDF GENERATION ERROR:", error);
             throw error;
         } finally {
-            if (browser) {
-                console.log("[PDFService] Closing browser...");
-                await browser.close();
-            }
+            if (browser) await browser.close();
         }
     }
 
