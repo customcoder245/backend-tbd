@@ -74,10 +74,11 @@ class PDFReportService {
 
                 console.log("[PDFService] Launching puppeteer-core...");
                 browser = await puppeteerCore.launch({
-                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
                     defaultViewport: chromium.defaultViewport,
                     executablePath: await chromium.executablePath(),
                     headless: chromium.headless,
+                    ignoreHTTPSErrors: true,
                 });
             } else {
                 console.log("[PDFService] Detected Local environment. Loading puppeteer...");
@@ -91,15 +92,24 @@ class PDFReportService {
             console.log("[PDFService] Browser launched. Creating page...");
             const page = await browser.newPage();
             
+            // Set a generous but firm timeout for the page operations
+            page.setDefaultNavigationTimeout(20000); // 20 seconds
+            page.setDefaultTimeout(20000);
+
             console.log("[PDFService] Setting content...");
-            await page.setContent(html, { waitUntil: 'networkidle0' });
+            // Use networkidle2 instead of networkidle0 for better stability on Vercel
+            await page.setContent(html, { 
+                waitUntil: ['domcontentloaded', 'networkidle2'],
+                timeout: 25000 
+            });
             
             console.log("[PDFService] Generating PDF...");
             const pdfBuffer = await page.pdf({
                 format: 'A4',
                 printBackground: true,
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
-                displayHeaderFooter: false
+                displayHeaderFooter: false,
+                timeout: 25000
             });
 
             console.log("[PDFService] PDF generated successfully. Buffer size:", pdfBuffer.length);
