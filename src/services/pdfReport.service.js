@@ -1,4 +1,3 @@
-import puppeteer from 'puppeteer';
 import handlebars from 'handlebars';
 
 const BRAND_LOGO_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1774516563/logos/talent_by_design_logo_new.svg";
@@ -64,12 +63,29 @@ class PDFReportService {
 
     async generateReportBuffer(data) {
         const html = this._buildHTML(data);
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        let browser;
 
         try {
+            if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+                // Vercel / Production Environment
+                const chromium = (await import('@sparticuz/chromium')).default;
+                const puppeteerCore = (await import('puppeteer-core')).default;
+
+                browser = await puppeteerCore.launch({
+                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+                    defaultViewport: chromium.defaultViewport,
+                    executablePath: await chromium.executablePath(),
+                    headless: chromium.headless,
+                });
+            } else {
+                // Local Development Environment
+                const puppeteer = (await import('puppeteer')).default;
+                browser = await puppeteer.launch({
+                    headless: 'new',
+                    args: ['--no-sandbox', '--disable-setuid-sandbox']
+                });
+            }
+
             const page = await browser.newPage();
             await page.setContent(html, { waitUntil: 'networkidle0' });
             return await page.pdf({
@@ -78,8 +94,11 @@ class PDFReportService {
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
                 displayHeaderFooter: false
             });
+        } catch (error) {
+            console.error("Puppeteer Launch Error:", error);
+            throw error;
         } finally {
-            await browser.close();
+            if (browser) await browser.close();
         }
     }
 
