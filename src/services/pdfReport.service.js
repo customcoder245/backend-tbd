@@ -67,14 +67,16 @@ class PDFReportService {
 
         try {
             if (process.env.VERCEL) {
-                // VERCEL SPECIFIC LAUNCH
-                const chromium = (await import('@sparticuz/chromium')).default;
+                // VERCEL SPECIFIC LAUNCH FOR NODE 20/24 (AL2023)
+                const chromium = (await import('@sparticuz/chromium-min')).default;
                 const puppeteerCore = (await import('puppeteer-core')).default;
 
                 browser = await puppeteerCore.launch({
                     args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
                     defaultViewport: chromium.defaultViewport,
-                    executablePath: await chromium.executablePath(),
+                    executablePath: await chromium.executablePath(
+                        'https://github.com/Sparticuz/chromium/releases/download/v126.0.0/chromium-v126.0.0-al2023-pack.tar'
+                    ),
                     headless: chromium.headless,
                 });
             } else {
