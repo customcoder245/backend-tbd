@@ -324,15 +324,12 @@ class PDFReportService {
             <div class="report-tag">POD-360™ Performance Profile</div>
             <img src="${BRAND_LOGO_URL}" class="logo-small" />
         </div>
-
         <h1>THE DATA SYNERGY</h1>
-        
         <div style="margin-bottom: 8mm; border-left: 2px solid {{colors.border}}; padding-left: 6mm;">
             <p style="font-style: italic; margin-bottom: 6mm; color: {{colors.primary}};">{{synergyIntro}}</p>
             <p style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 2mm; font-size: 9pt; text-transform: uppercase; letter-spacing: 1px;">To: {{synergyRole.name}}</p>
             <p style="color: {{colors.text}}; line-height: 1.5;">{{synergyRole.description}}</p>
         </div>
-
         <div class="summary-hero">
             <div class="visual-container">
                 <svg width="240" height="140" viewBox="0 0 200 100">
@@ -348,101 +345,62 @@ class PDFReportService {
                 <p>Your overall performance score is <strong>{{round report.scores.overall}}%</strong>, indicating a state of <strong>{{getClassification report.scores.overall}}</strong>.</p>
             </div>
         </div>
-
         <div class="card">
             <div class="card-accent"></div>
             <div class="block-title">Key Strategic Insight</div>
             <p style="font-size: 12pt; font-weight: 500; color: {{colors.primary}};">{{aiInsight.description}}</p>
         </div>
-
         <h2>Domain Performance</h2>
         <div class="table-container">
             <table class="table">
                 <thead><tr><th>Domain Area</th><th>Score</th><th>Current State</th></tr></thead>
                 <tbody>
                     {{#each domainPages}}
-                    <tr>
-                        <td style="font-weight: 600;">{{name}}</td>
-                        <td style="font-weight: 700; color: {{colors.primary}};">{{round score}}%</td>
-                        <td><span class="badge badge-{{toLowerCase (getClassification score)}}">{{getClassification score}}</span></td>
-                    </tr>
+                    <tr><td style="font-weight: 600;">{{name}}</td><td style="font-weight: 700; color: {{colors.primary}};">{{round score}}%</td><td><span class="badge badge-{{toLowerCase (getClassification score)}}">{{getClassification score}}</span></td></tr>
                     {{/each}}
                 </tbody>
             </table>
         </div>
-
-        <div class="inner-footer">
-            <div>Confidential Assessment Report • {{userName}}</div>
-            <div>Talent By Design • Page 2</div>
-        </div>
+        <div class="inner-footer"><div>Confidential Assessment Report • {{userName}}</div><div>Talent By Design • Page 2</div></div>
     </div>
     <div class="force-break"></div>
 
-    <!-- DOMAIN PAGES -->
     {{#each domainPages}}
+    <!-- DOMAIN PAGE -->
     <div class="page">
         <div class="inner-header">
             <div class="report-tag">POD-360™ • Domain Analysis</div>
             <img src="${BRAND_LOGO_URL}" class="logo-small" />
         </div>
-
         <div class="domain-header-box">
             <h1 style="margin-bottom: 2mm;">{{name}}</h1>
             <div class="domain-desc">{{description}}</div>
         </div>
-        
         <div class="score-summary-box" style="background: {{gaugeColor score}};">
-            <div>
-                <div class="score-label">Domain Efficiency Score</div>
-                <div class="score-value-large">{{round score}}%</div>
-            </div>
-            <div style="text-align: right;">
-                <div class="score-label">Current State</div>
-                <div class="score-value-large" style="font-size: 18pt;">{{getClassification score}}</div>
-            </div>
+            <div><div class="score-label">Domain Efficiency Score</div><div class="score-value-large">{{round score}}%</div></div>
+            <div style="text-align: right;"><div class="score-label">Current State</div><div class="score-value-large" style="font-size: 18pt;">{{getClassification score}}</div></div>
         </div>
-
         <div class="card">
             <div class="card-accent"></div>
             <div class="block-title">Qualitative Insights</div>
-            <ul class="bullet-list">
-                {{#each insights}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}
-            </ul>
+            <ul class="bullet-list">{{#each insights}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}</ul>
         </div>
-
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8mm;">
-            <div class="card">
-                <div class="card-accent" style="background: var(--flow);"></div>
-                <div class="block-title">Strategic Actions</div>
-                <ul class="bullet-list">
-                    {{#each okrs}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}
-                </ul>
-            </div>
-            <div class="card">
-                <div class="card-accent"></div>
-                <div class="block-title">Leadership Focus</div>
-                <ul class="bullet-list">
-                    {{#each coaching}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}
-                </ul>
-            </div>
+            <div class="card"><div class="card-accent" style="background: var(--flow);"></div><div class="block-title">Strategic Actions</div><ul class="bullet-list">{{#each okrs}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}</ul></div>
+            <div class="card"><div class="card-accent"></div><div class="block-title">Leadership Focus</div><ul class="bullet-list">{{#each coaching}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}</ul></div>
         </div>
-
-        <div class="inner-footer">
-            <div>Confidential Assessment Report • {{../userName}}</div>
-            <div>Talent By Design • Page {{add (multiply @index 2) 3}}</div>
-        </div>
+        <div class="inner-footer"><div>Confidential Assessment Report • {{../userName}}</div><div>Talent By Design • Page {{add (multiply @index 2) 3}}</div></div>
     </div>
+    <div class="force-break"></div>
 
-    <!-- SUB-DOMAIN DEEP DIVE PAGE -->
+    <!-- SUB-DOMAIN PAGE -->
     <div class="page">
         <div class="inner-header">
             <div class="report-tag">{{name}} • Sub-Domain Analysis</div>
             <img src="${BRAND_LOGO_URL}" class="logo-small" />
         </div>
-
         <h1 style="margin-top: 5mm;">Sub-Domain Deep Dive</h1>
         <p style="color: {{colors.text}}; margin-bottom: 8mm;">A granular analysis of the performance drivers within the <strong>{{name}}</strong> domain.</p>
-
         {{#each subdomains}}
         <div class="card" style="margin-bottom: 6mm;">
             <div class="card-accent" style="background: {{gaugeColor score}};"></div>
@@ -451,77 +409,52 @@ class PDFReportService {
                 <div style="font-size: 9pt; font-weight: 700; color: {{gaugeColor score}};">{{round score}}% • {{state}}</div>
             </div>
             <p style="font-style: italic; font-size: 8.5pt; color: {{colors.primary}}; margin-bottom: 3mm;">{{description}}</p>
-            
-            <div style="background: #f8fafc; padding: 4mm; border-radius: 2mm; border: 1px solid #e2e8f0;">
-                <p style="font-size: 9pt; line-height: 1.5; color: {{colors.text}};">{{insight}}</p>
+            <div style="background: #f8fafc; padding: 4mm; border-radius: 2mm; border: 1px solid #e2e8f0; margin-bottom: 3mm;">
+                <p style="font-size: 8.5pt; line-height: 1.4; color: {{colors.text}};">{{insight}}</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;">
+                <div>
+                    <div style="font-size: 7.5pt; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 2mm; border-bottom: 1px solid #f1f5f9;">Priority Actions</div>
+                    <ul class="bullet-list" style="margin: 0; padding: 0;">
+                        {{#each okrs}}<li class="bullet-item" style="font-size: 7.5pt; margin-bottom: 1mm;"><div class="bullet-dot" style="width: 3px; height: 3px;"></div>{{this}}</li>{{/each}}
+                    </ul>
+                </div>
+                <div>
+                    <div style="font-size: 7.5pt; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 2mm; border-bottom: 1px solid #f1f5f9;">Growth Tips</div>
+                    <ul class="bullet-list" style="margin: 0; padding: 0;">
+                        {{#each coaching}}<li class="bullet-item" style="font-size: 7.5pt; margin-bottom: 1mm;"><div class="bullet-dot" style="width: 3px; height: 3px;"></div>{{this}}</li>{{/each}}
+                    </ul>
+                </div>
             </div>
         </div>
         {{/each}}
-
-        <div class="inner-footer">
-            <div>Confidential Assessment Report • {{../userName}}</div>
-            <div>Talent By Design • Page {{add (multiply @index 2) 4}}</div>
-        </div>
+        <div class="inner-footer"><div>Confidential Assessment Report • {{../userName}}</div><div>Talent By Design • Page {{add (multiply @index 2) 4}}</div></div>
     </div>
     <div class="force-break"></div>
     {{/each}}
 
     <!-- CONCLUSION PAGE -->
     <div class="page">
-        <div class="inner-header">
-            <div class="report-tag">POD-360™ • Strategic Path Forward</div>
-            <img src="${BRAND_LOGO_URL}" class="logo-small" />
-        </div>
-
+        <div class="inner-header"><div class="report-tag">POD-360™ • Strategic Path Forward</div><img src="${BRAND_LOGO_URL}" class="logo-small" /></div>
         <h1 style="margin-top: 10mm; font-size: 28pt;">Conclusion & Path Forward</h1>
-        <p style="color: {{colors.text}}; line-height: 1.6; margin-bottom: 12mm;">
-            This assessment represents a snapshot of your organizational health. The journey from <strong>Friction to Flow</strong> is ongoing, 
-            and these insights provide the roadmap for your next phase of growth.
-        </p>
-
-        <div class="card" style="padding: 8mm; margin-bottom: 10mm;">
-            <div class="card-accent"></div>
-            <div class="block-title" style="margin-bottom: 4mm;">Key Organizational Priority</div>
-            <p style="font-size: 11pt; line-height: 1.6;">
-                Our analysis indicates that the most immediate opportunity for impact lies within your focus areas. 
-                Focusing your resources here will resolve critical bottlenecks and accelerate performance across all other domains.
-            </p>
-        </div>
-
+        <p style="color: {{colors.text}}; line-height: 1.6; margin-bottom: 12mm;">This assessment represents a snapshot of your organizational health. The journey from <strong>Friction to Flow</strong> is ongoing, and these insights provide the roadmap for your next phase of growth.</p>
+        <div class="card" style="padding: 8mm; margin-bottom: 10mm;"><div class="card-accent"></div><div class="block-title" style="margin-bottom: 4mm;">Key Organizational Priority</div><p style="font-size: 11pt; line-height: 1.6;">Our analysis indicates that the most immediate opportunity for impact lies within your focus areas. Focusing your resources here will resolve critical bottlenecks and accelerate performance across all other domains.</p></div>
         <div class="card" style="padding: 8mm;">
             <div class="card-accent" style="background: {{colors.secondary}};"></div>
             <div class="block-title" style="margin-bottom: 4mm;">Implementation Roadmap</div>
-            <div style="margin-bottom: 5mm;">
-                <div style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 1mm;">Phase 1: Awareness (Week 1-2)</div>
-                <p style="font-size: 9pt;">Share the POD-360™ findings with leadership to build a shared language around Friction and Flow.</p>
-            </div>
-            <div style="margin-bottom: 5mm;">
-                <div style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 1mm;">Phase 2: Alignment (Week 3-4)</div>
-                <p style="font-size: 9pt;">Integrate the recommended OKRs into your quarterly planning. Assign owners to each priority action.</p>
-            </div>
-            <div>
-                <div style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 1mm;">Phase 3: Activation (Month 2-3)</div>
-                <p style="font-size: 9pt;">Execute the growth tips provided in the Coaching & Development sections. Monitor the "Flow" indicators weekly.</p>
-            </div>
+            <div style="margin-bottom: 5mm;"><div style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 1mm;">Phase 1: Awareness (Week 1-2)</div><p style="font-size: 9pt;">Share the findings with leadership to build a shared language around Friction and Flow.</p></div>
+            <div style="margin-bottom: 5mm;"><div style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 1mm;">Phase 2: Alignment (Week 3-4)</div><p style="font-size: 9pt;">Integrate the recommended OKRs into your quarterly planning. Assign owners to each priority action.</p></div>
+            <div><div style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 1mm;">Phase 3: Activation (Month 2-3)</div><p style="font-size: 9pt;">Execute the growth tips provided in the Coaching sections. Monitor the "Flow" indicators weekly.</p></div>
         </div>
-
         <div style="margin-top: 15mm; display: flex; justify-content: space-between; align-items: flex-end;">
-            <div>
-                <h3 style="color: {{colors.secondary}}; margin-bottom: 2mm;">Scale Your Potential</h3>
-                <p style="font-size: 9pt; color: {{colors.text}};">Reach out to our performance consultants for a tailored workshop.</p>
-            </div>
-            <div style="text-align: right;">
-                <div style="font-weight: 800; color: {{colors.secondary}}; font-size: 14pt;">Talent By Design</div>
-                <div style="font-size: 9pt; color: {{colors.primary}};">www.talentbydesign.com</div>
-            </div>
+            <div><h3 style="color: {{colors.secondary}}; margin-bottom: 2mm;">Scale Your Potential</h3><p style="font-size: 9pt; color: {{colors.text}};">Reach out to our performance consultants for a tailored workshop.</p></div>
+            <div style="text-align: right;"><div style="font-weight: 800; color: {{colors.secondary}}; font-size: 14pt;">Talent By Design</div><div style="font-size: 9pt; color: {{colors.primary}};">www.talentbydesign.com</div></div>
         </div>
-
-        <div class="inner-footer">
-            <div>Confidential Assessment Report • {{userName}}</div>
-            <div>Talent By Design • Page 9</div>
-        </div>
+        <div class="inner-footer"><div>Confidential Assessment Report • {{userName}}</div><div>Talent By Design • Page 9</div></div>
     </div>
     {{/unless}}
+    <div style="page-break-after: always; break-after: page;"></div>
 </body>
 </html>
         `;
@@ -572,30 +505,82 @@ class PDFReportService {
         templateData.synergyRole = this.roleSynergyData[roleKey] || this.roleSynergyData["employee"];
 
         if (!isMasterReport) {
+            const domainStructure = {
+                "People Potential": ["Mindset & Adaptability", "Psychological Health & Safety", "Relational & Emotional Intelligence"],
+                "Operational Steadiness": ["Prioritization", "Workflow Clarity", "Effective Resource Management"],
+                "Digital Fluency": ["Data, AI & Automation Readiness", "Digital Communication & Collaboration", "Mindset, Confidence and Change Readiness", "Tool & System Proficiency"]
+            };
+
             templateData.domainPages = ["People Potential", "Operational Steadiness", "Digital Fluency"].map(dName => {
                 const dData = report.scores?.domains?.[dName];
                 if (!dData) return null;
                 const fb = dData.feedback || {};
                 
-                const subdomains = Object.keys(dData.subdomains || {}).map(sName => {
-                    const subScore = typeof dData.subdomains[sName] === 'object' ? dData.subdomains[sName].score : dData.subdomains[sName];
+                const subdomains = domainStructure[dName].map(sName => {
+                    const subData = dData.subdomains?.[sName];
+                    const subScore = typeof subData === 'object' ? subData.score : (subData || 60);
                     const subFb = dData.subdomainFeedback?.[sName] || {};
                     let subInsight = subFb.insight || "";
+                    let defaultOkrs = [];
+                    let defaultCoaching = [];
                     
                     if (!subInsight) {
                         const fallbacks = {
-                            "Mindset & Adaptability": "Adaptability exists in parts of the organization, but it varies by team or leader. The foundation is present, yet not consistent enough to create enterprise-wide resilience.",
-                            "Psychological Health & Safety": "Psychological health and safety are not yet experienced consistently. People may hesitate to raise concerns or challenge ideas, increasing risk to culture.",
-                            "Relational & Emotional Intelligence": "Healthy collaboration exists in places, yet some interactions still create unnecessary strain, confusion, or avoidance between teams.",
-                            "Prioritization": "Strategic priorities are generally defined, but consistency in reinforcement varies. Focus drifts when urgent requests or local pressures rise.",
-                            "Workflow Clarity": "Most workflows are understood, but consistency breaks down across handoffs. Execution depends too much on individual effort instead of reliable routines.",
-                            "Effective Resource Management": "Resources are mostly aligned, but adjustments are often made late. Strain builds when priorities shift faster than resource decisions do.",
-                            "Data, AI & Automation Readiness": "There is growing interest in automation, but usage is inconsistent. The foundation exists, yet value is not fully embedded into everyday work.",
-                            "Digital Communication & Collaboration": "Collaboration tools are in place, but practices vary. The organization lacks the consistency needed for seamless collaboration at scale.",
-                            "Mindset, Confidence and Change Readiness": "There is moderate openness to change, but confidence varies. Some parts of the organization are moving forward while others need more support.",
-                            "Tool & System Proficiency": "Basic proficiency exists, but many users are not fully comfortable using tools to their full value, limiting overall productivity."
+                            "Mindset & Adaptability": {
+                                insight: "Adaptability exists in parts of the organization, but it varies by team or leader. The foundation is present, yet not consistent enough to create enterprise-wide resilience.",
+                                okrs: ["Normalize learning, adjustment, and feedback loops", "Equip managers to reinforce resilience locally", "Watch for uneven readiness across functions"],
+                                coaching: ["Model vulnerability when things don't go as planned", "Incentivize small experiments and fast learning", "Review change load at a team level regularly"]
+                            },
+                            "Psychological Health & Safety": {
+                                insight: "Psychological health and safety are not yet experienced consistently. People may hesitate to raise concerns or challenge ideas, increasing risk to culture.",
+                                okrs: ["Model candor and non-defensive listening", "Close the loop on concerns quickly", "Make respectful challenge a leadership expectation"],
+                                coaching: ["Ask 'what is one thing we aren't talking about?'", "Respond to mistakes with curiosity, not blame", "Publicly acknowledge and reward candid feedback"]
+                            },
+                            "Relational & Emotional Intelligence": {
+                                insight: "Healthy collaboration exists in places, yet some interactions still create unnecessary strain, confusion, or avoidance between teams.",
+                                okrs: ["Make feedback frequent and specific", "Strengthen manager confidence in difficult conversations", "Watch for teams where tension is going unaddressed"],
+                                coaching: ["Practice 'Active Listening' in all leadership meetings", "Encourage cross-functional empathy exercises", "Hold leaders accountable for the 'how' as much as the 'what'"]
+                            },
+                            "Prioritization": {
+                                insight: "Strategic priorities are generally defined, but consistency in reinforcement varies. Focus drifts when urgent requests or local pressures rise.",
+                                okrs: ["Revisit priorities monthly or quarterly", "Create an escalation path for competing work", "Monitor where shadow priorities are emerging"],
+                                coaching: ["Say 'no' or 'not now' to non-critical requests publicly", "Ensure every team can name their top 3 priorities", "Align resource allocation strictly to core objectives"]
+                            },
+                            "Workflow Clarity": {
+                                insight: "Most workflows are understood, but consistency breaks down across handoffs. Execution depends too much on individual effort instead of reliable routines.",
+                                okrs: ["Prioritize workflows with the highest business impact", "Define expected steps and owners clearly", "Look for recurring bottlenecks between functions"],
+                                coaching: ["Map out the 'messiest' handoff process this month", "Standardize documentation for core operating routines", "Remove low-value steps that slow down delivery"]
+                            },
+                            "Effective Resource Management": {
+                                insight: "Resources are mostly aligned, but adjustments are often made late. Strain builds when priorities shift faster than resource decisions do.",
+                                okrs: ["Monitor where work is outpacing capacity", "Build earlier visibility into resource risks", "Balance short-term delivery with sustainable workload"],
+                                coaching: ["Use capacity data to drive planning conversations", "Protect high-performers from 'collaboration overload'", "Stop work that no longer aligns with current strategy"]
+                            },
+                            "Data, AI & Automation Readiness": {
+                                insight: "There is growing interest in automation, but usage is inconsistent. The foundation exists, yet value is not fully embedded into everyday work.",
+                                okrs: ["Reinforce where data should inform decisions", "Share successful use cases across teams", "Clarify where AI can and cannot add value today"],
+                                coaching: ["Highlight one 'Data Win' in every monthly meeting", "Incentivize automation of repetitive manual tasks", "Provide safe spaces for AI experimentation and failure"]
+                            },
+                            "Digital Communication & Collaboration": {
+                                insight: "Collaboration tools are in place, but practices vary. The organization lacks the consistency needed for seamless collaboration at scale.",
+                                okrs: ["Align teams on shared collaboration habits", "Improve consistency in file sharing and updates", "Reduce dependency on ad hoc workarounds"],
+                                coaching: ["Establish 'Rules of Engagement' for digital tools", "Centralize project communication in one shared space", "Model efficient use of asynchronous communication"]
+                            },
+                            "Mindset, Confidence and Change Readiness": {
+                                insight: "There is moderate openness to change, but confidence varies. Some parts of the organization are moving forward while others need more support.",
+                                okrs: ["Normalize learning and adjustment", "Focus support where readiness is uneven", "Use managers as confidence-builders"],
+                                coaching: ["Celebrate the 'pivot' as much as the 'plan'", "Create peer-support networks for major changes", "Clearly communicate the 'why' behind digital shifts"]
+                            },
+                            "Tool & System Proficiency": {
+                                insight: "Basic proficiency exists, but many users are not fully comfortable using tools to their full value, limiting overall productivity.",
+                                okrs: ["Move beyond awareness into applied skill-building", "Use peer learning and practical examples", "Focus on common pain points by role"],
+                                coaching: ["Create 'Cheat Sheets' for most common workflows", "Dedicate time for team-led tool training", "Measure tool adoption and address specific gaps"]
+                            }
                         };
-                        subInsight = fallbacks[sName] || "Consistency in this area varies across teams, presenting opportunities for further optimization.";
+                        const fallback = fallbacks[sName] || { insight: "Consistency in this area varies across teams.", okrs: [], coaching: [] };
+                        subInsight = fallback.insight;
+                        defaultOkrs = fallback.okrs;
+                        defaultCoaching = fallback.coaching;
                     }
 
                     return {
@@ -604,8 +589,8 @@ class PDFReportService {
                         state: this._getClassification(subScore),
                         description: this.subdomainDescriptions[sName] || "",
                         insight: subInsight,
-                        okrs: getBulletedLines(subFb.objectives || "", 3),
-                        coaching: getBulletedLines(subFb.coachingTips || "", 3)
+                        okrs: getBulletedLines(subFb.objectives || "", 3).concat(defaultOkrs).slice(0, 3),
+                        coaching: getBulletedLines(subFb.coachingTips || "", 3).concat(defaultCoaching).slice(0, 3)
                     };
                 });
 
