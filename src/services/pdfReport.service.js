@@ -55,6 +55,13 @@ class PDFReportService {
         };
     }
 
+    _getClassification(score) {
+        const s = Math.round(score || 0);
+        if (s < 50) return "Friction";
+        if (s < 75) return "Resistance";
+        return "Flow";
+    }
+
     async generateReport(data, stream) {
         const buffer = await this.generateReportBuffer(data);
         stream.write(buffer);
@@ -183,8 +190,21 @@ class PDFReportService {
         }
 
         * { font-display: swap; }
-        .page { width: 210mm; height: 297mm; padding: 22mm 18mm; box-sizing: border-box; position: relative; page-break-after: always; display: flex; flex-direction: column; background: var(--white); }
-        .page:last-child { page-break-after: auto; }
+        .page { 
+            width: 210mm; 
+            height: 297mm; 
+            padding: 22mm 18mm; 
+            box-sizing: border-box; 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            background: var(--white); 
+            page-break-after: always !important; 
+            break-after: page !important;
+            clear: both;
+        }
+        .force-break { page-break-after: always !important; break-after: page !important; height: 0; }
+        .page:last-child { page-break-after: auto !important; break-after: auto !important; }
 
         /* Headers & Footers */
         .inner-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid var(--border); padding-bottom: 5mm; margin-bottom: 12mm; }
@@ -356,6 +376,7 @@ class PDFReportService {
             <div>Talent By Design • Page 2</div>
         </div>
     </div>
+    <div class="force-break"></div>
 
     <!-- DOMAIN PAGES -->
     {{#each domainPages}}
@@ -442,6 +463,7 @@ class PDFReportService {
             <div>Talent By Design • Page {{add (multiply @index 2) 4}}</div>
         </div>
     </div>
+    <div class="force-break"></div>
     {{/each}}
 
     <!-- CONCLUSION PAGE -->
@@ -507,12 +529,7 @@ class PDFReportService {
         // Register Helpers
         const helpers = {
             round: (val) => Math.round(val || 0),
-            getClassification: (score) => {
-                const s = Math.round(score || 0);
-                if (s < 50) return "Friction";
-                if (s < 75) return "Resistance";
-                return "Flow";
-            },
+            getClassification: (score) => this._getClassification(score),
             gaugeColor: (val) => {
                 const v = Math.round(val || 0);
                 if (v >= 75) return this.colors.flow;
