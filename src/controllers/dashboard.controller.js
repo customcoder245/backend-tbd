@@ -75,14 +75,17 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
                 const overallAvg = Object.values(collectiveReport.scores.domains).reduce((acc, d) => acc + (d.score || 0), 0) / (Object.keys(collectiveReport.scores.domains).length || 1);
                 collectiveReport.scores.overall = Math.round(overallAvg);
 
-                return res.status(200).json({
+                const responseData = {
                     report: collectiveReport,
                     firstReport: collectiveReport,
                     user: collectiveReport.userDetails,
                     isReleased: true,
                     hasReport: true,
                     isCollective: true
-                });
+                };
+
+                if (returnData) return responseData;
+                return res.status(200).json(responseData);
             }
         }
 
@@ -97,13 +100,26 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
         // --- FIRST CHECK IF THIS IS AN INVITATION ID (GUEST EMPLOYEE) ---
         let queryEmail = queryEmailPayload;
         let isGuest = false;
-        if (!targetUser && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
-            const invite = await Invitation.findById(queryUserId);
+        if (!targetUser && queryUserId && (mongoose.Types.ObjectId.isValid(userId) || userId.startsWith("pending_"))) {
+            // Check if userId is invitation ID or pending_...
+            const searchId = userId.startsWith("pending_") ? null : userId;
+            
+            let invite = null;
+            if (searchId && mongoose.Types.ObjectId.isValid(searchId)) {
+                invite = await Invitation.findById(searchId);
+            } else if (queryEmailPayload) {
+                const emailRegex = new RegExp(`^${queryEmailPayload.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+                invite = await Invitation.findOne({ email: emailRegex });
+            }
+
             if (invite) {
                 queryEmail = invite.email;
                 isGuest = true;
             } else {
-                const reportCheck = await SubmittedAssessment.findById(queryUserId).lean();
+                // Check if it's a direct assessment ID
+                const reportCheck = (searchId && mongoose.Types.ObjectId.isValid(searchId)) 
+                    ? await SubmittedAssessment.findById(searchId).lean() 
+                    : null;
                 if (reportCheck) {
                     queryEmail = reportCheck.userDetails?.email;
                     isGuest = true;
@@ -112,7 +128,6 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
         }
 
         // --- GUEST EMPLOYEE PATH (no User account, identified by email) ---
-        // The _id passed from orgUsers is the Invitation _id, not a User _id
         if (isGuest || queryEmail) {
             const requester = await User.findById(loggedInUserId);
             const rRole = requester?.role?.toLowerCase() || "";
@@ -120,7 +135,9 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
             // Only superadmin, admin, leader, manager can view others' reports
             if (queryUserId && queryUserId !== loggedInUserId) {
                 if (!["superadmin", "admin", "leader", "manager"].includes(rRole)) {
-                    return res.status(403).json({ message: "Access denied.", hasReport: false });
+                    const errData = { message: "Access denied.", hasReport: false };
+                    if (returnData) return errData;
+                    return res.status(403).json(errData);
                 }
             }
 
@@ -133,10 +150,9 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
             console.log(`[Dashboard] Guest path email lookup: ${report ? 'FOUND' : 'NOT FOUND'} for email=${queryEmail}`);
 
             if (!report) {
-                return res.status(404).json({
-                    message: "No completed assessment found for this person.",
-                    hasReport: false
-                });
+                const errData = { message: "No completed assessment found for this person.", hasReport: false };
+                if (returnData) return errData;
+                return res.status(404).json(errData);
             }
 
             const domainScoresArray = Object.values(report.scores?.domains || {});
@@ -174,7 +190,9 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
             else if (rRole === "leader") isAllowed = (rOrg === tOrg) && (rDept && rDept === tDept) && (["manager", "employee"].includes(tRole));
             else if (rRole === "manager") isAllowed = (rOrg === tOrg) && (rDept && rDept === tDept) && (tRole === "employee");
             if (!isAllowed) {
-                return res.status(403).json({ message: "Access denied.", hasReport: false });
+                const errData = { message: "Access denied.", hasReport: false };
+                if (returnData) return errData;
+                return res.status(403).json(errData);
             }
         }
 
@@ -182,7 +200,9 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
         let reports = [];
 
         // Strategy 1: Direct userId match
-        reports = await SubmittedAssessment.find({ userId }).sort({ submittedAt: 1 }).lean();
+        if (mongoose.Types.ObjectId.isValid(userId)) {
+            reports = await SubmittedAssessment.find({ userId }).sort({ submittedAt: 1 }).lean();
+        }
         console.log(`[Dashboard] Strategy 1 (userId): FOUND ${reports.length} reports for userId=${userId}`);
 
         // Strategy 2: Email match (case-insensitive regex)
@@ -190,14 +210,16 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
             const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
             reports = await SubmittedAssessment.find({ "userDetails.email": emailRegex }).sort({ submittedAt: 1 }).lean();
             console.log(`[Dashboard] Strategy 2 (email regex): FOUND ${reports.length} reports for email=${targetUser.email}`);
-            if (reports.length > 0) {
+            if (reports.length > 0 && mongoose.Types.ObjectId.isValid(userId)) {
                 SubmittedAssessment.updateMany({ "userDetails.email": emailRegex }, { $set: { userId } }).catch(() => { });
             }
         }
 
         if (reports.length === 0) {
             console.log(`[Dashboard] No reports found for userId=${userId}, email=${targetUser?.email}`);
-            return res.status(404).json({ message: "No completed assessment found for this user.", hasReport: false });
+            const errData = { message: "No completed assessment found for this user.", hasReport: false };
+            if (returnData) return errData;
+            return res.status(404).json(errData);
         }
 
         const latestReport = reports[reports.length - 1];
@@ -211,17 +233,22 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
         if (avgScore > 75) aiInsight = { title: "Excellence Sustained", description: `Score of ${Math.round(avgScore)}% — high-performance zone.`, type: "success" };
         else if (avgScore < 50 && avgScore > 0) aiInsight = { title: "Opportunity for Shift", description: `Baseline score of ${Math.round(avgScore)}%. Focus on development.`, type: "warning" };
 
-        res.status(200).json({
+        const finalData = {
             report: latestReport,
             firstReport: firstReport,
             user: targetUser || latestReport.userDetails,
-            aiInsight: aiInsight, // Ensure aiInsight is included
+            aiInsight: latestReport.customAiInsight || aiInsight,
             isReleased: latestReport.isReleased || false,
             hasReport: true
-        });
+        };
+
+        if (returnData) return finalData;
+        return res.status(200).json(finalData);
     } catch (error) {
         console.error(`Error fetching ${targetRole} report:`, error);
-        res.status(500).json({ message: "Error fetching report data", error: error.message });
+        const errData = { message: "Error fetching report data", error: error.message };
+        if (returnData) return { ...errData, hasReport: false };
+        return res.status(500).json(errData);
     }
 };
 
@@ -645,9 +672,22 @@ async function getOrganizationContextData(req, res) {
         const targetUserId = queryUserId || loggedInUserId;
 
         // 1. Identify the manager
-        contextManager = await User.findById(targetUserId);
-        if (!contextManager && queryUserId && mongoose.Types.ObjectId.isValid(queryUserId)) {
-            const invite = await Invitation.findById(queryUserId);
+        if (mongoose.Types.ObjectId.isValid(targetUserId)) {
+            contextManager = await User.findById(targetUserId);
+        }
+
+        if (!contextManager && queryUserId && (mongoose.Types.ObjectId.isValid(queryUserId) || queryUserId.startsWith("pending_"))) {
+            // If queryUserId is 'pending_...', we use the email part to find the invitation
+            const inviteId = queryUserId.startsWith("pending_") ? null : queryUserId;
+            
+            let invite = null;
+            if (inviteId && mongoose.Types.ObjectId.isValid(inviteId)) {
+                invite = await Invitation.findById(inviteId);
+            } else if (queryEmailPayload) {
+                const emailRegex = new RegExp(`^${queryEmailPayload.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+                invite = await Invitation.findOne({ email: emailRegex });
+            }
+
             if (invite) {
                 contextManager = { email: invite.email, orgName: invite.orgName, department: invite.department };
             }

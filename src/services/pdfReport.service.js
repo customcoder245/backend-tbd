@@ -1,751 +1,668 @@
-import PDFDocument from "pdfkit-table";
-import https from "https";
-import http from "http";
+import puppeteer from 'puppeteer';
+import handlebars from 'handlebars';
 
-// Pinned Cloudinary logo URL (PNG converted from SVG via Cloudinary transformation)
-const BRAND_LOGO_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/f_png,w_300/v1774516563/logos/talent_by_design_logo_new.svg";
+const BRAND_LOGO_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1774516563/logos/talent_by_design_logo_new.svg";
 
-/**
- * PDF Report Generator Service
- * Premium POD-360™ performance dossier
- */
 class PDFReportService {
     constructor() {
         this.colors = {
             primary: "#1A3652",    // Dark Navy
             secondary: "#448CD2",  // Talent Blue
-            accent: "#FF5656",     // Red / Low
-            success: "#30AD43",    // Green / High
-            warning: "#FEE114",    // Yellow / Med
+            sidebar: "#EDF5FD",    // Light Blue Sidebar
+            friction: "#FF5656",   // Friction Red
+            flow: "#30AD43",       // Flow Green
+            resistance: "#FEE114", // Resistance Yellow
             text: "#334155",       // Slate 700
             lightText: "#64748B",  // Slate 500
             border: "#E2E8F0",     // Slate 200
-            ice: "#EDF5FD",        // Light Gray/Blue
-            white: "#FFFFFF"
+            white: "#FFFFFF",
+            accent: "#F8FAFC"
         };
-    }
 
-    getBulletedLines(text, limit = 10) {
-        if (!text) return [];
-        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-        if (lines.length === 0) return [];
+        this.domainDescriptions = {
+            "People Potential": "Focuses on the human side of performance, including mindset, adaptability, relational intelligence, and psychological safety. This domain measures the foundational cultural capacity required to sustain change.",
+            "Operational Steadiness": "Examines the internal structures, prioritization, and resource management that enable consistent execution. This domain identifies operational friction that slows down delivery.",
+            "Digital Fluency": "Measures the organization's readiness to leverage data, AI, and digital tools to drive productivity. This domain evaluates the technical and mental proficiency required in a digital environment."
+        };
 
-        const bulleted = lines.filter(line => line.includes('•'));
-        if (bulleted.length > 0) {
-            return bulleted.map(line => line.replace(/•/g, '').trim()).slice(0, limit);
-        }
+        this.subdomainDescriptions = {
+            "Mindset & Adaptability": "The ability to stay resilient, learn from setbacks, and adapt to changing conditions and priorities.",
+            "Psychological Health & Safety": "The environment of trust where people feel safe to speak up, share ideas, and raise concerns without fear.",
+            "Relational & Emotional Intelligence": "The quality of interpersonal communication, empathy, and constructive conflict resolution across teams.",
+            "Prioritization": "The clarity and discipline in focusing on the highest-value work while managing competing requests.",
+            "Workflow Clarity": "The transparency of roles, processes, and handoffs that ensure work moves forward without unnecessary bottlenecks.",
+            "Effective Resource Management": "The alignment of time, talent, and capacity to support sustainable delivery and prevent overload.",
+            "Data, AI & Automation Readiness": "The ability to access data and use emerging technologies to improve decision-making and reduce manual friction.",
+            "Digital Communication & Collaboration": "The effective use of shared digital tools and norms to keep teams synchronized and productive.",
+            "Mindset, Confidence and Change Readiness": "The openness and confidence of individuals to adopt new digital tools and ways of working.",
+            "Tool & System Proficiency": "The practical skill and confidence in using the organization's core systems and technological infrastructure."
+        };
 
-        // Fallback: If no dots found, just return the lines (useful for custom text)
-        return lines.slice(0, limit);
-    }
-
-    fetchImageBuffer(url) {
-        return new Promise((resolve) => {
-            const client = url.startsWith('https') ? https : http;
-            client.get(url, (res) => {
-                const chunks = [];
-                res.on('data', (chunk) => chunks.push(chunk));
-                res.on('end', () => resolve(Buffer.concat(chunks)));
-                res.on('error', () => resolve(null));
-            }).on('error', () => resolve(null));
-        });
+        this.synergyIntro = "Your data is distributed across these domains to create a 'Portfolio Score'. We look for the Equilibrium Point (the center) as the marker for organizational stability. Large deviances indicate potential burnout or systemic fragility.";
+        
+        this.roleSynergyData = {
+            "leader": {
+                name: "Senior Leader",
+                description: "As a Senior Leader, your responses reflect an executive-level perspective across your organization. Your inputs are analyzed across key domains to generate a comprehensive Portfolio Score. Strong alignment and balance across these domains indicate organizational health and stability, while significant gaps may signal potential burnout, misalignment, or systemic fragility."
+            },
+            "manager": {
+                name: "Manager",
+                description: "As a Manager, your responses reflect your perspective on how work is experienced and delivered within your team. Your inputs are analyzed across key domains to generate a Portfolio Score. Balanced results across these domains suggest a well-supported and stable team environment, while notable gaps may indicate pressure points, inefficiencies, or emerging risks."
+            },
+            "employee": {
+                name: "Employee",
+                description: "As an Employee, your responses reflect your day-to-day experience and interactions with your work and colleagues. Your inputs are analyzed across key domains to generate a Portfolio Score. Consistency and balance across these domains point to a healthy and supportive work environment, while significant differences may highlight areas of strain, disengagement, or operational challenges."
+            }
+        };
     }
 
     async generateReport(data, stream) {
-        const doc = await this._buildDoc(data);
-        doc.pipe(stream);
-        doc.end();
+        const buffer = await this.generateReportBuffer(data);
+        stream.write(buffer);
+        stream.end();
     }
 
     async generateReportBuffer(data) {
-        const doc = await this._buildDoc(data);
-        return new Promise((resolve, reject) => {
-            const chunks = [];
-            doc.on('data', chunk => chunks.push(chunk));
-            doc.on('end', () => resolve(Buffer.concat(chunks)));
-            doc.on('error', reject);
-            doc.end();
+        const html = this._buildHTML(data);
+        const browser = await puppeteer.launch({
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
+
+        try {
+            const page = await browser.newPage();
+            await page.setContent(html, { waitUntil: 'networkidle0' });
+            return await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+                displayHeaderFooter: false
+            });
+        } finally {
+            await browser.close();
+        }
     }
 
-    async _buildDoc(data) {
-        const doc = new PDFDocument({ size: "A4", margin: 50, bufferPages: true });
-        const { report, user, aiInsight } = data;
+    _buildHTML(data) {
+        const { report, user, aiInsight, isMasterReport, comparisonData } = data;
         const userName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "Participant";
-        const orgName = user?.orgName || "Talent By Design";
+        const orgName = isMasterReport ? data.orgName : (user?.orgName || "Talent By Design");
         const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-        if (data.isMasterReport) {
-            await this.drawMasterCover(doc, data.orgName, dateStr);
-            doc.addPage();
-            this.drawHeader(doc, data.orgName);
-            await this.drawMasterOrgSummary(doc, data.orgName, data.comparisonData);
+        const templateSource = `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        :root {
+            --primary: {{colors.primary}};
+            --secondary: {{colors.secondary}};
+            --sidebar: {{colors.sidebar}};
+            --friction: {{colors.friction}};
+            --flow: {{colors.flow}};
+            --resistance: {{colors.resistance}};
+            --text: {{colors.text}};
+            --light-text: {{colors.lightText}};
+            --border: {{colors.border}};
+            --white: {{colors.white}};
+            --accent: {{colors.accent}};
+        }
+
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: var(--text); line-height: 1.6; background: var(--white); -webkit-print-color-adjust: exact; }
+        .page { width: 210mm; height: 297mm; padding: 22mm 18mm; box-sizing: border-box; position: relative; page-break-after: always; display: flex; flex-direction: column; background: var(--white); }
+        .page:last-child { page-break-after: auto; }
+
+        /* Headers & Footers */
+        .inner-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid var(--border); padding-bottom: 5mm; margin-bottom: 12mm; }
+        .inner-header .report-tag { font-size: 8.5pt; font-weight: 800; color: var(--secondary); text-transform: uppercase; letter-spacing: 1.5px; }
+        .inner-header .logo-small { height: 7mm; opacity: 0.9; }
+        
+        .inner-footer { position: absolute; bottom: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 5mm; font-size: 8pt; color: var(--light-text); font-weight: 500; }
+
+        /* Cover Page Redesign */
+        .cover-page { padding: 0; display: flex; flex-direction: row; overflow: hidden; background: #fafafa; }
+        .cover-sidebar { width: 85mm; height: 100%; background: var(--primary); display: flex; flex-direction: column; align-items: center; padding-top: 30mm; position: relative; }
+        .cover-sidebar::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 40%; background: linear-gradient(to top, rgba(0,0,0,0.2), transparent); }
+        .cover-content { flex: 1; padding: 45mm 20mm; display: flex; flex-direction: column; position: relative; }
+        
+        .logo-white { width: 55mm; filter: brightness(0) invert(1); }
+        .brand-header { font-size: 26pt; font-weight: 800; color: var(--primary); margin-bottom: 2mm; letter-spacing: 2px; }
+        .brand-tagline { font-size: 9pt; font-weight: 600; color: var(--secondary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 35mm; }
+        .report-title { font-size: 58pt; font-weight: 800; color: var(--primary); margin-bottom: 6mm; line-height: 0.9; letter-spacing: -2px; }
+        .report-subtitle { font-size: 20pt; color: var(--primary); font-weight: 400; margin-bottom: 30mm; }
+        .report-subtitle strong { font-weight: 700; color: var(--secondary); }
+
+        .info-block { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
+        .info-group { margin-bottom: 6mm; }
+        .info-label { font-size: 7.5pt; font-weight: 800; color: var(--light-text); text-transform: uppercase; margin-bottom: 2mm; letter-spacing: 1px; }
+        .info-value { font-size: 13pt; font-weight: 600; color: var(--primary); }
+
+        /* Typography */
+        h1 { font-size: 28pt; font-weight: 800; color: var(--primary); margin: 0 0 8mm 0; letter-spacing: -1px; line-height: 1.1; }
+        h2 { font-size: 18pt; font-weight: 700; color: var(--primary); margin: 10mm 0 6mm 0; display: flex; align-items: center; }
+        h2::before { content: ''; width: 6mm; height: 1.5mm; background: var(--secondary); display: inline-block; margin-right: 4mm; border-radius: 1mm; }
+        p { font-size: 10.5pt; color: var(--text); margin-bottom: 4mm; line-height: 1.6; }
+
+        /* Inner Cards */
+        .card { background: #FFFFFF; padding: 8mm; border-radius: 4mm; margin-bottom: 8mm; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(26, 54, 82, 0.04); position: relative; }
+        .card-accent { position: absolute; left: 0; top: 8mm; bottom: 8mm; width: 5px; border-radius: 0 2mm 2mm 0; background: var(--secondary); }
+        .block-title { font-weight: 800; color: var(--primary); font-size: 9pt; margin-bottom: 4mm; text-transform: uppercase; letter-spacing: 1.5px; display: flex; align-items: center; }
+        .block-title::after { content: ''; flex: 1; height: 1.5px; background: linear-gradient(to right, var(--border), transparent); margin-left: 5mm; }
+
+        /* Visuals */
+        .summary-hero { display: flex; align-items: center; gap: 15mm; margin-bottom: 10mm; background: var(--accent); padding: 8mm; border-radius: 5mm; }
+        .visual-container { position: relative; width: 240px; height: 140px; }
+        .gauge-val { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); font-size: 32pt; font-weight: 800; color: var(--primary); }
+        .gauge-label { position: absolute; top: 88%; left: 50%; transform: translate(-50%, -50%); font-size: 9pt; font-weight: 800; color: var(--secondary); text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Domain Header */
+        .domain-header-box { background: var(--primary); color: white; padding: 10mm; border-radius: 5mm; margin-bottom: 10mm; position: relative; overflow: hidden; }
+        .domain-header-box::after { content: 'POD-360'; position: absolute; right: -5mm; top: -5mm; font-size: 60pt; font-weight: 900; opacity: 0.05; }
+        .domain-desc { font-size: 11pt; color: rgba(255,255,255,0.8); margin-top: 3mm; line-height: 1.5; font-weight: 400; }
+        .domain-header-box h1 { color: white; margin: 0; }
+
+        /* Tables */
+        .table-container { margin: 6mm 0; border-radius: 4mm; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        .table { width: 100%; border-collapse: collapse; }
+        .table th { background: var(--accent); text-align: left; padding: 4mm 5mm; font-size: 9pt; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
+        .table td { padding: 4.5mm 5mm; border-bottom: 1px solid var(--border); font-size: 10.5pt; vertical-align: middle; }
+        .table tr:last-child td { border-bottom: none; }
+        .table tr:hover { background: var(--accent); }
+
+        /* Status Badges */
+        .badge { display: inline-flex; align-items: center; padding: 1.5mm 4mm; border-radius: 50px; font-size: 8.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge::before { content: ''; width: 2mm; height: 2mm; border-radius: 50%; margin-right: 2.5mm; }
+        .badge-flow { background: #ECFDF5; color: var(--flow); }
+        .badge-flow::before { background: var(--flow); }
+        .badge-resistance { background: #FFFBEB; color: var(--resistance); }
+        .badge-resistance::before { background: var(--resistance); }
+        .badge-friction { background: #FEF2F2; color: var(--friction); }
+        .badge-friction::before { background: var(--friction); }
+
+        /* Bullet Lists */
+        .bullet-list { list-style: none; padding: 0; margin: 0; }
+        .bullet-item { display: flex; margin-bottom: 4mm; font-size: 10.5pt; align-items: flex-start; color: var(--text); }
+        .bullet-dot { width: 6px; height: 6px; background: var(--secondary); border-radius: 1.5mm; margin-right: 4mm; margin-top: 1.8mm; flex-shrink: 0; box-shadow: 0 0 0 3px rgba(68, 140, 210, 0.1); }
+        
+        /* Domain Specific */
+        .score-summary-box { display: flex; justify-content: space-between; align-items: center; color: white; padding: 8mm 12mm; border-radius: 4mm; margin-bottom: 10mm; box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
+        .score-label { font-size: 9.5pt; font-weight: 600; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px; }
+        .score-value-large { font-size: 26pt; font-weight: 800; }
+
+        /* Subdomain Deep Dive */
+        .subdomain-detail-card { border: 1.5px solid var(--border); border-left-width: 6px; padding: 6mm 8mm; border-radius: 4mm; margin-bottom: 8mm; background: var(--white); box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+        .subdomain-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4mm; padding-bottom: 3mm; border-bottom: 1px solid var(--accent); }
+        .subdomain-name { font-size: 13pt; font-weight: 800; color: var(--primary); }
+        .subdomain-generic-desc { font-size: 9.5pt; color: var(--light-text); line-height: 1.4; margin: 4mm 0; font-style: italic; }
+        .subdomain-insight-text { font-size: 10.5pt; color: var(--text); line-height: 1.6; background: var(--accent); padding: 5mm; border-radius: 3mm; margin-bottom: 5mm; border-left: 3px solid var(--border); }
+        
+        .sub-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
+        .sub-metric-label { font-weight: 800; color: var(--primary); text-transform: uppercase; font-size: 8.5pt; margin-bottom: 4mm; display: flex; align-items: center; opacity: 0.7; }
+        .sub-metric-label::after { content: ''; flex: 1; height: 1px; background: var(--border); margin-left: 3mm; }
+    </style>
+</head>
+<body>
+    <!-- LANDING PAGE (COVER) -->
+    <div class="page cover-page">
+        <div class="cover-sidebar">
+            <img src="${BRAND_LOGO_URL}" class="logo-white" />
+        </div>
+        <div class="cover-content">
+            <div class="brand-header">TALENT BY DESIGN</div>
+            <div class="brand-tagline">SCALING HUMAN POTENTIAL IN A DIGITAL WORLD</div>
+            
+            <div class="report-title">POD-360™</div>
+            <div class="report-subtitle">Confidential <strong>Performance Profile</strong></div>
+            
+            <div class="info-block">
+                <div class="info-group">
+                    <div class="info-label">PARTICIPANT</div>
+                    <div class="info-value">{{userName}}</div>
+                </div>
+                <div class="info-group">
+                    <div class="info-label">ORGANIZATION</div>
+                    <div class="info-value">{{orgName}}</div>
+                </div>
+                <div class="info-group">
+                    <div class="info-label">DATE ISSUED</div>
+                    <div class="info-value">{{dateStr}}</div>
+                </div>
+                <div class="info-group">
+                    <div class="info-label">PROFILE STATUS</div>
+                    <div class="info-value">Verified</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{#unless isMasterReport}}
+    <!-- SUMMARY PAGE -->
+    <div class="page">
+        <div class="inner-header">
+            <div class="report-tag">POD-360™ Performance Profile</div>
+            <img src="${BRAND_LOGO_URL}" class="logo-small" />
+        </div>
+
+        <h1>THE DATA SYNERGY</h1>
+        
+        <div style="margin-bottom: 8mm; border-left: 2px solid {{colors.border}}; padding-left: 6mm;">
+            <p style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 2mm; font-size: 9pt; text-transform: uppercase; letter-spacing: 1px;">From: THE DATA SYNERGY</p>
+            <p style="font-style: italic; margin-bottom: 6mm; color: {{colors.primary}};">{{synergyIntro}}</p>
+            
+            <p style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 2mm; font-size: 9pt; text-transform: uppercase; letter-spacing: 1px;">To: {{synergyRole.name}}</p>
+            <p style="color: {{colors.text}}; line-height: 1.5;">{{synergyRole.description}}</p>
+        </div>
+
+        <div class="summary-hero">
+            <div class="visual-container">
+                <svg width="240" height="140" viewBox="0 0 200 100">
+                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#E2E8F0" stroke-width="18" stroke-linecap="round" />
+                    <path d="M 20 100 A 80 80 0 0 1 {{gaugePath 80 report.scores.overall}}" fill="none" stroke="{{gaugeColor report.scores.overall}}" stroke-width="18" stroke-linecap="round" stroke-dasharray="2, 1" />
+                    <circle cx="{{gaugePathX 80 report.scores.overall}}" cy="{{gaugePathY 80 report.scores.overall}}" r="6" fill="white" stroke="{{gaugeColor report.scores.overall}}" stroke-width="3" />
+                </svg>
+                <div class="gauge-val">{{round report.scores.overall}}%</div>
+                <div class="gauge-label">{{getClassification report.scores.overall}}</div>
+            </div>
+            <div style="flex: 1;">
+                <p style="font-size: 11pt; font-weight: 500; color: var(--primary); margin-bottom: 3mm;">Performance Overview</p>
+                <p>This report provides a high-level analysis of your current organizational state, pinpointing critical areas of <strong>Friction</strong> and identifying opportunities to accelerate <strong>Flow</strong>.</p>
+                <p style="margin-bottom: 0;">Your overall performance score is <strong>{{round report.scores.overall}}%</strong>, indicating a state of <strong>{{getClassification report.scores.overall}}</strong>.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-accent"></div>
+            <div class="block-title">Key Strategic Insight</div>
+            <p style="font-size: 12pt; font-weight: 500; color: {{colors.primary}};">{{aiInsight.description}}</p>
+        </div>
+
+        <h2>Domain Performance</h2>
+        <div class="table-container">
+            <table class="table">
+                <thead><tr><th>Domain Area</th><th>Score</th><th>Current State</th></tr></thead>
+                <tbody>
+                    {{#each domainPages}}
+                    <tr>
+                        <td style="font-weight: 600;">{{name}}</td>
+                        <td style="font-weight: 700; color: {{colors.primary}};">{{round score}}%</td>
+                        <td><span class="badge badge-{{toLowerCase (getClassification score)}}">{{getClassification score}}</span></td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="inner-footer">
+            <div>Confidential Assessment Report • {{userName}}</div>
+            <div>Talent By Design • Page 2</div>
+        </div>
+    </div>
+
+    <!-- DOMAIN PAGES -->
+    {{#each domainPages}}
+    <div class="page">
+        <div class="inner-header">
+            <div class="report-tag">POD-360™ • Domain Analysis</div>
+            <img src="${BRAND_LOGO_URL}" class="logo-small" />
+        </div>
+
+        <div class="domain-header-box">
+            <h1 style="margin-bottom: 2mm;">{{name}}</h1>
+            <div class="domain-desc">{{description}}</div>
+        </div>
+        
+        <div class="score-summary-box" style="background: {{gaugeColor score}};">
+            <div>
+                <div class="score-label">Domain Efficiency Score</div>
+                <div class="score-value-large">{{round score}}%</div>
+            </div>
+            <div style="text-align: right;">
+                <div class="score-label">Current State</div>
+                <div class="score-value-large" style="font-size: 18pt;">{{getClassification score}}</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 6mm;">
+            <div class="card-accent"></div>
+            <div class="block-title">Qualitative Insights</div>
+            <ul class="bullet-list">
+                {{#each insights}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}
+            </ul>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8mm;">
+            <div class="card" style="margin-bottom: 0;">
+                <div class="card-accent" style="background: var(--flow);"></div>
+                <div class="block-title">Strategic Actions</div>
+                <ul class="bullet-list">
+                    {{#each okrs}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}
+                </ul>
+            </div>
+
+            <div class="card" style="margin-bottom: 0;">
+                <div class="card-accent" style="background: var(--secondary);"></div>
+                <div class="block-title">Leadership Focus</div>
+                <ul class="bullet-list">
+                    {{#each coaching}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}
+                </ul>
+            </div>
+        </div>
+
+        <div class="inner-footer">
+            <div>Confidential Assessment Report • {{../../userName}} • {{name}}</div>
+            <div>Talent By Design • Page {{add (multiply @index 2) 3}}</div>
+        </div>
+    </div>
+
+    <!-- SUB-DOMAIN DEEP DIVE PAGE -->
+    <div class="page">
+        <div class="inner-header">
+            <div class="report-tag">{{name}} • Sub-Domain Analysis</div>
+            <img src="${BRAND_LOGO_URL}" class="logo-small" />
+        </div>
+
+        <h1>Sub-Domain Deep Dive</h1>
+        <p style="margin-bottom: 6mm;">A granular analysis of the performance drivers within the <strong>{{name}}</strong> domain.</p>
+
+        {{#each subdomains}}
+        <div class="subdomain-detail-card" style="border-left-color: {{gaugeColor score}};">
+            <div class="subdomain-header">
+                <div class="subdomain-name">{{name}}</div>
+                <span class="badge badge-{{toLowerCase state}}">{{score}}% • {{state}}</span>
+            </div>
+            <div class="subdomain-generic-desc">{{description}}</div>
+            <div class="subdomain-insight-text">{{insight}}</div>
+            
+            <div class="sub-metrics">
+                <div class="sub-metric-box">
+                    <div class="sub-metric-label">Priority Actions</div>
+                    <ul class="bullet-list">
+                        {{#each objectives}}<li class="bullet-item" style="font-size: 8.5pt; margin-bottom: 1mm;"><div class="bullet-dot" style="width: 4px; height: 4px; margin-top: 1.2mm;"></div>{{this}}</li>{{/each}}
+                    </ul>
+                </div>
+                <div class="sub-metric-box">
+                    <div class="sub-metric-label">Growth Tips</div>
+                    <ul class="bullet-list">
+                        {{#each coaching}}<li class="bullet-item" style="font-size: 8.5pt; margin-bottom: 1mm;"><div class="bullet-dot" style="width: 4px; height: 4px; margin-top: 1.2mm; background: {{../../../colors.lightText}};"></div>{{this}}</li>{{/each}}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {{/each}}
+
+        <div class="inner-footer">
+            <div>Confidential Assessment Report • {{../../userName}} • {{name}}</div>
+            <div>Talent By Design • Page {{add (multiply @index 2) 4}}</div>
+        </div>
+    </div>
+    {{/each}}
+
+    <!-- PATH FORWARD PAGE -->
+    <div class="page">
+        <div class="inner-header">
+            <div class="report-tag">POD-360™ • Strategic Path Forward</div>
+            <img src="${BRAND_LOGO_URL}" class="logo-small" />
+        </div>
+
+        <h1>Conclusion & Path Forward</h1>
+        <p>This assessment represents a snapshot of your organizational health. The journey from <strong>Friction to Flow</strong> is ongoing, and these insights provide the roadmap for your next phase of growth.</p>
+
+        <div class="card" style="margin-top: 8mm;">
+            <div class="card-accent" style="background: {{colors.primary}};"></div>
+            <div class="block-title">Key Organizational Priority</div>
+            <p style="font-size: 11.5pt; color: {{colors.primary}}; font-weight: 500;">
+                Our analysis indicates that the most immediate opportunity for impact lies within <strong>{{lowestDomainName}}</strong>.
+            </p>
+            <p style="margin-top: 2mm;">Focusing your resources here will resolve critical bottlenecks and accelerate performance across all other domains. Prioritize the OKRs identified in the Deep Dive section of this report.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-accent"></div>
+            <div class="block-title">Implementation Roadmap</div>
+            <ul class="bullet-list">
+                <li class="bullet-item"><div class="bullet-dot"></div><strong>Phase 1: Awareness (Week 1-2)</strong><br/>Share the POD-360™ findings with leadership and key stakeholders to build a shared language around Friction and Flow.</li>
+                <li class="bullet-item"><div class="bullet-dot"></div><strong>Phase 2: Alignment (Week 3-4)</strong><br/>Integrate the recommended OKRs into your quarterly planning. Assign owners to each priority action.</li>
+                <li class="bullet-item"><div class="bullet-dot"></div><strong>Phase 3: Activation (Month 2-3)</strong><br/>Execute the growth tips provided in the Coaching & Development sections. Monitor the "Flow" indicators weekly.</li>
+            </ul>
+        </div>
+
+        <div style="margin-top: auto; padding: 10mm; background: {{colors.sidebar}}; border-radius: 4mm; display: flex; align-items: center; gap: 8mm;">
+            <div style="flex: 1;">
+                <div style="font-size: 14pt; font-weight: 700; color: {{colors.primary}}; margin-bottom: 2mm;">Scale Your Potential</div>
+                <p style="font-size: 10pt; margin-bottom: 0;">For a tailored interpretation of these results or to facilitate a strategic workshop with your team, reach out to our performance consultants.</p>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 12pt; font-weight: 700; color: {{colors.secondary}};">Talent By Design</div>
+                <div style="font-size: 9pt; color: {{colors.lightText}};">www.talentbydesign.com</div>
+            </div>
+        </div>
+
+        <div class="inner-footer">
+            <div>Confidential Assessment Report • {{userName}}</div>
+            <div>Talent By Design • Page 9</div>
+        </div>
+    </div>
+    {{/unless}}
+
+
+
+
+    {{#if isMasterReport}}
+    <!-- MASTER REPORT OVERVIEW -->
+    <div class="page">
+        <div class="inner-header">
+            <div class="report-tag">POD-360™ Organizational Overview</div>
+            <img src="${BRAND_LOGO_URL}" class="logo-small" />
+        </div>
+
+        <h1>Organizational Health</h1>
+        
+        <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 12mm; margin-bottom: 12mm; background: var(--accent);">
+            <div class="card-accent" style="background: {{gaugeColor orgHealth}}; width: 8px;"></div>
+            <div>
+                <div class="block-title" style="border: none; margin-bottom: 2mm;">Aggregate Performance Index</div>
+                <p style="margin: 0; opacity: 0.8; font-size: 11pt;">The combined performance across all evaluated teams and domains.</p>
+                <div class="badge badge-{{toLowerCase orgState}}" style="margin-top: 5mm; padding: 2mm 8mm; font-size: 10pt;">{{orgState}} State</div>
+            </div>
+            <div style="font-size: 68pt; font-weight: 800; color: {{gaugeColor orgHealth}}; line-height: 1; letter-spacing: -3px;">{{orgHealth}}%</div>
+        </div>
+        
+        <h2>Domain Benchmarks</h2>
+        <p>Comparison of internal team performance against global organizational benchmarks.</p>
+        <div class="table-container">
+            <table class="table">
+                <thead><tr><th>Domain Area</th><th>Current Team Avg</th><th>Global Benchmark</th><th>Status</th></tr></thead>
+                <tbody>
+                    {{#each masterDomainRows}}
+                    <tr>
+                        <td style="font-weight: 600;">{{name}}</td>
+                        <td style="font-weight: 700; color: {{../colors.primary}};">{{avg}}%</td>
+                        <td style="color: {{../colors.secondary}}; font-weight: 600;">{{benchmark}}%</td>
+                        <td><span class="badge badge-{{toLowerCase state}}">{{state}}</span></td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="inner-footer">
+            <div>Confidential Organizational Report • {{orgName}}</div>
+            <div>Talent By Design • Page 2</div>
+        </div>
+    </div>
+
+    <!-- STRATEGIC ALIGNMENT PAGE -->
+    <div class="page">
+        <div class="inner-header">
+            <div class="report-tag">POD-360™ • Strategic Alignment Analysis</div>
+            <img src="${BRAND_LOGO_URL}" class="logo-small" />
+        </div>
+
+        <h1>Alignment & Risk Analysis</h1>
+        <p style="margin-bottom: 8mm;">Identifying disconnects between leadership vision and employee experience across key domains.</p>
+        
+        <div style="display: grid; grid-template-columns: 1fr; gap: 6mm;">
+            {{#each alignmentRisks}}
+            <div class="card" style="margin-bottom: 0; padding: 10mm;">
+                <div class="card-accent" style="background: {{color}};"></div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4mm;">
+                    <div>
+                        <div style="font-size: 8pt; color: {{../colors.lightText}}; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1mm;">Domain Analysis</div>
+                        <div style="font-weight: 700; color: {{../colors.primary}}; font-size: 16pt;">{{name}}</div>
+                    </div>
+                    <span class="badge" style="background: {{color}}22; color: {{color}}; padding: 2mm 6mm;">{{status}}</span>
+                </div>
+                <p style="margin: 0; font-size: 11pt; line-height: 1.6;">{{info}}</p>
+                
+                {{#if (includes status "RISK")}}
+                <div style="margin-top: 5mm; padding: 4mm; background: #FFF5F5; border-radius: 2mm; border: 1px solid #FED7D7; font-size: 9.5pt; color: #C53030;">
+                    <strong>Action Required:</strong> Immediate intervention recommended to bridge the perception gap and restore operational trust.
+                </div>
+                {{/if}}
+            </div>
+            {{/each}}
+        </div>
+
+        <div class="inner-footer">
+            <div>Confidential Organizational Report • {{orgName}}</div>
+            <div>Talent By Design • Page 3</div>
+        </div>
+    </div>
+    {{/if}}
+
+</body>
+</html>
+        `;
+
+        // Register Helpers
+        const helpers = {
+            round: (val) => Math.round(val || 0),
+            inc: (val) => (val || 0) + 1,
+            getClassification: (score) => {
+                const s = Math.round(score || 0);
+                if (s < 50) return "Friction";
+                if (s < 75) return "Resistance";
+                return "Flow";
+            },
+            gaugeColor: (val) => {
+                const v = Math.round(val || 0);
+                if (v >= 75) return this.colors.flow;
+                if (v <= 50) return this.colors.friction;
+                return this.colors.resistance;
+            },
+            gaugePath: (r, val) => {
+                const v = Math.max(0, Math.min(val || 0, 100));
+                const angle = Math.PI + (v / 100) * Math.PI;
+                return `${100 + r * Math.cos(angle)} ${100 + r * Math.sin(angle)}`;
+            },
+            gaugePathX: (r, val) => {
+                const v = Math.max(0, Math.min(val || 0, 100));
+                const angle = Math.PI + (v / 100) * Math.PI;
+                return 100 + r * Math.cos(angle);
+            },
+            gaugePathY: (r, val) => {
+                const v = Math.max(0, Math.min(val || 0, 100));
+                const angle = Math.PI + (v / 100) * Math.PI;
+                return 100 + r * Math.sin(angle);
+            },
+            toLowerCase: (str) => (str || "").toLowerCase(),
+            add: (a, b) => (a || 0) + (b || 0),
+            multiply: (a, b) => (a || 0) * (b || 0),
+            includes: (str, substr) => (str || "").includes(substr)
+        };
+
+
+
+        Object.keys(helpers).forEach(name => handlebars.registerHelper(name, helpers[name]));
+
+        const getBulletedLines = (text, limit = 8) => {
+            if (!text) return [];
+            return text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0).slice(0, limit);
+        };
+
+        const templateData = {
+            colors: this.colors, userName, orgName, dateStr, isMasterReport, report, aiInsight, comparisonData,
+            synergyIntro: this.synergyIntro
+        };
+
+        // Determine Role for Synergy Text
+        const roleKey = (report?.stakeholder || user?.role || "employee").toLowerCase();
+        templateData.synergyRole = this.roleSynergyData[roleKey] || this.roleSynergyData["employee"];
+
+        if (isMasterReport) {
+            const domainNames = ["People Potential", "Operational Steadiness", "Digital Fluency"];
+            let totalHealth = 0;
+            templateData.masterDomainRows = domainNames.map(d => {
+                const avg = Math.round(comparisonData.teamAvg?.[d]?.avgScore || 0);
+                totalHealth += avg;
+                return {
+                    name: d, avg, benchmark: Math.round(comparisonData.orgAvg?.[d]?.avgScore || 0),
+                    state: this._getClassification(avg)
+                };
+            });
+            templateData.orgHealth = Math.round(totalHealth / 3);
+            templateData.orgState = this._getClassification(templateData.orgHealth);
+            templateData.alignmentRisks = domainNames.map(d => {
+                const l = comparisonData.leaderAvg?.[d]?.avgScore || 0;
+                const e = comparisonData.employeeAvg?.[d]?.avgScore || 0;
+                const gap = l - e;
+                let status = "Aligned", color = this.colors.flow, info = "Leadership and employee experiences are synchronized.";
+                if (gap > 15) { status = "Risk High"; color = this.colors.friction; info = "Significant disconnect observed between leadership and staff."; }
+                else if (gap > 7) { status = "Monitor"; color = this.colors.resistance; info = "Minor gap observed. Keep an eye on alignment."; }
+                return { name: d, status: status.toUpperCase(), color, info };
+            });
         } else {
-            await this.drawCover(doc, userName, orgName, dateStr);
+            templateData.domainPages = ["People Potential", "Operational Steadiness", "Digital Fluency"].map(dName => {
+                const dData = report.scores?.domains?.[dName];
+                if (!dData) return null;
+                const fb = dData.feedback || {};
+                
+                // Detailed Subdomain Mapping
+                const subdomains = Object.keys(dData.subdomains || {}).map(s => {
+                    const subScore = typeof dData.subdomains[s] === 'object' ? dData.subdomains[s].score : dData.subdomains[s];
+                    const subFb = dData.subdomainFeedback?.[s] || {};
+                    return {
+                        name: s,
+                        description: this.subdomainDescriptions[s] || "",
+                        score: Math.round(subScore),
+                        state: this._getClassification(subScore),
+                        insight: subFb.insight || "No specific insight available for this area.",
+                        objectives: getBulletedLines(subFb.objectives || "", 3),
+                        coaching: getBulletedLines(subFb.coachingTips || "", 3)
+                    };
+                });
 
-            doc.addPage();
-            this.drawHeader(doc, userName);
-            this.drawSystemArchitecture(doc);
+                return {
+                    name: dName, score: dData.score,
+                    description: this.domainDescriptions[dName] || "",
+                    subdomains,
+                    insights: getBulletedLines(fb.insight || fb.modelDescription || "", 5),
+                    okrs: getBulletedLines(fb.objectives || "", 5),
+                    coaching: getBulletedLines(fb.coachingTips || "", 5)
+                };
+            }).filter(p => p !== null);
 
-            doc.addPage();
-            this.drawHeader(doc, userName);
-            this.drawExecutiveSummary(doc, report, aiInsight);
-
-            // Domain Pages
-            for (const domain of ["People Potential", "Operational Steadiness", "Digital Fluency"]) {
-                const dData = report.scores?.domains?.[domain];
-                if (!dData) continue;
-
-                doc.addPage();
-                this.drawHeader(doc, userName);
-                await this.drawDomainDetailedPage(doc, domain, dData, userName);
-            }
-
-            // --- Comparison & Alignment Page (only if real score data exists) ---
-            const hasTeamData = data.comparisonData && Object.keys(data.comparisonData.teamAvg || {}).length > 0;
-            if (hasTeamData) {
-                doc.addPage();
-                this.drawHeader(doc, userName);
-                await this.drawComparisonPage(doc, userName, data.comparisonData, report.scores?.domains || {});
-            }
-
-            /* Appendix: Detailed Raw Responses (only if there are meaningful responses)
-            if (report.responses && report.responses.length > 5) {
-                doc.addPage();
-                this.drawHeader(doc, userName);
-                await this.drawAppendixResponses(doc, report.responses);
-            } */
-        }
-
-        this.applyPageNumbers(doc);
-
-        // ── Remove trailing blank pages ──────────────────────────────
-        const range = doc.bufferedPageRange();
-        if (range.count > 1) {
-            doc.switchToPage(range.start + range.count - 1);
-            if (doc.y <= 85) {
-                doc.rect(0, 0, 595, 842).fill("#FFFFFF");
+            // Find lowest domain for the conclusion
+            const validDomains = templateData.domainPages.filter(d => d !== null);
+            if (validDomains.length > 0) {
+                const lowest = validDomains.reduce((prev, curr) => (prev.score < curr.score) ? prev : curr);
+                templateData.lowestDomainName = lowest.name;
             }
         }
 
-        return doc;
+
+        return handlebars.compile(templateSource)(templateData);
     }
 
-
-
-    async drawCover(doc, userName, orgName, dateStr) {
-        // Decorative background
-        doc.rect(0, 0, 595, 842).fill(this.colors.white);
-        doc.rect(0, 0, 200, 842).fill(this.colors.ice);
-        doc.rect(200, 0, 2, 842).fill(this.colors.border);
-
-        // Fetch & embed Cloudinary logo (converted to PNG via URL transform)
-        try {
-            const logoBuffer = await this.fetchImageBuffer(BRAND_LOGO_URL);
-            if (logoBuffer && logoBuffer.length > 0) {
-                doc.image(logoBuffer, 20, 100, { width: 160 });
-            } else {
-                doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(25).text("TALENT BY DESIGN", 240, 60);
-            }
-        } catch (e) {
-            doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(25).text("TALENT BY DESIGN", 240, 60);
-        }
-
-        doc.fontSize(25).font("Helvetica-Bold").fillColor(this.colors.primary).text("TALENT BY DESIGN", 240, 120);
-        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 242, 140);
-
-        // Titles
-        doc.fontSize(54).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD-360™", 240, 245);
-        doc.fontSize(22).font("Helvetica").fillColor(this.colors.text).text("Confidential Performance Profile", 240, 308);
-
-        doc.rect(240, 310 + 40, 60, 5).fill(this.colors.secondary);
-
-        // Subject Info
-        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("PARTICIPANT:", 240, 420);
-        doc.fontSize(16).font("Helvetica-Bold").fillColor(this.colors.primary).text(userName, 240, 440);
-
-        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("ORGANIZATION:", 240, 480);
-        doc.fontSize(14).font("Helvetica").fillColor(this.colors.primary).text(orgName, 240, 495);
-
-        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("DATE ISSUED:", 240, 530);
-        doc.fontSize(14).font("Helvetica").fillColor(this.colors.primary).text(dateStr, 240, 545);
-
-        // Bottom color strip
-        // doc.rect(0, 800, 595, 20024).fill(this.colors.primary);
-        // doc.rect(0, 808, 595, 632).fill(this.colors.secondary);
-
-        // Footer
-        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("© 2026 TALENT BY DESIGN. ALL RIGHTS RESERVED.", 240, 818);
+    _getClassification(score) {
+        const s = Math.round(score || 0);
+        if (s < 50) return "Friction";
+        if (s < 75) return "Resistance";
+        return "Flow";
     }
-
-    async drawMasterCover(doc, orgName, dateStr) {
-        // Decorative background
-        doc.rect(0, 0, 595, 842).fill(this.colors.white);
-        doc.rect(0, 0, 200, 842).fill(this.colors.primary);
-
-        // Fetch & embed Cloudinary logo on white area
-        try {
-            const logoBuffer = await this.fetchImageBuffer(BRAND_LOGO_URL);
-            if (logoBuffer && logoBuffer.length > 0) {
-                doc.image(logoBuffer, 240, 52, { width: 160 });
-            } else {
-                doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(18).text("TALENT BY DESIGN", 240, 60);
-            }
-        } catch (e) {
-            doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(18).text("TALENT BY DESIGN", 240, 60);
-        }
-
-        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("SCALING HUMAN POTENTIAL IN A DIGITAL WORLD", 240, 90);
-
-        // Titles
-        doc.fontSize(44).font("Helvetica-Bold").fillColor(this.colors.primary).text("MASTER REPORT", 240, 250);
-        doc.fontSize(22).font("Helvetica").text("Organizational Health Dossier", 240, 310);
-
-        doc.rect(240, 310 + 40, 40, 4).fill(this.colors.secondary);
-
-        // Org Info
-        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("ORGANIZATION:", 240, 420);
-        doc.fontSize(18).font("Helvetica-Bold").fillColor(this.colors.primary).text(orgName.toUpperCase(), 240, 440);
-
-        doc.fontSize(10).font("Helvetica-Bold").fillColor(this.colors.lightText).text("GENERATED ON:", 240, 480);
-        doc.fontSize(14).font("Helvetica").fillColor(this.colors.primary).text(dateStr, 240, 495);
-
-        // Footer
-        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("© 2026 TALENT BY DESIGN. CONFIDENTIAL INTEL.", 240, 780);
-    }
-
-    drawHeader(doc, userName) {
-        doc.fillColor(this.colors.lightText).fontSize(8).font("Helvetica-Bold").text(userName.toUpperCase(), 400, 30, { align: "right" });
-        doc.moveTo(50, 42).lineTo(550, 42).strokeColor(this.colors.border).lineWidth(1).stroke();
-    }
-
-    applyPageNumbers(doc) {
-        const pages = doc.bufferedPageRange();
-        for (let i = 0; i < pages.count; i++) {
-            doc.switchToPage(i);
-            if (i === 0) continue;
-            // Footer Line
-            doc.moveTo(50, 805).lineTo(550, 805).strokeColor(this.colors.border).lineWidth(0.5).stroke();
-            doc.fillColor(this.colors.lightText).fontSize(8).font("Helvetica").text(`Page ${i + 1}`, 530, 815);
-        }
-    }
-
-    drawSystemArchitecture(doc) {
-        doc.fontSize(28).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD-360™ Model", 50, 70);
-        doc.moveDown(0.5);
-        doc.fontSize(11).font("Helvetica").fillColor(this.colors.text).text("The POD-360™ model evaluates performance across three interdependent dimensions. Sustainability requires balance between these areas; strength in one rarely compensates for a deficit in another over the long term.", { lineGap: 5 });
-
-        // Domain boxes
-        const domains = [
-            { name: "1. PEOPLE POTENTIAL", d: "Measuring the psychological, relational, and cultural health of the workspace." },
-            { name: "2. OPERATIONAL STEADINESS", d: "Strategies for prioritization, execution, and reliable resource management." },
-            { name: "3. DIGITAL FLUENCY", d: "The adoption of technology, data literacy, and digital collaboration agilely." }
-        ];
-
-        let y = 180;
-        domains.forEach(d => {
-            doc.rect(50, y, 500, 75).fill(this.colors.ice);
-            doc.fillColor(this.colors.primary).fontSize(14).font("Helvetica-Bold").text(d.name, 70, y + 18);
-            doc.fillColor(this.colors.text).fontSize(11).font("Helvetica").text(d.d, 70, y + 38, { width: 440, lineGap: 3 });
-            y += 95;
-        });
-
-        // Interrelation explaining
-        doc.fontSize(18).font("Helvetica-Bold").fillColor(this.colors.primary).text("THE DATA SYNERGY", 50, y + 30);
-        doc.fontSize(12).font("Helvetica").text("Your data is distributed across these domains to create a 'Portfolio Score'. We look for the Equilibrium Point (the center) as the marker for organizational stability. Large deviances indicate potential burnout or systemic fragility.", { lineGap: 5 });
-
-        this.drawPODTriangle(doc, 300, 710, 110, { p: 40, o: 40, d: 40 });
-    }
-
-    drawPODTriangle(doc, x, y, size, data) {
-        doc.save();
-        doc.translate(x, y);
-
-        const radius = size;
-        const P = { x: 0, y: -radius }; // Top
-        const O = { x: -radius * Math.sin(Math.PI / 3), y: radius * Math.cos(Math.PI / 3) }; // Bottom Left
-        const D = { x: radius * Math.sin(Math.PI / 3), y: radius * Math.cos(Math.PI / 3) }; // Bottom Right
-
-        // Draw the rounded container triangle
-        doc.lineJoin('round').lineWidth(5).strokeColor(this.colors.border);
-        doc.moveTo(P.x, P.y).lineTo(O.x, O.y).lineTo(D.x, D.y).closePath().stroke();
-
-        const p = data.p || 33.3;
-        const o = data.o || 33.3;
-        const d = data.d || 33.3;
-        const total = p + o + d;
-        const CX = (p * P.x + o * O.x + d * D.x) / total;
-        const CY = (p * P.y + o * O.y + d * D.y) / total;
-
-        doc.fillColor("#E6F0FA").opacity(0.8).moveTo(CX, CY).lineTo(P.x, P.y).lineTo(O.x, O.y).closePath().fill();
-        doc.fillColor("#BFE0F6").opacity(0.8).moveTo(CX, CY).lineTo(P.x, P.y).lineTo(D.x, D.y).closePath().fill();
-        doc.fillColor("#357ABD").opacity(0.8).moveTo(CX, CY).lineTo(O.x, O.y).lineTo(D.x, D.y).closePath().fill();
-
-        doc.opacity(1).fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(10);
-        doc.text("PEOPLE", P.x - 20, P.y - 20);
-        doc.text("OPERATIONAL", O.x - 40, O.y + 10);
-        doc.text("DIGITAL", D.x - 10, D.y + 10);
-
-        doc.restore();
-    }
-
-    drawExecutiveSummary(doc, report, aiInsight) {
-        doc.fontSize(24).font("Helvetica-Bold").fillColor(this.colors.primary).text("Executive Summary", 50, 70);
-
-        // Gauge
-        const score = Math.round(report?.scores?.overall || 0);
-        this.drawGauge(doc, 300, 240, 100, score); // Larger Gauge
-
-        // Classification Card
-        const classification = report?.classification || "Medium";
-        const color = score >= 75 ? this.colors.success : score <= 50 ? this.colors.accent : this.colors.warning;
-        const desc = aiInsight?.description || "Ongoing system monitoring based on 360 feedback cycles.";
-        const descHeight = doc.heightOfString(desc, { width: 460, lineGap: 4 });
-        const cardHeight = Math.max(100, 80 + descHeight);
-        let currentY = 320; // Moved down even more
-
-        doc.rect(50, currentY, 500, cardHeight).fill(this.colors.ice);
-        doc.fillColor(color).fontSize(16).font("Helvetica-Bold").text(classification.toUpperCase() + " PERFORMANCE INDEX", 70, currentY + 25);
-        doc.fillColor(this.colors.primary).fontSize(13).font("Helvetica-Bold").text(aiInsight?.title || "Operational Trajectory Established", 70, currentY + 52);
-        doc.fillColor(this.colors.text).fontSize(11).font("Helvetica").text(desc, 70, currentY + 75, { width: 460, lineGap: 4 });
-
-        currentY += cardHeight + 45;
-
-        doc.fontSize(20).font("Helvetica-Bold").fillColor(this.colors.primary).text("POD SYNERGY MAP", 50, currentY);
-        currentY += 30;
-
-        // Dynamic Triangle for actual scores
-        const dp = report.scores?.domains?.["People Potential"]?.score || 33.3;
-        const doP = report.scores?.domains?.["Operational Steadiness"]?.score || 33.3;
-        const dd = report.scores?.domains?.["Digital Fluency"]?.score || 33.3;
-        this.drawPODTriangle(doc, 300, currentY + 120, 120, { p: dp, o: doP, d: dd });
-    }
-
-    drawGauge(doc, x, y, r, val) {
-        doc.save();
-        doc.translate(x, y);
-        // Track
-        doc.lineWidth(15).lineCap("round").strokeColor(this.colors.border).arc(0, 0, r, Math.PI, 2 * Math.PI).stroke();
-        // Progress
-        const color = val >= 75 ? this.colors.success : val <= 50 ? this.colors.accent : this.colors.warning;
-        doc.strokeColor(color).arc(0, 0, r, Math.PI, Math.PI + (Math.max(0, Math.min(val, 100)) / 100) * Math.PI).stroke();
-        // Values text
-        doc.fillColor(this.colors.primary).fontSize(42).font("Helvetica-Bold").text(`${val}%`, -45, -20, { width: 90, align: "center" });
-        doc.restore();
-    }
-
-    drawDynamicBlock(doc, title, subtitle, items, yStart, isIce, userName) {
-        let y = yStart;
-        let contentHeight = subtitle ? 55 : 40;
-        let itemsHeight = 0;
-
-        items.forEach(item => {
-            const width = item.type === 'kr' ? 420 : 440;
-            itemsHeight += doc.heightOfString(item.text, { width }) + (item.space || 8);
-            if (item.type === 'kr') itemsHeight += 5; // Extra padding for KR layout
-        });
-
-        const totalHeight = Math.max(120, contentHeight + itemsHeight + 25);
-
-        if (y + totalHeight > 780) {
-            doc.addPage();
-            this.drawHeader(doc, userName || "");
-            y = 70;
-        }
-
-        const fillColor = isIce ? this.colors.ice : this.colors.white;
-        doc.rect(50, y, 500, totalHeight).fill(fillColor).strokeColor(isIce ? this.colors.secondary : this.colors.border).lineWidth(1).stroke();
-
-        doc.fillColor(this.colors.primary).fontSize(15).font("Helvetica-Bold").text(title, 70, y + 16);
-        if (subtitle) {
-            doc.fillColor(this.colors.lightText).fontSize(10).font("Helvetica-Oblique").text(subtitle, 70, y + 34);
-        }
-
-        let currentItemY = y + contentHeight;
-
-        items.forEach((item, idx) => {
-            if (item.type === 'text') {
-                const textHeight = doc.heightOfString(item.text, { width: 460, lineGap: 3 });
-                doc.fillColor(item.color || this.colors.primary).fontSize(11).font("Helvetica").text(item.text, 70, currentItemY, { width: 460, lineGap: 3 });
-                currentItemY += textHeight + (item.space || 10);
-            } else if (item.type === 'bullet') {
-                const textHeight = doc.heightOfString(item.text, { width: 440, lineGap: 2 });
-                doc.circle(75, currentItemY + 6, 2.5).fill(item.bulletColor || this.colors.secondary);
-                doc.fillColor(this.colors.primary).fontSize(10).font("Helvetica").text(item.text, 88, currentItemY, { width: 440, lineGap: 2 });
-                currentItemY += textHeight + (item.space || 10);
-            } else if (item.type === 'kr') {
-                const textHeight = doc.heightOfString(item.text, { width: 420, lineGap: 2 });
-                doc.circle(85, currentItemY + 14, 12).lineWidth(2).strokeColor(this.colors.primary).stroke();
-                doc.fillColor(this.colors.primary).fontSize(9).font("Helvetica-Bold").text(`${idx + 1}`, 82, currentItemY + 10, { width: 6, align: 'center' });
-                doc.fillColor(this.colors.primary).fontSize(10).font("Helvetica-Bold").text(`KR ${idx + 1}`, 110, currentItemY);
-                doc.fillColor(this.colors.lightText).fontSize(9).font("Helvetica").text(item.text, 110, currentItemY + 16, { width: 420, lineGap: 2 });
-                currentItemY += textHeight + 30;
-            }
-        });
-
-        return y + totalHeight + 20;
-    }
-
-    async drawDomainDetailedPage(doc, domainName, domainData, userName) {
-        doc.fontSize(20).font("Helvetica-Bold").fillColor(this.colors.primary).text(`Domain: ${domainName}`, 50, 60);
-
-        if (!domainData) {
-            doc.fontSize(10).fillColor(this.colors.lightText).text("No data available for this domain.", 50, 90);
-            return;
-        }
-
-        // Phase Indicator Badge
-        const phase = domainData?.feedback?.phaseIndicator || "Calibration";
-        doc.rect(420, 58, 130, 24).fill(this.colors.ice);
-        doc.fillColor(this.colors.secondary).fontSize(10).font("Helvetica-Bold").text(phase.toUpperCase(), 420, 66, { width: 130, align: "center" });
-
-        // Score Distribution & Gauge
-        const dScore = Math.round(domainData?.score || 0);
-        this.drawGauge(doc, 300, 240, 100, dScore); // Larger Gauge
-
-        // Subdomain Breakdowns (Table format)
-        doc.fontSize(14).font("Helvetica-Bold").fillColor(this.colors.primary).text("SUB-DOMAIN ANALYSIS OVERVIEW", 50, 290);
-        const subs = domainData?.subdomains || {};
-        const subNames = Object.keys(subs);
-
-        let sy = 310;
-        for (const sName of subNames) {
-            // Check for page break if subdomains are pushing too low
-            if (sy > 720) {
-                doc.addPage();
-                this.drawHeader(doc, userName);
-                sy = 70;
-            }
-
-            const rawVal = subs[sName];
-            const sVal = Math.round(typeof rawVal === "object" ? (rawVal?.score ?? 0) : (rawVal ?? 0));
-            const indColor = sVal >= 75 ? this.colors.success : sVal <= 50 ? this.colors.accent : this.colors.warning;
-
-            doc.rect(50, sy, 500, 38).lineWidth(1).strokeColor(this.colors.border).stroke();
-            doc.circle(75, sy + 19, 7).fill(indColor);
-            doc.fillColor(this.colors.primary).fontSize(11).font("Helvetica-Bold").text(sName, 100, sy + 13, { width: 350, ellipsis: true });
-            doc.fillColor(this.colors.primary).fontSize(14).font("Helvetica-Bold").text(`${sVal}%`, 480, sy + 11, { width: 60, align: "right" });
-            sy += 48;
-        }
-
-        let currentY = sy + 35;
-
-        // --- DYNAMIC BLOCKS ---
-
-        // --- DYNAMIC BLOCKS ---
-
-        // Combine domain-level and subdomain-specific feedback details
-        let combinedInsight = domainData?.feedback?.insight || domainData?.feedback?.modelDescription || "";
-        let combinedCoaching = domainData?.feedback?.coachingTips || "";
-        let combinedPrograms = domainData?.feedback?.recommendedPrograms || "";
-        let combinedObjectives = domainData?.feedback?.objectives || "";
-
-        if (domainData?.subdomainFeedback) {
-            Object.keys(domainData.subdomainFeedback).forEach(sub => {
-                const fb = domainData.subdomainFeedback[sub];
-                if (!fb) return;
-
-                // Add unique subdomain content if it's not already in the domain level
-                const subInsight = fb.insight || fb.modelDescription || "";
-                if (subInsight && !combinedInsight.includes(subInsight)) {
-                    combinedInsight += "\n" + subInsight;
-                }
-
-                if (fb.coachingTips && !combinedCoaching.includes(fb.coachingTips)) {
-                    combinedCoaching += "\n" + fb.coachingTips;
-                }
-
-                if (fb.recommendedPrograms && !combinedPrograms.includes(fb.recommendedPrograms)) {
-                    combinedPrograms += "\n" + fb.recommendedPrograms;
-                }
-
-                if (fb.objectives && !combinedObjectives.includes(fb.objectives)) {
-                    combinedObjectives += "\n" + fb.objectives;
-                }
-            });
-        }
-
-        // 1. INSIGHT BLOCK
-        const insightLines = this.getBulletedLines(combinedInsight, 5);
-        const insightItems = insightLines.map(line => ({ type: 'bullet', text: line, bulletColor: this.colors.secondary }));
-
-        if (insightItems.length === 0) insightItems.push({ type: 'text', text: "Analysis pending based on recently observed factors.", color: this.colors.lightText });
-
-        currentY = this.drawDynamicBlock(doc, `Overall Insight for ${domainName}`, "Combined synthesis from all sub-domains", insightItems, currentY, true, userName);
-
-        // 2. OKR BLOCK
-        const objectiveLines = this.getBulletedLines(combinedObjectives, 8);
-        const okrItems = objectiveLines.map(kr => ({ type: 'kr', text: kr }));
-
-        if (okrItems.length === 0) okrItems.push({ type: 'text', text: "No specific key results tailored for this grouping.", color: this.colors.lightText });
-
-        currentY = this.drawDynamicBlock(doc, "Objectives and Key Results", "Develop essential skills based on domain analysis", okrItems, currentY, false, userName);
-
-        // 3. COACHING TIPS BLOCK
-        const coachingLines = this.getBulletedLines(combinedCoaching, 8);
-        const coachingItems = coachingLines.map(line => ({ type: 'bullet', text: line, bulletColor: this.colors.secondary }));
-
-        if (coachingItems.length === 0) coachingItems.push({ type: 'text', text: "No coaching tips available for this domain.", color: this.colors.lightText });
-
-        currentY = this.drawDynamicBlock(doc, "Coaching Tips", `Targeted guidance for ${domainName}`, coachingItems, currentY, true, userName);
-
-        // 4. RECOMMENDED OFFERINGS BLOCK
-        const recLines = this.getBulletedLines(combinedPrograms, 6);
-        const recItems = recLines.map(rec => ({ type: 'bullet', text: rec, bulletColor: this.colors.primary }));
-
-        if (recItems.length === 0) recItems.push({ type: 'text', text: "No supplemental recommendations evaluated presently.", color: this.colors.lightText });
-
-        currentY = this.drawDynamicBlock(doc, "Recommended Offerings", "Targeted initiatives relative to findings", recItems, currentY, false, userName);
-    }
-
-    async drawAppendixResponses(doc, responses) {
-        doc.fontSize(20).font("Helvetica-Bold").fillColor(this.colors.primary).text("Appendix A: Comprehensive Assessment Feed", 50, 60);
-        doc.fontSize(10).font("Helvetica").fillColor(this.colors.lightText).text("Raw output mapping of individual assessment selections underpinning the generated analysis.", 50, 85);
-
-        const table = {
-            title: "",
-            subtitle: "",
-            headers: [
-                { label: "Code", property: "code", width: 50, renderer: null },
-                { label: "Assessment Prompt", property: "prompt", width: 330, renderer: null },
-                { label: "Type", property: "type", width: 80, renderer: null },
-                { label: "Value", property: "value", width: 40, renderer: null }
-            ],
-            datas: responses.map(r => ({
-                code: r.questionCode || "N/A",
-                prompt: r.questionStem || "Prompt Content",
-                type: r.questionType || "Rating",
-                value: r.value ? r.value.toString() : (r.selectedOption || "-")
-            }))
-        };
-
-        // Render the table starting at a specific Y coordinate
-        await doc.table(table, {
-            start_y: 120,
-            prepareHeader: () => doc.font("Helvetica-Bold").fontSize(9).fillColor(this.colors.primary),
-            prepareRow: (row, indexColumn, indexRow, rectRow, rectCell) => {
-                doc.font("Helvetica").fontSize(9).fillColor(this.colors.text);
-            }
-        });
-    }
-
-    async drawComparisonPage(doc, userName, comparisonData, userScores) {
-        doc.fontSize(20).font("Helvetica-Bold").fillColor(this.colors.primary).text("Organizational Alignment & Benchmark", 50, 60);
-        doc.fontSize(10).font("Helvetica").fillColor(this.colors.lightText).text("Contextual analysis comparing individual performance against team and organizational averages.", 50, 85);
-
-        const domainNames = ["People Potential", "Operational Steadiness", "Digital Fluency"];
-        const rows = [];
-
-        for (const dName of domainNames) {
-            const uScore = userScores[dName]?.score || 0;
-            const tAvg = comparisonData.teamAvg?.[dName]?.avgScore || 0;
-            const oAvg = comparisonData.orgAvg?.[dName]?.avgScore || 0;
-            const gap = uScore - tAvg;
-
-            rows.push({
-                domain: dName,
-                user: `${Math.round(uScore)}%`,
-                team: `${Math.round(tAvg)}%`,
-                org: `${Math.round(oAvg)}%`,
-                gap: (gap > 0 ? "+" : "") + Math.round(gap) + "%"
-            });
-        }
-
-        const table = {
-            headers: [
-                { label: "Performance Domain", property: "domain", width: 220 },
-                { label: "Score", property: "user", width: 70 },
-                { label: "Team Avg", property: "team", width: 70 },
-                { label: "Org Avg", property: "org", width: 70 },
-                { label: "Gap (vs Team)", property: "gap", width: 70 }
-            ],
-            datas: rows
-        };
-
-        await doc.table(table, {
-            start_y: 120,
-            prepareHeader: () => doc.font("Helvetica-Bold").fontSize(9).fillColor(this.colors.primary),
-            prepareRow: (row, indexColumn, indexRow, rectRow, rectCell) => {
-                doc.font("Helvetica").fontSize(9).fillColor(this.colors.text);
-                if (indexColumn === 4) {
-                    const val = parseInt(row.gap);
-                    if (val > 5) doc.fillColor(this.colors.success);
-                    else if (val < -5) doc.fillColor(this.colors.accent);
-                }
-            }
-        });
-
-        // 2. Alignment Analysis Section
-        let currentY = doc.y + 30;
-        doc.fontSize(16).font("Helvetica-Bold").fillColor(this.colors.primary).text("Detailed Alignment Insights", 50, currentY);
-        currentY += 25;
-
-        // Domain-specific comparison blocks
-        for (const dName of domainNames) {
-            const selfScore = userScores[dName]?.score || 0;
-            const team = comparisonData.teamAvg?.[dName]?.avgScore || 0;
-            const org = comparisonData.orgAvg?.[dName]?.avgScore || 0;
-            const gap = selfScore - team;
-
-            let insight = "";
-            if (gap > 5) insight = "Exceeding team average - potential mentor.";
-            else if (gap < -5) insight = "Below team average - focus on development here.";
-            else insight = "Aligned with team performance standards.";
-
-            const insightHeight = doc.heightOfString(insight, { width: 420 });
-            const blockHeight = 65 + insightHeight + 10;
-
-            // Page break check BEFORE drawing the block
-            if (currentY + blockHeight > 780) {
-                doc.addPage();
-                this.drawHeader(doc, userName);
-                currentY = 70;
-            }
-
-            doc.rect(50, currentY, 500, blockHeight).fill(this.colors.ice);
-
-            doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(10).text(dName.toUpperCase(), 70, currentY + 15);
-
-            doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("YOUR SCORE", 70, currentY + 35);
-            doc.text("TEAM AVG", 230, currentY + 35);
-            doc.text("ORG BENCHMARK", 390, currentY + 35);
-
-            doc.fontSize(12).font("Helvetica-Bold").fillColor(this.colors.primary).text(`${Math.round(selfScore)}%`, 70, currentY + 45);
-            doc.text(`${Math.round(team)}%`, 230, currentY + 45);
-            doc.text(`${Math.round(org)}%`, 390, currentY + 45);
-
-            doc.fontSize(9).font("Helvetica-Oblique").fillColor(this.colors.secondary).text(insight, 70, currentY + 65, { width: 420 });
-
-            currentY += blockHeight + 20;
-        }
-
-        // 3. Cultural Context Footer
-        doc.fontSize(9).font("Helvetica").fillColor(this.colors.lightText).text(
-            "This report compares your POD-360™ results with broader internal benchmarks. Alignment indicates consistent expectations and execution across levels, while gaps highlight areas where leadership perception or individual experience may diverge.",
-            50, 780, { width: 500, align: "center" }
-        );
-    }
-
-    async drawMasterOrgSummary(doc, orgName, comparisonData) {
-        doc.fontSize(24).font("Helvetica-Bold").fillColor(this.colors.primary).text("Organizational Health Summary", 50, 70);
-
-        // Engagement Summary stats
-        const startX = 50;
-        const width = 160;
-        const stats = [
-            { label: "TOTAL INVITES", val: comparisonData.totalInvitations || 0, color: this.colors.primary },
-            { label: "ACCEPTED / PROFILE", val: comparisonData.acceptedInvitations || 0, color: this.colors.success },
-            { label: "PENDING ACTION", val: comparisonData.pendingInvitations || 0, color: this.colors.warning }
-        ];
-
-        stats.forEach((s, i) => {
-            const x = startX + (i * (width + 10));
-            doc.rect(x, 110, width, 45).fill(this.colors.ice);
-            doc.fillColor(s.color).fontSize(14).font("Helvetica-Bold").text(s.val, x + 10, 118);
-            doc.fillColor(this.colors.lightText).fontSize(7).font("Helvetica").text(s.label, x + 10, 138);
-        });
-
-        // Overall Health Gauge (avg of all domains)
-        const domainNames = ["People Potential", "Operational Steadiness", "Digital Fluency"];
-        let total = 0;
-        domainNames.forEach(d => total += (comparisonData.teamAvg?.[d]?.avgScore || 0));
-        const orgHealth = Math.round(total / 3);
-
-        const centerGaugeX = 300;
-        const gaugeY = 240;
-        const radius = 80;
-        this.drawGauge(doc, centerGaugeX, gaugeY, radius, orgHealth);
-
-        const healthExDesc = "The Organizational Health Index (OHI) represents the collective performance across all digital transformation domains. This score is aggregated from all member assessments.";
-        const healthExHeight = doc.heightOfString(healthExDesc, { width: 350, lineGap: 3 });
-
-        doc.fontSize(11).font("Helvetica").fillColor(this.colors.lightText).text(
-            healthExDesc,
-            125, gaugeY + 70, { width: 350, align: "center", lineGap: 3 }
-        );
-
-        // Domain Performance Table
-        const rows = domainNames.map(dName => {
-            const team = comparisonData.teamAvg?.[dName]?.avgScore || 0;
-            const org = comparisonData.orgAvg?.[dName]?.avgScore || 0;
-            return {
-                domain: dName,
-                team: `${Math.round(team)}%`,
-                org: `${Math.round(org)}%`,
-                status: team >= 75 ? "Green" : team <= 50 ? "Red" : "Amber"
-            };
-        });
-
-        const table = {
-            headers: [
-                { label: "Transformation Domain", property: "domain", width: 250 },
-                { label: "Internal Avg", property: "team", width: 90 },
-                { label: "Benchmark", property: "org", width: 90 },
-                { label: "RAG Status", property: "status", width: 70 }
-            ],
-            datas: rows
-        };
-
-        await doc.table(table, {
-            start_y: gaugeY + healthExHeight + 100,
-            prepareHeader: () => doc.font("Helvetica-Bold").fontSize(10).fillColor(this.colors.primary),
-            prepareRow: (row) => doc.font("Helvetica").fontSize(10).fillColor(this.colors.text)
-        });
-
-        // Strategy & Alignment section
-        let currentY = doc.y + 40;
-        doc.fontSize(16).font("Helvetica-Bold").fillColor(this.colors.primary).text("Cultural & Operational Alignment", 50, currentY);
-        doc.fontSize(8).font("Helvetica").fillColor(this.colors.lightText).text("Measuring the disconnect between Leadership vs. Workforce perceptions.", 50, currentY + 18);
-        currentY += 35;
-
-        // Alignment Blocks
-        const risks = domainNames.map(d => {
-            const lScore = comparisonData.leaderAvg?.[d]?.avgScore || 0;
-            const eScore = comparisonData.employeeAvg?.[d]?.avgScore || 0;
-            const gap = lScore - eScore;
-
-            let status = "Aligned";
-            let sColor = this.colors.success;
-            let info = "Leadership and employee experiences are synchronized.";
-            if (gap > 15) {
-                status = "Risk High"; sColor = this.colors.accent;
-                info = "Significant disconnect. Leadership perception is disconnected from workforce reality.";
-            }
-            else if (gap > 7) {
-                status = "Monitor"; sColor = this.colors.warning;
-                info = "Minor gap observed. Workforce sentiment slightly trails leadership expectations.";
-            }
-            else if (gap < -10) {
-                status = "Bottom Heavy"; sColor = "#448CD2";
-                info = "Leadership may be underestimating team capability or burnout risks.";
-            }
-
-            return { d, gap, status, sColor, info };
-        });
-
-        risks.forEach(risk => {
-            const infoHeight = doc.heightOfString(risk.info, { width: 340 });
-            const blockHeight = Math.max(50, 25 + infoHeight + 15);
-
-            if (currentY + blockHeight > 780) {
-                doc.addPage();
-                this.drawHeader(doc, orgName);
-                currentY = 70;
-            }
-
-            doc.rect(50, currentY, 500, blockHeight).fill(this.colors.ice);
-            doc.fillColor(this.colors.primary).font("Helvetica-Bold").fontSize(10).text(risk.d, 70, currentY + 12);
-            doc.fillColor(this.colors.lightText).font("Helvetica").fontSize(8).text(risk.info, 70, currentY + 28, { width: 340 });
-            doc.fillColor(risk.sColor).font("Helvetica-Bold").fontSize(11).text(risk.status.toUpperCase(), 410, currentY + 18, { width: 130, align: "right" });
-            currentY += blockHeight + 10;
-        });
-
-        doc.fontSize(8).font("Helvetica-Oblique").fillColor(this.colors.lightText).text(
-            "Privacy Note: This Master Report aggregates data to protect individual anonymity while providing systemic insights for organizational growth.",
-            50, 790, { width: 500, align: "center" }
-        );
-    }
-
 }
+
 
 export default new PDFReportService();
