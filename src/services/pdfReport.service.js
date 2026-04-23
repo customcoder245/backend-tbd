@@ -66,44 +66,66 @@ class PDFReportService {
         let browser;
 
         try {
+            const puppeteerCore = (await import('puppeteer-core')).default;
+
             if (process.env.VERCEL) {
-                console.log("[PDFService] Vercel environment detected. Initializing Chromium 123.0.1...");
-                const chromium = (await import('@sparticuz/chromium')).default;
-                const puppeteerCore = (await import('puppeteer-core')).default;
+                console.log("[PDFService] Vercel environment detected. Initializing Chromium-Min...");
+                const chromium = (await import('@sparticuz/chromium-min')).default;
+
+                // CRITICAL FOR AL2023: Stable v123 pack
+                const executablePath = await chromium.executablePath(
+                    'https://github.com/Sparticuz/chromium/releases/download/v123.0.1/chromium-v123.0.1-pack.tar'
+                );
 
                 browser = await puppeteerCore.launch({
                     args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
                     defaultViewport: chromium.defaultViewport,
-                    executablePath: await chromium.executablePath(),
+                    executablePath: executablePath,
                     headless: chromium.headless,
                 });
                 console.log("[PDFService] Vercel Browser launched.");
             } else {
-                console.log("[PDFService] Local environment detected.");
-                let puppeteer;
-                try {
-                    puppeteer = (await import('puppeteer')).default;
-                } catch (e) {
-                    throw new Error("Local 'puppeteer' package not found. Please run 'npm install'.");
-                }
+                console.log("[PDFService] Local environment detected. Finding local Chrome...");
                 
-                browser = await puppeteer.launch({
+                // Common local paths for Chrome/Edge/Brave
+                const localPaths = [
+                    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+                    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+                    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+                ];
+
+                let executablePath = null;
+                const fs = await import('fs');
+                for (const p of localPaths) {
+                    if (fs.existsSync(p)) {
+                        executablePath = p;
+                        break;
+                    }
+                }
+
+                if (!executablePath) {
+                    throw new Error("Could not find local Chrome for Puppeteer-Core.");
+                }
+
+                browser = await puppeteerCore.launch({
                     headless: 'new',
-                    args: ['--no-sandbox', '--disable-setuid-sandbox']
+                    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+                    executablePath: executablePath
                 });
                 console.log("[PDFService] Local Browser launched.");
             }
 
             const page = await browser.newPage();
             
-            // Set timeouts for Vercel
-            page.setDefaultNavigationTimeout(8000); 
-            page.setDefaultTimeout(8000);
+            // Set timeouts
+            page.setDefaultNavigationTimeout(30000); 
+            page.setDefaultTimeout(30000);
 
             console.log("[PDFService] Setting content...");
             await page.setContent(html, { 
                 waitUntil: 'domcontentloaded',
-                timeout: 8000 
+                timeout: 30000 
             });
             
             console.log("[PDFService] Generating PDF...");
@@ -112,7 +134,7 @@ class PDFReportService {
                 printBackground: true,
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
                 displayHeaderFooter: false,
-                timeout: 8000
+                timeout: 30000
             });
 
             console.log("[PDFService] PDF generated successfully.");
