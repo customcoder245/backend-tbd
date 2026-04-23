@@ -87,12 +87,25 @@ class PDFReportService {
             }
 
             const page = await browser.newPage();
-            await page.setContent(html, { waitUntil: 'networkidle2' });
+            
+            // Set aggressive timeouts to stay under Vercel's 10s limit
+            page.setDefaultNavigationTimeout(8000); 
+            page.setDefaultTimeout(8000);
+
+            console.log("[PDFService] Setting content...");
+            // Use 'domcontentloaded' for maximum speed
+            await page.setContent(html, { 
+                waitUntil: 'domcontentloaded',
+                timeout: 8500 
+            });
+            
+            console.log("[PDFService] Generating PDF...");
             return await page.pdf({
                 format: 'A4',
                 printBackground: true,
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
-                displayHeaderFooter: false
+                displayHeaderFooter: false,
+                timeout: 9000
             });
         } catch (error) {
             console.error("PDF GENERATION ERROR:", error);
@@ -129,7 +142,7 @@ class PDFReportService {
             --accent: {{colors.accent}};
         }
 
-        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: var(--text); line-height: 1.6; background: var(--white); -webkit-print-color-adjust: exact; }
+        * { font-display: swap; }
         .page { width: 210mm; height: 297mm; padding: 22mm 18mm; box-sizing: border-box; position: relative; page-break-after: always; display: flex; flex-direction: column; background: var(--white); }
         .page:last-child { page-break-after: auto; }
 
