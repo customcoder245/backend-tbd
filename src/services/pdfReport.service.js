@@ -67,18 +67,19 @@ class PDFReportService {
 
         try {
             if (process.env.VERCEL) {
-                console.log("[PDFService] Vercel environment detected. Initializing Chromium 123.0.1...");
+                console.log("[PDFService] Vercel environment detected.");
+                // Ensure you use these specific imports
                 const chromium = (await import('@sparticuz/chromium')).default;
                 const puppeteerCore = (await import('puppeteer-core')).default;
 
-                console.log("[PDFService] Launching browser...");
+                // This is the critical configuration for Vercel
                 browser = await puppeteerCore.launch({
-                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+                    args: chromium.args,
                     defaultViewport: chromium.defaultViewport,
                     executablePath: await chromium.executablePath(),
                     headless: chromium.headless,
+                    ignoreHTTPSErrors: true,
                 });
-                console.log("[PDFService] Browser launched.");
             } else {
                 console.log("[PDFService] Local environment detected.");
                 const puppeteer = (await import('puppeteer')).default;
@@ -90,33 +91,32 @@ class PDFReportService {
 
             const page = await browser.newPage();
             
-            // Set timeouts
-            page.setDefaultNavigationTimeout(8000); 
-            page.setDefaultTimeout(8000);
+            // Increased timeout for Vercel's slower cold starts
+            page.setDefaultNavigationTimeout(20000); 
+            page.setDefaultTimeout(20000);
 
             console.log("[PDFService] Setting content...");
             await page.setContent(html, { 
-                waitUntil: 'domcontentloaded',
-                timeout: 8000 
+                waitUntil: ['domcontentloaded', 'networkidle0'], // Ensures images/fonts load
             });
             
+            // Wait for fonts to ensure the PDF looks professional
+            await page.evaluateHandle('document.fonts.ready');
+
             console.log("[PDFService] Generating PDF...");
             const pdfBuffer = await page.pdf({
                 format: 'A4',
                 printBackground: true,
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
                 displayHeaderFooter: false,
-                timeout: 8000
             });
 
-            console.log("[PDFService] PDF generated successfully.");
             return pdfBuffer;
         } catch (error) {
             console.error("PDF GENERATION ERROR:", error.message);
             throw error;
         } finally {
             if (browser) {
-                console.log("[PDFService] Closing browser...");
                 await browser.close();
             }
         }
