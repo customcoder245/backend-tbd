@@ -6,6 +6,7 @@ import Invitation from "../models/invitation.model.js";
 import mongoose from "mongoose";
 import { calculateAssessmentScores } from "../utils/scoring.utils.js";
 import { getSubdomainFeedback } from "../utils/feedback.utils.js";
+import { createNotification, notifySuperAdmins, notifyHierarchy } from "../utils/notification.utils.js";
 
 
 
@@ -204,6 +205,50 @@ export const submitEmployeeAssessment = async (req, res) => {
       submittingUser ? submittingUser.save() : Promise.resolve()
     ]);
     console.log(`[Employee Assessment Submission] Data saved and invitation locked for ${email}. Linked to userId: ${submittingUser ? submittingUser._id : "none"}`);
+
+    // --- DYNAMIC NOTIFICATIONS ---
+    if (submittingUser && submittingUser._id) {
+      // 1. Notify the user
+      createNotification({
+        recipient: submittingUser._id,
+        title: "Assessment Submitted",
+        message: "Your assessment has been successfully submitted.",
+        type: "success"
+      }).catch(err => console.error("[Notification Error]", err));
+
+      // 2. Hierarchical Notification
+      notifyHierarchy({
+        initiatorId: submittingUser._id,
+        title: "Assessment Submitted",
+        message: `${firstName} ${lastName} (${employeeDetails.role}) has completed their assessment.`,
+        type: "success"
+      }).catch(err => console.error("[Hierarchy Notification Error]", err));
+
+      // 3. Notify Super Admins
+      notifySuperAdmins({
+        title: "New Assessment Activity",
+        message: `${firstName} ${lastName} from ${assessment.orgName || "Unknown Org"} has submitted an assessment.`,
+        type: "info",
+        excludeUser: submittingUser._id
+      }).catch(err => console.error("[Super Admin Notification Error]", err));
+    } else {
+      // Notify the person who invited them
+      if (assessment.invitedBy) {
+        createNotification({
+          recipient: assessment.invitedBy,
+          title: "Employee Assessment Submitted",
+          message: `${firstName} ${lastName} has completed their assessment.`,
+          type: "success"
+        }).catch(err => console.error("[Notification Error]", err));
+      }
+
+      // Notify Super Admins
+      notifySuperAdmins({
+        title: "New Assessment Activity",
+        message: `${firstName} ${lastName} from ${assessment.orgName || "Unknown Org"} has submitted an assessment.`,
+        type: "info"
+      }).catch(err => console.error("[Super Admin Notification Error]", err));
+    }
 
     return res.status(200).json({
       message: "Assessment submitted successfully",
