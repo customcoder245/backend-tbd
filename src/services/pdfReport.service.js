@@ -69,21 +69,11 @@ class PDFReportService {
             const puppeteerCore = (await import('puppeteer-core')).default;
 
             if (process.env.VERCEL) {
-                console.log("[PDFService] Vercel environment detected. Initializing Chromium (AL2023 Mode)...");
+                console.log("[PDFService] Vercel Node 18 environment. Launching Chromium...");
                 const chromium = (await import('@sparticuz/chromium')).default;
                 
-                // CRITICAL FOR AL2023:
-                chromium.setGraphicsMode = false;
-                
                 browser = await puppeteerCore.launch({
-                    args: [
-                        ...chromium.args,
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--disable-gpu',
-                        '--disable-dev-shm-usage',
-                        '--single-process' // Helps with memory on serverless
-                    ],
+                    args: chromium.args,
                     defaultViewport: chromium.defaultViewport,
                     executablePath: await chromium.executablePath(),
                     headless: chromium.headless,
