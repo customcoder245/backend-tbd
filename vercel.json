@@ -11,6 +11,11 @@
       }
     }
   ],
+  "functions": {
+    "src/index.js": {
+      "memory": 1024
+    }
+  },
   "routes": [
     {
       "src": "/(.*)",
