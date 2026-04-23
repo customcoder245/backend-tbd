@@ -69,18 +69,23 @@ class PDFReportService {
             const puppeteerCore = (await import('puppeteer-core')).default;
 
             if (process.env.VERCEL) {
-                console.log("[PDFService] Vercel environment detected. Initializing Chromium-Min...");
-                const chromium = (await import('@sparticuz/chromium-min')).default;
-
-                // CRITICAL FOR AL2023: Stable v123 pack
-                const executablePath = await chromium.executablePath(
-                    'https://github.com/Sparticuz/chromium/releases/download/v123.0.1/chromium-v123.0.1-pack.tar'
-                );
-
+                console.log("[PDFService] Vercel environment detected. Initializing Chromium (AL2023 Mode)...");
+                const chromium = (await import('@sparticuz/chromium')).default;
+                
+                // CRITICAL FOR AL2023:
+                chromium.setGraphicsMode = false;
+                
                 browser = await puppeteerCore.launch({
-                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+                    args: [
+                        ...chromium.args,
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-gpu',
+                        '--disable-dev-shm-usage',
+                        '--single-process' // Helps with memory on serverless
+                    ],
                     defaultViewport: chromium.defaultViewport,
-                    executablePath: executablePath,
+                    executablePath: await chromium.executablePath(),
                     headless: chromium.headless,
                 });
                 console.log("[PDFService] Vercel Browser launched.");
@@ -124,7 +129,7 @@ class PDFReportService {
 
             console.log("[PDFService] Setting content...");
             await page.setContent(html, { 
-                waitUntil: 'domcontentloaded',
+                waitUntil: 'domcontentloaded', 
                 timeout: 30000 
             });
             
@@ -164,7 +169,6 @@ class PDFReportService {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        
         :root {
             --primary: {{colors.primary}};
             --secondary: {{colors.secondary}};
@@ -190,10 +194,9 @@ class PDFReportService {
         
         .inner-footer { position: absolute; bottom: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 5mm; font-size: 8pt; color: var(--light-text); font-weight: 500; }
 
-        /* Cover Page Redesign */
+        /* Cover Page */
         .cover-page { padding: 0; display: flex; flex-direction: row; overflow: hidden; background: #fafafa; }
         .cover-sidebar { width: 85mm; height: 100%; background: var(--primary); display: flex; flex-direction: column; align-items: center; padding-top: 30mm; position: relative; }
-        .cover-sidebar::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 40%; background: linear-gradient(to top, rgba(0,0,0,0.2), transparent); }
         .cover-content { flex: 1; padding: 45mm 20mm; display: flex; flex-direction: column; position: relative; }
         
         .logo-white { width: 55mm; filter: brightness(0) invert(1); }
@@ -228,7 +231,6 @@ class PDFReportService {
 
         /* Domain Header */
         .domain-header-box { background: var(--primary); color: white; padding: 10mm; border-radius: 5mm; margin-bottom: 10mm; position: relative; overflow: hidden; }
-        .domain-header-box::after { content: 'POD-360'; position: absolute; right: -5mm; top: -5mm; font-size: 60pt; font-weight: 900; opacity: 0.05; }
         .domain-desc { font-size: 11pt; color: rgba(255,255,255,0.8); margin-top: 3mm; line-height: 1.5; font-weight: 400; }
         .domain-header-box h1 { color: white; margin: 0; }
 
@@ -237,43 +239,33 @@ class PDFReportService {
         .table { width: 100%; border-collapse: collapse; }
         .table th { background: var(--accent); text-align: left; padding: 4mm 5mm; font-size: 9pt; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
         .table td { padding: 4.5mm 5mm; border-bottom: 1px solid var(--border); font-size: 10.5pt; vertical-align: middle; }
-        .table tr:last-child td { border-bottom: none; }
-        .table tr:hover { background: var(--accent); }
 
         /* Status Badges */
         .badge { display: inline-flex; align-items: center; padding: 1.5mm 4mm; border-radius: 50px; font-size: 8.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-        .badge::before { content: ''; width: 2mm; height: 2mm; border-radius: 50%; margin-right: 2.5mm; }
         .badge-flow { background: #ECFDF5; color: var(--flow); }
-        .badge-flow::before { background: var(--flow); }
         .badge-resistance { background: #FFFBEB; color: var(--resistance); }
-        .badge-resistance::before { background: var(--resistance); }
         .badge-friction { background: #FEF2F2; color: var(--friction); }
-        .badge-friction::before { background: var(--friction); }
 
         /* Bullet Lists */
         .bullet-list { list-style: none; padding: 0; margin: 0; }
         .bullet-item { display: flex; margin-bottom: 4mm; font-size: 10.5pt; align-items: flex-start; color: var(--text); }
-        .bullet-dot { width: 6px; height: 6px; background: var(--secondary); border-radius: 1.5mm; margin-right: 4mm; margin-top: 1.8mm; flex-shrink: 0; box-shadow: 0 0 0 3px rgba(68, 140, 210, 0.1); }
+        .bullet-dot { width: 6px; height: 6px; background: var(--secondary); border-radius: 1.5mm; margin-right: 4mm; margin-top: 1.8mm; flex-shrink: 0; }
         
-        /* Domain Specific */
         .score-summary-box { display: flex; justify-content: space-between; align-items: center; color: white; padding: 8mm 12mm; border-radius: 4mm; margin-bottom: 10mm; box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
         .score-label { font-size: 9.5pt; font-weight: 600; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px; }
         .score-value-large { font-size: 26pt; font-weight: 800; }
 
-        /* Subdomain Deep Dive */
-        .subdomain-detail-card { border: 1.5px solid var(--border); border-left-width: 6px; padding: 6mm 8mm; border-radius: 4mm; margin-bottom: 8mm; background: var(--white); box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+        .subdomain-detail-card { border: 1.5px solid var(--border); border-left-width: 6px; padding: 6mm 8mm; border-radius: 4mm; margin-bottom: 8mm; background: var(--white); }
         .subdomain-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4mm; padding-bottom: 3mm; border-bottom: 1px solid var(--accent); }
         .subdomain-name { font-size: 13pt; font-weight: 800; color: var(--primary); }
-        .subdomain-generic-desc { font-size: 9.5pt; color: var(--light-text); line-height: 1.4; margin: 4mm 0; font-style: italic; }
-        .subdomain-insight-text { font-size: 10.5pt; color: var(--text); line-height: 1.6; background: var(--accent); padding: 5mm; border-radius: 3mm; margin-bottom: 5mm; border-left: 3px solid var(--border); }
+        .subdomain-insight-text { font-size: 10.5pt; color: var(--text); line-height: 1.6; background: var(--accent); padding: 5mm; border-radius: 3mm; margin-bottom: 5mm; }
         
         .sub-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
         .sub-metric-label { font-weight: 800; color: var(--primary); text-transform: uppercase; font-size: 8.5pt; margin-bottom: 4mm; display: flex; align-items: center; opacity: 0.7; }
-        .sub-metric-label::after { content: ''; flex: 1; height: 1px; background: var(--border); margin-left: 3mm; }
     </style>
 </head>
 <body>
-    <!-- LANDING PAGE (COVER) -->
+    <!-- COVER PAGE -->
     <div class="page cover-page">
         <div class="cover-sidebar">
             <img src="${BRAND_LOGO_URL}" class="logo-white" />
@@ -317,9 +309,7 @@ class PDFReportService {
         <h1>THE DATA SYNERGY</h1>
         
         <div style="margin-bottom: 8mm; border-left: 2px solid {{colors.border}}; padding-left: 6mm;">
-            <p style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 2mm; font-size: 9pt; text-transform: uppercase; letter-spacing: 1px;">From: THE DATA SYNERGY</p>
             <p style="font-style: italic; margin-bottom: 6mm; color: {{colors.primary}};">{{synergyIntro}}</p>
-            
             <p style="font-weight: 700; color: {{colors.secondary}}; margin-bottom: 2mm; font-size: 9pt; text-transform: uppercase; letter-spacing: 1px;">To: {{synergyRole.name}}</p>
             <p style="color: {{colors.text}}; line-height: 1.5;">{{synergyRole.description}}</p>
         </div>
@@ -336,8 +326,7 @@ class PDFReportService {
             </div>
             <div style="flex: 1;">
                 <p style="font-size: 11pt; font-weight: 500; color: var(--primary); margin-bottom: 3mm;">Performance Overview</p>
-                <p>This report provides a high-level analysis of your current organizational state, pinpointing critical areas of <strong>Friction</strong> and identifying opportunities to accelerate <strong>Flow</strong>.</p>
-                <p style="margin-bottom: 0;">Your overall performance score is <strong>{{round report.scores.overall}}%</strong>, indicating a state of <strong>{{getClassification report.scores.overall}}</strong>.</p>
+                <p>Your overall performance score is <strong>{{round report.scores.overall}}%</strong>, indicating a state of <strong>{{getClassification report.scores.overall}}</strong>.</p>
             </div>
         </div>
 
@@ -393,7 +382,7 @@ class PDFReportService {
             </div>
         </div>
 
-        <div class="card" style="margin-bottom: 6mm;">
+        <div class="card">
             <div class="card-accent"></div>
             <div class="block-title">Qualitative Insights</div>
             <ul class="bullet-list">
@@ -402,16 +391,15 @@ class PDFReportService {
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8mm;">
-            <div class="card" style="margin-bottom: 0;">
+            <div class="card">
                 <div class="card-accent" style="background: var(--flow);"></div>
                 <div class="block-title">Strategic Actions</div>
                 <ul class="bullet-list">
                     {{#each okrs}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}
                 </ul>
             </div>
-
-            <div class="card" style="margin-bottom: 0;">
-                <div class="card-accent" style="background: var(--secondary);"></div>
+            <div class="card">
+                <div class="card-accent"></div>
                 <div class="block-title">Leadership Focus</div>
                 <ul class="bullet-list">
                     {{#each coaching}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}
@@ -420,184 +408,13 @@ class PDFReportService {
         </div>
 
         <div class="inner-footer">
-            <div>Confidential Assessment Report • {{../../userName}} • {{name}}</div>
+            <div>Confidential Assessment Report • {{../../userName}}</div>
             <div>Talent By Design • Page {{add (multiply @index 2) 3}}</div>
-        </div>
-    </div>
-
-    <!-- SUB-DOMAIN DEEP DIVE PAGE -->
-    <div class="page">
-        <div class="inner-header">
-            <div class="report-tag">{{name}} • Sub-Domain Analysis</div>
-            <img src="${BRAND_LOGO_URL}" class="logo-small" />
-        </div>
-
-        <h1>Sub-Domain Deep Dive</h1>
-        <p style="margin-bottom: 6mm;">A granular analysis of the performance drivers within the <strong>{{name}}</strong> domain.</p>
-
-        {{#each subdomains}}
-        <div class="subdomain-detail-card" style="border-left-color: {{gaugeColor score}};">
-            <div class="subdomain-header">
-                <div class="subdomain-name">{{name}}</div>
-                <span class="badge badge-{{toLowerCase state}}">{{score}}% • {{state}}</span>
-            </div>
-            <div class="subdomain-generic-desc">{{description}}</div>
-            <div class="subdomain-insight-text">{{insight}}</div>
-            
-            <div class="sub-metrics">
-                <div class="sub-metric-box">
-                    <div class="sub-metric-label">Priority Actions</div>
-                    <ul class="bullet-list">
-                        {{#each objectives}}<li class="bullet-item" style="font-size: 8.5pt; margin-bottom: 1mm;"><div class="bullet-dot" style="width: 4px; height: 4px; margin-top: 1.2mm;"></div>{{this}}</li>{{/each}}
-                    </ul>
-                </div>
-                <div class="sub-metric-box">
-                    <div class="sub-metric-label">Growth Tips</div>
-                    <ul class="bullet-list">
-                        {{#each coaching}}<li class="bullet-item" style="font-size: 8.5pt; margin-bottom: 1mm;"><div class="bullet-dot" style="width: 4px; height: 4px; margin-top: 1.2mm; background: {{../../../colors.lightText}};"></div>{{this}}</li>{{/each}}
-                    </ul>
-                </div>
-            </div>
-        </div>
-        {{/each}}
-
-        <div class="inner-footer">
-            <div>Confidential Assessment Report • {{../../userName}} • {{name}}</div>
-            <div>Talent By Design • Page {{add (multiply @index 2) 4}}</div>
         </div>
     </div>
     {{/each}}
 
-    <!-- PATH FORWARD PAGE -->
-    <div class="page">
-        <div class="inner-header">
-            <div class="report-tag">POD-360™ • Strategic Path Forward</div>
-            <img src="${BRAND_LOGO_URL}" class="logo-small" />
-        </div>
-
-        <h1>Conclusion & Path Forward</h1>
-        <p>This assessment represents a snapshot of your organizational health. The journey from <strong>Friction to Flow</strong> is ongoing, and these insights provide the roadmap for your next phase of growth.</p>
-
-        <div class="card" style="margin-top: 8mm;">
-            <div class="card-accent" style="background: {{colors.primary}};"></div>
-            <div class="block-title">Key Organizational Priority</div>
-            <p style="font-size: 11.5pt; color: {{colors.primary}}; font-weight: 500;">
-                Our analysis indicates that the most immediate opportunity for impact lies within <strong>{{lowestDomainName}}</strong>.
-            </p>
-            <p style="margin-top: 2mm;">Focusing your resources here will resolve critical bottlenecks and accelerate performance across all other domains. Prioritize the OKRs identified in the Deep Dive section of this report.</p>
-        </div>
-
-        <div class="card">
-            <div class="card-accent"></div>
-            <div class="block-title">Implementation Roadmap</div>
-            <ul class="bullet-list">
-                <li class="bullet-item"><div class="bullet-dot"></div><strong>Phase 1: Awareness (Week 1-2)</strong><br/>Share the POD-360™ findings with leadership and key stakeholders to build a shared language around Friction and Flow.</li>
-                <li class="bullet-item"><div class="bullet-dot"></div><strong>Phase 2: Alignment (Week 3-4)</strong><br/>Integrate the recommended OKRs into your quarterly planning. Assign owners to each priority action.</li>
-                <li class="bullet-item"><div class="bullet-dot"></div><strong>Phase 3: Activation (Month 2-3)</strong><br/>Execute the growth tips provided in the Coaching & Development sections. Monitor the "Flow" indicators weekly.</li>
-            </ul>
-        </div>
-
-        <div style="margin-top: auto; padding: 10mm; background: {{colors.sidebar}}; border-radius: 4mm; display: flex; align-items: center; gap: 8mm;">
-            <div style="flex: 1;">
-                <div style="font-size: 14pt; font-weight: 700; color: {{colors.primary}}; margin-bottom: 2mm;">Scale Your Potential</div>
-                <p style="font-size: 10pt; margin-bottom: 0;">For a tailored interpretation of these results or to facilitate a strategic workshop with your team, reach out to our performance consultants.</p>
-            </div>
-            <div style="text-align: right;">
-                <div style="font-size: 12pt; font-weight: 700; color: {{colors.secondary}};">Talent By Design</div>
-                <div style="font-size: 9pt; color: {{colors.lightText}};">www.talentbydesign.com</div>
-            </div>
-        </div>
-
-        <div class="inner-footer">
-            <div>Confidential Assessment Report • {{userName}}</div>
-            <div>Talent By Design • Page 9</div>
-        </div>
-    </div>
     {{/unless}}
-
-    {{#if isMasterReport}}
-    <!-- MASTER REPORT OVERVIEW -->
-    <div class="page">
-        <div class="inner-header">
-            <div class="report-tag">POD-360™ Organizational Overview</div>
-            <img src="${BRAND_LOGO_URL}" class="logo-small" />
-        </div>
-
-        <h1>Organizational Health</h1>
-        
-        <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 12mm; margin-bottom: 12mm; background: var(--accent);">
-            <div class="card-accent" style="background: {{gaugeColor orgHealth}}; width: 8px;"></div>
-            <div>
-                <div class="block-title" style="border: none; margin-bottom: 2mm;">Aggregate Performance Index</div>
-                <p style="margin: 0; opacity: 0.8; font-size: 11pt;">The combined performance across all evaluated teams and domains.</p>
-                <div class="badge badge-{{toLowerCase orgState}}" style="margin-top: 5mm; padding: 2mm 8mm; font-size: 10pt;">{{orgState}} State</div>
-            </div>
-            <div style="font-size: 68pt; font-weight: 800; color: {{gaugeColor orgHealth}}; line-height: 1; letter-spacing: -3px;">{{orgHealth}}%</div>
-        </div>
-        
-        <h2>Domain Benchmarks</h2>
-        <p>Comparison of internal team performance against global organizational benchmarks.</p>
-        <div class="table-container">
-            <table class="table">
-                <thead><tr><th>Domain Area</th><th>Current Team Avg</th><th>Global Benchmark</th><th>Status</th></tr></thead>
-                <tbody>
-                    {{#each masterDomainRows}}
-                    <tr>
-                        <td style="font-weight: 600;">{{name}}</td>
-                        <td style="font-weight: 700; color: {{../colors.primary}};">{{avg}}%</td>
-                        <td style="color: {{../colors.secondary}}; font-weight: 600;">{{benchmark}}%</td>
-                        <td><span class="badge badge-{{toLowerCase state}}">{{state}}</span></td>
-                    </tr>
-                    {{/each}}
-                </tbody>
-            </table>
-        </div>
-
-        <div class="inner-footer">
-            <div>Confidential Organizational Report • {{orgName}}</div>
-            <div>Talent By Design • Page 2</div>
-        </div>
-    </div>
-
-    <!-- STRATEGIC ALIGNMENT PAGE -->
-    <div class="page">
-        <div class="inner-header">
-            <div class="report-tag">POD-360™ • Strategic Alignment Analysis</div>
-            <img src="${BRAND_LOGO_URL}" class="logo-small" />
-        </div>
-
-        <h1>Alignment & Risk Analysis</h1>
-        <p style="margin-bottom: 8mm;">Identifying disconnects between leadership vision and employee experience across key domains.</p>
-        
-        <div style="display: grid; grid-template-columns: 1fr; gap: 6mm;">
-            {{#each alignmentRisks}}
-            <div class="card" style="margin-bottom: 0; padding: 10mm;">
-                <div class="card-accent" style="background: {{color}};"></div>
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4mm;">
-                    <div>
-                        <div style="font-size: 8pt; color: {{../colors.lightText}}; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1mm;">Domain Analysis</div>
-                        <div style="font-weight: 700; color: {{../colors.primary}}; font-size: 16pt;">{{name}}</div>
-                    </div>
-                    <span class="badge" style="background: {{color}}22; color: {{color}}; padding: 2mm 6mm;">{{status}}</span>
-                </div>
-                <p style="margin: 0; font-size: 11pt; line-height: 1.6;">{{info}}</p>
-                
-                {{#if (includes status "RISK")}}
-                <div style="margin-top: 5mm; padding: 4mm; background: #FFF5F5; border-radius: 2mm; border: 1px solid #FED7D7; font-size: 9.5pt; color: #C53030;">
-                    <strong>Action Required:</strong> Immediate intervention recommended to bridge the perception gap and restore operational trust.
-                </div>
-                {{/if}}
-            </div>
-            {{/each}}
-        </div>
-
-        <div class="inner-footer">
-            <div>Confidential Organizational Report • {{orgName}}</div>
-            <div>Talent By Design • Page 3</div>
-        </div>
-    </div>
-    {{/if}}
-
 </body>
 </html>
         `;
@@ -605,7 +422,6 @@ class PDFReportService {
         // Register Helpers
         const helpers = {
             round: (val) => Math.round(val || 0),
-            inc: (val) => (val || 0) + 1,
             getClassification: (score) => {
                 const s = Math.round(score || 0);
                 if (s < 50) return "Friction";
@@ -635,8 +451,7 @@ class PDFReportService {
             },
             toLowerCase: (str) => (str || "").toLowerCase(),
             add: (a, b) => (a || 0) + (b || 0),
-            multiply: (a, b) => (a || 0) * (b || 0),
-            includes: (str, substr) => (str || "").includes(substr)
+            multiply: (a, b) => (a || 0) * (b || 0)
         };
 
         Object.keys(helpers).forEach(name => handlebars.registerHelper(name, helpers[name]));
@@ -647,83 +462,29 @@ class PDFReportService {
         };
 
         const templateData = {
-            colors: this.colors, userName, orgName, dateStr, isMasterReport, report, aiInsight, comparisonData,
+            colors: this.colors, userName, orgName, dateStr, isMasterReport, report, aiInsight,
             synergyIntro: this.synergyIntro
         };
 
-        // Determine Role for Synergy Text
         const roleKey = (report?.stakeholder || user?.role || "employee").toLowerCase();
         templateData.synergyRole = this.roleSynergyData[roleKey] || this.roleSynergyData["employee"];
 
-        if (isMasterReport) {
-            const domainNames = ["People Potential", "Operational Steadiness", "Digital Fluency"];
-            let totalHealth = 0;
-            templateData.masterDomainRows = domainNames.map(d => {
-                const avg = Math.round(comparisonData.teamAvg?.[d]?.avgScore || 0);
-                totalHealth += avg;
-                return {
-                    name: d, avg, benchmark: Math.round(comparisonData.orgAvg?.[d]?.avgScore || 0),
-                    state: this._getClassification(avg)
-                };
-            });
-            templateData.orgHealth = Math.round(totalHealth / 3);
-            templateData.orgState = this._getClassification(templateData.orgHealth);
-            templateData.alignmentRisks = domainNames.map(d => {
-                const l = comparisonData.leaderAvg?.[d]?.avgScore || 0;
-                const e = comparisonData.employeeAvg?.[d]?.avgScore || 0;
-                const gap = l - e;
-                let status = "Aligned", color = this.colors.flow, info = "Leadership and employee experiences are synchronized.";
-                if (gap > 15) { status = "Risk High"; color = this.colors.friction; info = "Significant disconnect observed between leadership and staff."; }
-                else if (gap > 7) { status = "Monitor"; color = this.colors.resistance; info = "Minor gap observed. Keep an eye on alignment."; }
-                return { name: d, status: status.toUpperCase(), color, info };
-            });
-        } else {
+        if (!isMasterReport) {
             templateData.domainPages = ["People Potential", "Operational Steadiness", "Digital Fluency"].map(dName => {
                 const dData = report.scores?.domains?.[dName];
                 if (!dData) return null;
                 const fb = dData.feedback || {};
-                
-                // Detailed Subdomain Mapping
-                const subdomains = Object.keys(dData.subdomains || {}).map(s => {
-                    const subScore = typeof dData.subdomains[s] === 'object' ? dData.subdomains[s].score : dData.subdomains[s];
-                    const subFb = dData.subdomainFeedback?.[s] || {};
-                    return {
-                        name: s,
-                        description: this.subdomainDescriptions[s] || "",
-                        score: Math.round(subScore),
-                        state: this._getClassification(subScore),
-                        insight: subFb.insight || "No specific insight available for this area.",
-                        objectives: getBulletedLines(subFb.objectives || "", 3),
-                        coaching: getBulletedLines(subFb.coachingTips || "", 3)
-                    };
-                });
-
                 return {
                     name: dName, score: dData.score,
                     description: this.domainDescriptions[dName] || "",
-                    subdomains,
                     insights: getBulletedLines(fb.insight || fb.modelDescription || "", 5),
                     okrs: getBulletedLines(fb.objectives || "", 5),
                     coaching: getBulletedLines(fb.coachingTips || "", 5)
                 };
             }).filter(p => p !== null);
-
-            // Find lowest domain for the conclusion
-            const validDomains = templateData.domainPages.filter(d => d !== null);
-            if (validDomains.length > 0) {
-                const lowest = validDomains.reduce((prev, curr) => (prev.score < curr.score) ? prev : curr);
-                templateData.lowestDomainName = lowest.name;
-            }
         }
 
         return handlebars.compile(templateSource)(templateData);
-    }
-
-    _getClassification(score) {
-        const s = Math.round(score || 0);
-        if (s < 50) return "Friction";
-        if (s < 75) return "Resistance";
-        return "Flow";
     }
 }
 
