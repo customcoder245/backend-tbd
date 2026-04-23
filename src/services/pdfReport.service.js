@@ -93,18 +93,19 @@ class PDFReportService {
             page.setDefaultTimeout(8000);
 
             console.log("[PDFService] Setting content...");
-            // Faster wait strategy for Vercel
+            // Use 'domcontentloaded' for maximum speed
             await page.setContent(html, { 
-                waitUntil: process.env.VERCEL ? 'domcontentloaded' : 'networkidle2',
-                timeout: 9000 
+                waitUntil: 'domcontentloaded',
+                timeout: 8500 
             });
             
             console.log("[PDFService] Generating PDF...");
-            const pdfBuffer = await page.pdf({
+            return await page.pdf({
                 format: 'A4',
                 printBackground: true,
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
-                displayHeaderFooter: false
+                displayHeaderFooter: false,
+                timeout: 9000
             });
         } catch (error) {
             console.error("PDF GENERATION ERROR:", error);
