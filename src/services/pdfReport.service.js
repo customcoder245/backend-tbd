@@ -62,65 +62,58 @@ class PDFReportService {
     }
 
     async generateReportBuffer(data) {
-        const html = this._buildHTML(data);
-        let browser;
+    const html = this._buildHTML(data);
+    let browser;
 
-        try {
-            if (process.env.VERCEL) {
-                console.log("[PDFService] Vercel environment detected.");
-                // Ensure you use these specific imports
-                const chromium = (await import('@sparticuz/chromium')).default;
-                const puppeteerCore = (await import('puppeteer-core')).default;
+    try {
+        if (process.env.VERCEL) {
+            // Use dynamic imports to keep the bundle clean
+            const chromium = (await import('@sparticuz/chromium')).default;
+            const puppeteerCore = (await import('puppeteer-core')).default;
 
-                // This is the critical configuration for Vercel
-                browser = await puppeteerCore.launch({
-                    args: chromium.args,
-                    defaultViewport: chromium.defaultViewport,
-                    executablePath: await chromium.executablePath(),
-                    headless: chromium.headless,
-                    ignoreHTTPSErrors: true,
-                });
-            } else {
-                console.log("[PDFService] Local environment detected.");
-                const puppeteer = (await import('puppeteer')).default;
-                browser = await puppeteer.launch({
-                    headless: 'new',
-                    args: ['--no-sandbox', '--disable-setuid-sandbox']
-                });
-            }
-
-            const page = await browser.newPage();
-            
-            // Increased timeout for Vercel's slower cold starts
-            page.setDefaultNavigationTimeout(20000); 
-            page.setDefaultTimeout(20000);
-
-            console.log("[PDFService] Setting content...");
-            await page.setContent(html, { 
-                waitUntil: ['domcontentloaded', 'networkidle0'], // Ensures images/fonts load
+            console.log("[PDFService] Launching Serverless Chromium...");
+            browser = await puppeteerCore.launch({
+                args: chromium.args, // Do not add manual --no-sandbox here
+                defaultViewport: chromium.defaultViewport,
+                executablePath: await chromium.executablePath(),
+                headless: chromium.headless,
+                ignoreHTTPSErrors: true,
             });
-            
-            // Wait for fonts to ensure the PDF looks professional
-            await page.evaluateHandle('document.fonts.ready');
-
-            console.log("[PDFService] Generating PDF...");
-            const pdfBuffer = await page.pdf({
-                format: 'A4',
-                printBackground: true,
-                margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
-                displayHeaderFooter: false,
+        } else {
+            const puppeteer = (await import('puppeteer')).default;
+            browser = await puppeteer.launch({
+                headless: 'new',
+                args: ['--no-sandbox']
             });
-
-            return pdfBuffer;
-        } catch (error) {
-            console.error("PDF GENERATION ERROR:", error.message);
-            throw error;
-        } finally {
-            if (browser) {
-                await browser.close();
-            }
         }
+
+        const page = await browser.newPage();
+        
+        // Vercel Lambda needs more time to render 9 pages
+        page.setDefaultNavigationTimeout(30000); 
+
+        await page.setContent(html, { 
+            waitUntil: 'networkidle0', // Essential for the Cloudinary logo
+            timeout: 30000
+        });
+        
+        // Wait for Inter fonts to load
+        await page.evaluateHandle('document.fonts.ready');
+
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' }
+        });
+
+        return pdfBuffer;
+    } catch (error) {
+        console.error("PDF GENERATION ERROR:", error.message);
+        throw error;
+    } finally {
+        if (browser) await browser.close();
     }
+}
 
     _buildHTML(data) {
         const { report, user, aiInsight, isMasterReport, comparisonData } = data;
