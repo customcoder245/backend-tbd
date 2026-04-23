@@ -67,13 +67,9 @@ class PDFReportService {
 
         try {
             if (process.env.VERCEL) {
-                console.log("[PDFService] Vercel environment detected. Initializing Full Chromium...");
+                console.log("[PDFService] Vercel environment detected. Initializing Chromium 123.0.1...");
                 const chromium = (await import('@sparticuz/chromium')).default;
                 const puppeteerCore = (await import('puppeteer-core')).default;
-
-                // CRITICAL FOR AL2023: Disable graphics mode to avoid libnss3 dependency
-                await chromium.setGraphicsMode(false);
-                await chromium.setHeadlessMode(true);
 
                 console.log("[PDFService] Launching browser...");
                 browser = await puppeteerCore.launch({
