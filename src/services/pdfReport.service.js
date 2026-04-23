@@ -62,58 +62,71 @@ class PDFReportService {
     }
 
     async generateReportBuffer(data) {
-    const html = this._buildHTML(data);
-    let browser;
+        const html = this._buildHTML(data);
+        let browser;
 
-    try {
-        if (process.env.VERCEL) {
-            // Use dynamic imports to keep the bundle clean
-            const chromium = (await import('@sparticuz/chromium')).default;
-            const puppeteerCore = (await import('puppeteer-core')).default;
+        try {
+            if (process.env.VERCEL) {
+                console.log("[PDFService] Vercel environment detected. Initializing Chromium 123.0.1...");
+                const chromium = (await import('@sparticuz/chromium')).default;
+                const puppeteerCore = (await import('puppeteer-core')).default;
 
-            console.log("[PDFService] Launching Serverless Chromium...");
-            browser = await puppeteerCore.launch({
-                args: chromium.args, // Do not add manual --no-sandbox here
-                defaultViewport: chromium.defaultViewport,
-                executablePath: await chromium.executablePath(),
-                headless: chromium.headless,
-                ignoreHTTPSErrors: true,
+                browser = await puppeteerCore.launch({
+                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+                    defaultViewport: chromium.defaultViewport,
+                    executablePath: await chromium.executablePath(),
+                    headless: chromium.headless,
+                });
+                console.log("[PDFService] Vercel Browser launched.");
+            } else {
+                console.log("[PDFService] Local environment detected.");
+                let puppeteer;
+                try {
+                    puppeteer = (await import('puppeteer')).default;
+                } catch (e) {
+                    throw new Error("Local 'puppeteer' package not found. Please run 'npm install'.");
+                }
+                
+                browser = await puppeteer.launch({
+                    headless: 'new',
+                    args: ['--no-sandbox', '--disable-setuid-sandbox']
+                });
+                console.log("[PDFService] Local Browser launched.");
+            }
+
+            const page = await browser.newPage();
+            
+            // Set timeouts for Vercel
+            page.setDefaultNavigationTimeout(8000); 
+            page.setDefaultTimeout(8000);
+
+            console.log("[PDFService] Setting content...");
+            await page.setContent(html, { 
+                waitUntil: 'domcontentloaded',
+                timeout: 8000 
             });
-        } else {
-            const puppeteer = (await import('puppeteer')).default;
-            browser = await puppeteer.launch({
-                headless: 'new',
-                args: ['--no-sandbox']
+            
+            console.log("[PDFService] Generating PDF...");
+            const pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+                displayHeaderFooter: false,
+                timeout: 8000
             });
+
+            console.log("[PDFService] PDF generated successfully.");
+            return pdfBuffer;
+        } catch (error) {
+            console.error("PDF GENERATION ERROR:", error.message);
+            throw error;
+        } finally {
+            if (browser) {
+                console.log("[PDFService] Closing browser...");
+                await browser.close();
+            }
         }
-
-        const page = await browser.newPage();
-        
-        // Vercel Lambda needs more time to render 9 pages
-        page.setDefaultNavigationTimeout(30000); 
-
-        await page.setContent(html, { 
-            waitUntil: 'networkidle0', // Essential for the Cloudinary logo
-            timeout: 30000
-        });
-        
-        // Wait for Inter fonts to load
-        await page.evaluateHandle('document.fonts.ready');
-
-        const pdfBuffer = await page.pdf({
-            format: 'A4',
-            printBackground: true,
-            margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' }
-        });
-
-        return pdfBuffer;
-    } catch (error) {
-        console.error("PDF GENERATION ERROR:", error.message);
-        throw error;
-    } finally {
-        if (browser) await browser.close();
     }
-}
 
     _buildHTML(data) {
         const { report, user, aiInsight, isMasterReport, comparisonData } = data;
@@ -480,9 +493,6 @@ class PDFReportService {
     </div>
     {{/unless}}
 
-
-
-
     {{#if isMasterReport}}
     <!-- MASTER REPORT OVERVIEW -->
     <div class="page">
@@ -607,8 +617,6 @@ class PDFReportService {
             includes: (str, substr) => (str || "").includes(substr)
         };
 
-
-
         Object.keys(helpers).forEach(name => handlebars.registerHelper(name, helpers[name]));
 
         const getBulletedLines = (text, limit = 8) => {
@@ -686,7 +694,6 @@ class PDFReportService {
             }
         }
 
-
         return handlebars.compile(templateSource)(templateData);
     }
 
@@ -697,6 +704,5 @@ class PDFReportService {
         return "Flow";
     }
 }
-
 
 export default new PDFReportService();
