@@ -67,53 +67,77 @@ class PDFReportService {
 
         try {
             if (process.env.VERCEL) {
-                // VERCEL SPECIFIC LAUNCH FOR NODE 20/24 (AL2023)
+                console.log("[PDFService] Vercel environment detected. Launching @sparticuz/chromium-min...");
                 const chromium = (await import('@sparticuz/chromium-min')).default;
                 const puppeteerCore = (await import('puppeteer-core')).default;
 
+                // Ensure chromium is ready
+                const executablePath = await chromium.executablePath(
+                    'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
+                );
+
                 browser = await puppeteerCore.launch({
-                    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+                    args: [
+                        ...chromium.args,
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-gpu',
+                        '--single-process',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--disable-extensions',
+                        '--hide-scrollbars',
+                        '--disable-web-security'
+                    ],
                     defaultViewport: chromium.defaultViewport,
-                    executablePath: await chromium.executablePath(
-                        'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
-                    ),
+                    executablePath: executablePath,
                     headless: chromium.headless,
+                    ignoreHTTPSErrors: true,
                 });
+                console.log("[PDFService] Browser launched successfully on Vercel.");
             } else {
                 // LOCAL LAUNCH
+                console.log("[PDFService] Local environment detected. Launching puppeteer...");
                 const puppeteer = (await import('puppeteer')).default;
                 browser = await puppeteer.launch({
                     headless: 'new',
-                    args: ['--no-sandbox', '--disable-setuid-sandbox']
+                    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
                 });
             }
 
             const page = await browser.newPage();
             
-            // Set aggressive timeouts to stay under Vercel's 10s limit
-            page.setDefaultNavigationTimeout(8000); 
-            page.setDefaultTimeout(8000);
+            // Set timeouts - increased slightly for Vercel stability
+            page.setDefaultNavigationTimeout(15000); 
+            page.setDefaultTimeout(15000);
 
-            console.log("[PDFService] Setting content...");
-            // Use 'domcontentloaded' for maximum speed
+            console.log("[PDFService] Setting page content...");
             await page.setContent(html, { 
                 waitUntil: 'domcontentloaded',
-                timeout: 8500 
+                timeout: 15000 
             });
             
-            console.log("[PDFService] Generating PDF...");
-            return await page.pdf({
+            console.log("[PDFService] Generating PDF buffer...");
+            const pdfBuffer = await page.pdf({
                 format: 'A4',
                 printBackground: true,
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
                 displayHeaderFooter: false,
-                timeout: 9000
+                timeout: 20000
             });
+
+            console.log("[PDFService] PDF generated successfully. Buffer size:", pdfBuffer.length);
+            return pdfBuffer;
         } catch (error) {
-            console.error("PDF GENERATION ERROR:", error);
-            throw error;
+            console.error("CRITICAL PDF GENERATION ERROR:", error);
+            // Provide more context in the error message
+            throw new Error(`PDF Generation failed: ${error.message}`);
         } finally {
-            if (browser) await browser.close();
+            if (browser) {
+                console.log("[PDFService] Closing browser...");
+                await browser.close();
+            }
         }
     }
 
