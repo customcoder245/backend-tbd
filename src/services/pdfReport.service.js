@@ -62,15 +62,17 @@ class PDFReportService {
     }
 
     async generateReportBuffer(data) {
+        console.log("[PDFService] Starting PDF generation...");
         const html = this._buildHTML(data);
         let browser;
 
         try {
             if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-                // Vercel / Production Environment
+                console.log("[PDFService] Detected Vercel/Production environment. Loading @sparticuz/chromium...");
                 const chromium = (await import('@sparticuz/chromium')).default;
                 const puppeteerCore = (await import('puppeteer-core')).default;
 
+                console.log("[PDFService] Launching puppeteer-core...");
                 browser = await puppeteerCore.launch({
                     args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
                     defaultViewport: chromium.defaultViewport,
@@ -78,7 +80,7 @@ class PDFReportService {
                     headless: chromium.headless,
                 });
             } else {
-                // Local Development Environment
+                console.log("[PDFService] Detected Local environment. Loading puppeteer...");
                 const puppeteer = (await import('puppeteer')).default;
                 browser = await puppeteer.launch({
                     headless: 'new',
@@ -86,19 +88,30 @@ class PDFReportService {
                 });
             }
 
+            console.log("[PDFService] Browser launched. Creating page...");
             const page = await browser.newPage();
+            
+            console.log("[PDFService] Setting content...");
             await page.setContent(html, { waitUntil: 'networkidle0' });
-            return await page.pdf({
+            
+            console.log("[PDFService] Generating PDF...");
+            const pdfBuffer = await page.pdf({
                 format: 'A4',
                 printBackground: true,
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
                 displayHeaderFooter: false
             });
+
+            console.log("[PDFService] PDF generated successfully. Buffer size:", pdfBuffer.length);
+            return pdfBuffer;
         } catch (error) {
-            console.error("Puppeteer Launch Error:", error);
+            console.error("[PDFService] CRITICAL ERROR during PDF generation:", error);
             throw error;
         } finally {
-            if (browser) await browser.close();
+            if (browser) {
+                console.log("[PDFService] Closing browser...");
+                await browser.close();
+            }
         }
     }
 
