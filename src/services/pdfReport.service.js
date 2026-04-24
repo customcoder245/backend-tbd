@@ -72,66 +72,106 @@ class PDFReportService {
     }
 
     async _getBrowser() {
-        // Reuse browser instance if it's still alive
+        // 1. If browser is already open and connected, return it
         if (this._browser && this._browser.isConnected()) {
             return this._browser;
         }
 
-        console.log("[PDFService] Launching new browser instance...");
-        try {
-            if (process.env.RENDER || process.env.NODE_ENV === 'production') {
-                const puppeteer = (await import('puppeteer')).default;
-                this._browser = await puppeteer.launch({
-                    args: [
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--disable-dev-shm-usage',
-                        '--disable-gpu',
-                        '--no-zygote',
-                        '--single-process'
-                    ],
-                    headless: 'new'
-                });
-            } else if (process.env.VERCEL) {
-                const puppeteerCore = (await import('puppeteer-core')).default;
-                const chromium = (await import('@sparticuz/chromium')).default;
-                
-                // Optimized Vercel launch: No remote download if possible
-                this._browser = await puppeteerCore.launch({
-                    args: chromium.args,
-                    defaultViewport: chromium.defaultViewport,
-                    executablePath: await chromium.executablePath(),
-                    headless: chromium.headless,
-                });
-            } else {
-                const puppeteerCore = (await import('puppeteer-core')).default;
-                const localPaths = [
-                    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-                    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-                    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-                    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-                ];
+        // 2. If already launching, wait for that promise
+        if (this._launchingPromise) {
+            console.log("[PDFService] Waiting for existing browser launch...");
+            return this._launchingPromise;
+        }
 
-                let executablePath = null;
-                const fs = await import('fs');
-                for (const p of localPaths) {
-                    if (fs.existsSync(p)) {
-                        executablePath = p;
-                        break;
+        // 3. Start a new launch process
+        console.log("[PDFService] No active browser. Starting launch process...");
+        this._launchingPromise = (async () => {
+            try {
+                let browser;
+                // Production / Render Environment
+                if (process.env.RENDER || process.env.NODE_ENV === 'production') {
+                    console.log("[PDFService] Launching Puppeteer for Production/Render...");
+                    const puppeteer = (await import('puppeteer')).default;
+                    browser = await puppeteer.launch({
+                        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--single-process'],
+                        headless: 'new'
+                    });
+                } 
+                // Vercel Environment (Serverless)
+                else if (process.env.VERCEL) {
+                    console.log("[PDFService] Launching Puppeteer-Core for Vercel...");
+                    const puppeteerCore = (await import('puppeteer-core')).default;
+                    const chromium = (await import('@sparticuz/chromium')).default;
+                    browser = await puppeteerCore.launch({
+                        args: chromium.args,
+                        defaultViewport: chromium.defaultViewport,
+                        executablePath: await chromium.executablePath(),
+                        headless: chromium.headless,
+                        ignoreHTTPSErrors: true,
+                    });
+                } 
+                // Local Development (Windows/Mac)
+                else {
+                    console.log("[PDFService] Launching Puppeteer for Local Dev...");
+                    try {
+                        const puppeteer = (await import('puppeteer')).default;
+                        browser = await puppeteer.launch({
+                            args: ['--no-sandbox'],
+                            headless: true
+                        });
+                    } catch (pupErr) {
+                        console.log("[PDFService] Default puppeteer failed, falling back to puppeteer-core with local paths...", pupErr.message);
+                        const puppeteerCore = (await import('puppeteer-core')).default;
+                        const fs = await import('fs');
+                        const localPaths = [
+                            "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                            "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+                            "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+                            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+                        ];
+                        
+                        let executablePath = null;
+                        for (const p of localPaths) {
+                            if (fs.existsSync(p)) {
+                                executablePath = p;
+                                break;
+                            }
+                        }
+
+                        if (!executablePath) {
+                            throw new Error("Could not find a local Chrome/Edge installation to generate PDF.");
+                        }
+
+                        browser = await puppeteerCore.launch({
+                            args: ['--no-sandbox'],
+                            headless: true,
+                            executablePath
+                        });
                     }
                 }
 
-                this._browser = await puppeteerCore.launch({
-                    headless: 'new',
-                    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-                    executablePath: executablePath || undefined
+                console.log("[PDFService] Browser launched successfully.");
+                this._browser = browser;
+
+                // Cleanup on disconnect
+                browser.on('disconnected', () => {
+                    console.log("[PDFService] Browser instance disconnected.");
+                    this._browser = null;
+                    this._launchingPromise = null;
                 });
+
+                return browser;
+            } catch (err) {
+                console.error("[PDFService] CRITICAL: Browser launch failed:", err);
+                this._browser = null;
+                this._launchingPromise = null; // Reset so next request can try again
+                throw err;
+            } finally {
+                this._launchingPromise = null;
             }
-            return this._browser;
-        } catch (error) {
-            console.error("[PDFService] Browser launch failed:", error.message);
-            throw error;
-        }
+        })();
+
+        return this._launchingPromise;
     }
 
     async generateReportBuffer(data) {
@@ -154,12 +194,12 @@ class PDFReportService {
             });
 
             // Set timeouts
-            page.setDefaultNavigationTimeout(10000); 
-            page.setDefaultTimeout(10000);
+            page.setDefaultNavigationTimeout(30000); 
+            page.setDefaultTimeout(30000);
 
             console.log("[PDFService] Rendering content...");
             await page.setContent(html, { 
-                waitUntil: 'domcontentloaded'
+                waitUntil: 'networkidle0'
             });
             
             console.log("[PDFService] Printing PDF...");
@@ -168,7 +208,7 @@ class PDFReportService {
                 printBackground: true,
                 margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
                 displayHeaderFooter: false,
-                timeout: 10000
+                timeout: 30000
             });
 
             return pdfBuffer;
@@ -177,11 +217,12 @@ class PDFReportService {
             // If browser crashed, reset it
             if (error.message.includes('Browser closed') || error.message.includes('disconnected')) {
                 this._browser = null;
+                this._launchingPromise = null;
             }
             throw error;
         } finally {
             if (page) {
-                await page.close();
+                await page.close().catch(e => console.error("Error closing page:", e));
             }
             // We do NOT close the browser here to allow reuse
         }
@@ -239,18 +280,21 @@ class PDFReportService {
         .inner-footer { position: absolute; bottom: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 4mm; font-size: 8pt; color: var(--light-text); font-weight: 500; }
 
         /* Cover Page */
-        .cover-page { padding: 40mm 20mm; display: flex; flex-direction: column; align-items: center; text-align: center; background: var(--white); }
-        .logo-cover { width: 60mm; margin-bottom: 30mm; }
-        .brand-header { font-size: 24pt; font-weight: 800; color: var(--primary); margin-bottom: 2mm; letter-spacing: 2px; }
-        .brand-tagline { font-size: 9pt; font-weight: 600; color: var(--secondary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 40mm; }
-        .report-title { font-size: 60pt; font-weight: 800; color: var(--primary); margin-bottom: 8mm; line-height: 1; letter-spacing: -2px; }
-        .report-subtitle { font-size: 20pt; color: var(--primary); font-weight: 400; margin-bottom: 40mm; }
+        .cover-page { padding: 0; display: flex; flex-direction: row; background: var(--white); }
+        .cover-sidebar { width: 85mm; height: 100%; background: #438cd1; display: flex; flex-direction: column; align-items: center; padding-top: 30mm; position: relative; }
+        .cover-content { flex: 1; padding: 45mm 20mm; display: flex; flex-direction: column; position: relative; }
+        
+        .logo-cover { width: 55mm; }
+        .brand-header { font-size: 26pt; font-weight: 800; color: var(--primary); margin-bottom: 2mm; letter-spacing: 2px; }
+        .brand-tagline { font-size: 9pt; font-weight: 600; color: var(--secondary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 35mm; }
+        .report-title { font-size: 58pt; font-weight: 800; color: var(--primary); margin-bottom: 6mm; line-height: 0.9; letter-spacing: -2px; }
+        .report-subtitle { font-size: 20pt; color: var(--primary); font-weight: 400; margin-bottom: 30mm; }
         .report-subtitle strong { font-weight: 700; color: var(--secondary); }
 
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; width: 100%; max-width: 160mm; margin-top: auto; text-align: left; }
-        .info-group { border-left: 2px solid var(--border); padding-left: 4mm; }
-        .info-label { font-size: 7pt; font-weight: 800; color: var(--light-text); text-transform: uppercase; margin-bottom: 1.5mm; letter-spacing: 1px; }
-        .info-value { font-size: 12pt; font-weight: 600; color: var(--primary); }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; margin-top: auto; }
+        .info-group { margin-bottom: 6mm; }
+        .info-label { font-size: 7.5pt; font-weight: 800; color: var(--light-text); text-transform: uppercase; margin-bottom: 2mm; letter-spacing: 1px; }
+        .info-value { font-size: 13pt; font-weight: 600; color: var(--primary); }
 
         /* Typography */
         h1 { font-size: 26pt; font-weight: 800; color: var(--primary); margin: 0 0 8mm 0; letter-spacing: -1px; }
@@ -307,29 +351,33 @@ class PDFReportService {
 <body>
     <!-- COVER PAGE -->
     <div class="page cover-page">
-        <img src="${BRAND_LOGO_URL}" class="logo-cover" />
-        <div class="brand-header">TALENT BY DESIGN</div>
-        <div class="brand-tagline">SCALING HUMAN POTENTIAL IN A DIGITAL WORLD</div>
-        
-        <div class="report-title">POD-360™</div>
-        <div class="report-subtitle">Confidential <strong>Performance Profile</strong></div>
-        
-        <div class="info-grid">
-            <div class="info-group">
-                <div class="info-label">PARTICIPANT</div>
-                <div class="info-value">{{userName}}</div>
-            </div>
-            <div class="info-group">
-                <div class="info-label">ORGANIZATION</div>
-                <div class="info-value">{{orgName}}</div>
-            </div>
-            <div class="info-group">
-                <div class="info-label">DATE ISSUED</div>
-                <div class="info-value">{{dateStr}}</div>
-            </div>
-            <div class="info-group">
-                <div class="info-label">PROFILE STATUS</div>
-                <div class="info-value" style="color: var(--flow);">Verified</div>
+        <div class="cover-sidebar">
+            <img src="${BRAND_LOGO_URL}" class="logo-cover" />
+        </div>
+        <div class="cover-content">
+            <div class="brand-header">TALENT BY DESIGN</div>
+            <div class="brand-tagline">SCALING HUMAN POTENTIAL IN A DIGITAL WORLD</div>
+            
+            <div class="report-title">POD-360™</div>
+            <div class="report-subtitle">Confidential <strong>Performance Profile</strong></div>
+            
+            <div class="info-grid">
+                <div class="info-group">
+                    <div class="info-label">PARTICIPANT</div>
+                    <div class="info-value">{{userName}}</div>
+                </div>
+                <div class="info-group">
+                    <div class="info-label">ORGANIZATION</div>
+                    <div class="info-value">{{orgName}}</div>
+                </div>
+                <div class="info-group">
+                    <div class="info-label">DATE ISSUED</div>
+                    <div class="info-value">{{dateStr}}</div>
+                </div>
+                <div class="info-group">
+                    <div class="info-label">PROFILE STATUS</div>
+                    <div class="info-value" style="color: var(--flow);">Verified</div>
+                </div>
             </div>
         </div>
     </div>
