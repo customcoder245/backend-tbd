@@ -178,6 +178,8 @@ class PDFReportService {
 
     async generateReportBuffer(data) {
         const html = this._buildHTML(data);
+        const { user } = data;
+        const userName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "Participant";
         let page;
 
         try {
@@ -214,7 +216,7 @@ class PDFReportService {
                     <div style="font-family: 'Helvetica', 'Arial', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 20mm; color: #448CD2; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; -webkit-print-color-adjust: exact;">
                         <div style="flex: 1;">POD-360™ Performance Intelligence</div>
                         <div style="flex: 1; text-align: right;">
-                            <span style="color: #1A3652; font-weight: 900; letter-spacing: 2px;">TALENT BY DESIGN</span>
+                            <span style="color: #1A3652; font-weight: 900; letter-spacing: 2px;">${userName}</span>
                         </div>
                     </div>
                 `,
@@ -236,25 +238,24 @@ class PDFReportService {
                     const firstPage = pages[0];
                     const { width, height } = firstPage.getSize();
 
-                    // Mask Header (Top 25mm)
-                    // 1mm approx 2.83 points
-                    const maskHeight = 25 * 2.83;
+                    // Mask Header (Top 25mm + 1mm overlap)
+                    const maskHeight = 26 * 2.835;
                     firstPage.drawRectangle({
                         x: 0,
                         y: height - maskHeight,
                         width: width,
                         height: maskHeight,
-                        color: rgb(1, 1, 1), // White
+                        color: rgb(26/255, 54/255, 82/255), // Navy
                     });
 
-                    // Mask Footer (Bottom 20mm)
-                    const footerMaskHeight = 20 * 2.83;
+                    // Mask Footer (Bottom 20mm + 1mm overlap)
+                    const footerMaskHeight = 21 * 2.835;
                     firstPage.drawRectangle({
                         x: 0,
                         y: 0,
                         width: width,
                         height: footerMaskHeight,
-                        color: rgb(1, 1, 1), // White
+                        color: rgb(26/255, 54/255, 82/255), // Navy
                     });
                 }
                 const modifiedPdfBuffer = await pdfDoc.save();
@@ -307,19 +308,27 @@ class PDFReportService {
         }
 
         * { font-display: swap; box-sizing: border-box; }
-        body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; font-family: 'Inter', sans-serif; color: var(--text); background: #fcfcfc; }
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background: #ffffff; 
+            -webkit-print-color-adjust: exact; 
+            font-family: 'Inter', sans-serif; 
+            color: var(--text); 
+        }
 
         .page { 
             width: 210mm; 
-            min-height: 297mm; 
+            min-height: 252mm; 
             padding: 0mm 20mm; 
             position: relative; 
             display: flex; 
             flex-direction: column; 
-            background: var(--white); 
+            background: #ffffff; 
             page-break-after: always; 
             break-after: page;
             overflow: hidden;
+            box-sizing: border-box;
         }
         .page-flow {
             min-height: 297mm;
@@ -332,142 +341,118 @@ class PDFReportService {
 
         /* Cover Page */
         .cover-page { 
-            padding: 0; 
+            width: 210mm;
+            height: 252mm;
+            padding: 0 !important; 
             display: flex; 
             flex-direction: column; 
-            background: #ffffff;
-            justify-content: space-between;
+            background: var(--primary);
+            justify-content: center;
+            align-items: center;
             overflow: hidden;
             position: relative;
+            color: white;
+            text-align: center;
+            page-break-after: always;
+            break-after: page;
         }
         
-        .cover-bg-accent {
+        .cover-accent-top {
             position: absolute;
-            top: -100px;
-            right: -100px;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(68, 140, 210, 0.08) 0%, rgba(26, 54, 82, 0) 70%);
+            top: -150px;
+            right: -150px;
+            width: 400px;
+            height: 400px;
+            background: var(--secondary);
+            opacity: 0.15;
             border-radius: 50%;
-            z-index: 0;
         }
 
-        .cover-bg-bottom {
+        .cover-accent-bottom {
             position: absolute;
-            bottom: -150px;
-            left: -150px;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(26, 54, 82, 0.05) 0%, rgba(68, 140, 210, 0) 70%);
+            bottom: -100px;
+            left: -100px;
+            width: 300px;
+            height: 300px;
+            background: white;
+            opacity: 0.05;
             border-radius: 50%;
-            z-index: 0;
         }
 
-        .cover-top-line {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 6px;
-            background: var(--primary-gradient);
+        .cover-logo-container {
+            margin-bottom: 25mm;
             z-index: 10;
         }
 
-        .cover-content {
-            position: relative;
-            z-index: 1;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 40mm 25mm 25mm 25mm;
+        .logo-large {
+            width: 70mm;
+            filter: brightness(0) invert(1); /* Make logo white */
         }
 
-        .cover-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .cover-title-group {
+            z-index: 10;
         }
 
-        .brand-logo-main {
-            width: 55mm;
-        }
-
-        .brand-tagline {
+        .cover-main-title {
             font-family: 'Outfit', sans-serif;
-            font-size: 9pt;
-            font-weight: 700;
-            color: var(--secondary);
-            letter-spacing: 4px;
-            text-transform: uppercase;
-        }
-
-        .cover-body {
-            margin-top: 20mm;
-        }
-
-        .report-label {
-            font-family: 'Outfit', sans-serif;
-            font-size: 11pt;
-            font-weight: 700;
-            color: var(--secondary);
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-bottom: 5mm;
-        }
-
-        .main-title {
-            font-family: 'Outfit', sans-serif;
-            font-size: 58pt;
+            font-size: 64pt;
             font-weight: 900;
-            color: var(--primary);
-            line-height: 0.9;
-            letter-spacing: -2.5px;
-            margin-bottom: 8mm;
+            line-height: 0.85;
+            letter-spacing: -3px;
+            margin-bottom: 5mm;
+            text-transform: uppercase;
         }
 
-        .main-subtitle {
+        .cover-subtitle {
             font-family: 'Inter', sans-serif;
-            font-size: 22pt;
+            font-size: 18pt;
             font-weight: 300;
-            color: var(--light-text);
-            max-width: 80%;
-            line-height: 1.3;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            margin-bottom: 20mm;
         }
 
-        .main-subtitle strong {
-            font-weight: 700;
-            color: var(--primary);
+        .cover-decoration {
+            width: 40mm;
+            height: 1px;
+            background: rgba(255,255,255,0.3);
+            margin: 0 auto 15mm auto;
         }
 
         .cover-footer {
-            border-top: 1.5px solid #f1f5f9;
-            padding-top: 15mm;
+            position: absolute;
+            bottom: 5mm;
+            left: 20mm;
+            right: 20mm;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10mm;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 8mm;
+            z-index: 10;
         }
 
         .footer-item {
             display: flex;
             flex-direction: column;
-            gap: 2mm;
+            gap: 1mm;
         }
 
         .footer-label {
             font-family: 'Outfit', sans-serif;
-            font-size: 8pt;
+            font-size: 7.5pt;
             font-weight: 700;
-            color: var(--light-text);
+            color: rgba(255,255,255,0.5);
             text-transform: uppercase;
             letter-spacing: 1.5px;
         }
 
         .footer-value {
             font-family: 'Inter', sans-serif;
-            font-size: 11pt;
+            font-size: 10.5pt;
             font-weight: 600;
-            color: var(--primary);
+            color: white;
         }
 
         /* Typography */
@@ -647,37 +632,31 @@ class PDFReportService {
 <body>
     <!-- COVER PAGE -->
     <div class="page cover-page">
-        <div class="cover-bg-accent"></div>
-        <div class="cover-bg-bottom"></div>
-        <div class="cover-top-line"></div>
+        <div class="cover-accent-top"></div>
+        <div class="cover-accent-bottom"></div>
         
-        <div class="cover-content">
-            <div class="cover-header">
-                <img src="${BRAND_LOGO_URL}" class="brand-logo-main" />
-                <div class="brand-tagline">Performance Intelligence</div>
-            </div>
+        <div class="cover-logo-container">
+            <img src="${BRAND_LOGO_URL}" class="logo-large" />
+        </div>
 
-            <div class="cover-body">
-                <div class="report-label">Strategic Organizational Review</div>
-                <div class="main-title">POD-360™</div>
-                <div class="main-subtitle">
-                    Transforming data into <strong>Executive Clarity</strong> and sustainable performance.
-                </div>
-            </div>
+        <div class="cover-title-group">
+            <div class="cover-main-title">POD-360™</div>
+            <div class="cover-subtitle">Performance Intelligence</div>
+            <div class="cover-decoration"></div>
+        </div>
 
-            <div class="cover-footer">
-                <div class="footer-item">
-                    <div class="footer-label">Prepared For</div>
-                    <div class="footer-value">{{userName}}</div>
-                </div>
-                <div class="footer-item">
-                    <div class="footer-label">Organization</div>
-                    <div class="footer-value">{{orgName}}</div>
-                </div>
-                <div class="footer-item">
-                    <div class="footer-label">Issue Date</div>
-                    <div class="footer-value">{{dateStr}}</div>
-                </div>
+        <div class="cover-footer">
+            <div class="footer-item">
+                <div class="footer-label">Prepared For</div>
+                <div class="footer-value">{{userName}}</div>
+            </div>
+            <div class="footer-item">
+                <div class="footer-label">Organization</div>
+                <div class="footer-value">{{orgName}}</div>
+            </div>
+            <div class="footer-item">
+                <div class="footer-label">Issue Date</div>
+                <div class="footer-value">{{dateStr}}</div>
             </div>
         </div>
     </div>
