@@ -477,7 +477,7 @@ export const getSuperAdminIntelligence = async (req, res) => {
       Invitation.distinct("orgName"),
       User.distinct("orgName"),
       Assessment.distinct("orgName", { isDeleted: { $ne: true } }),
-      Assessment.distinct("orgName", { isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter }),
+      Assessment.distinct("orgName", { isCompleted: true, isDeleted: { $ne: true } }),
       User.aggregate([
         { $match: { role: { $ne: "superAdmin" } } },
         { $group: { _id: "$role", count: { $sum: 1 } } }
@@ -487,11 +487,11 @@ export const getSuperAdminIntelligence = async (req, res) => {
         "userDetails.role": { $regex: /employee/i },
         isDeleted: { $ne: true }
       }, "userDetails.email").lean(),
-      Invitation.countDocuments({ role: { $ne: "admin" } }),
+      Invitation.distinct("email", { role: { $ne: "admin" }, expiredAt: { $gte: new Date() }, isDeleted: { $ne: true } }).then(emails => emails.length),
       User.countDocuments({ role: "admin" }), // Keep for role stats but don't use for participation
       Assessment.countDocuments({ isCompleted: true, isDeleted: { $ne: true } }),
       Assessment.aggregate([
-        { $match: { isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter } },
+        { $match: { isCompleted: true, isDeleted: { $ne: true } } },
         { $group: { _id: "$userDetails.role", count: { $sum: 1 } } }
       ]),
       Assessment.find({ isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter }).sort({ submittedAt: -1 }).limit(3).lean(),
@@ -514,7 +514,7 @@ export const getSuperAdminIntelligence = async (req, res) => {
     const roleStats = {
       admin: usersByRole.find(r => r._id === "admin")?.count || 0,
       manager: usersByRole.find(r => r._id === "manager")?.count || 0,
-      leader: usersByRole.find(r => r._id === "leader")?.count || 0,
+      leader: (usersByRole.find(r => r._id === "leader")?.count || 0) + (usersByRole.find(r => r._id === "senior-leader")?.count || 0),
       employee: employeeEmails.size > 0 ? employeeEmails.size : (usersByRole.find(r => r._id === "employee")?.count || 0),
     };
     const totalUsers = Object.values(roleStats).reduce((a, b) => a + b, 0);
@@ -525,7 +525,7 @@ export const getSuperAdminIntelligence = async (req, res) => {
     const roleCompletionRates = {
       admin: roleStats.admin > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "admin")?.count || 0) / roleStats.admin) * 100) : 0,
       manager: roleStats.manager > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "manager")?.count || 0) / roleStats.manager) * 100) : 0,
-      leader: roleStats.leader > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "leader")?.count || 0) / roleStats.leader) * 100) : 0,
+      leader: roleStats.leader > 0 ? Math.round((((completionByRole.find(r => r._id?.toLowerCase() === "leader")?.count || 0) + (completionByRole.find(r => r._id?.toLowerCase() === "senior-leader")?.count || 0)) / roleStats.leader) * 100) : 0,
       employee: roleStats.employee > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "employee")?.count || 0) / roleStats.employee) * 100) : 0,
     };
 
@@ -632,17 +632,29 @@ export const getAdminIntelligence = async (req, res) => {
     const period = cycleMap[selectedQuarter];
     let dateFilter = { $or: [{ createdAt: { $gte: period.start, $lte: period.end } }, { submittedAt: { $gte: period.start, $lte: period.end } }] };
 
+    const escapedName = orgName.trim().replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+    const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, 'i');
+
     const teamFilter = { orgName, role: { $ne: "admin" } };
-    // Apply date filter to assessments
-    const assessmentFilter = { orgName, ...dateFilter };
+    // Use full assessment history for accurate overall engagement stats
+    const assessmentFilter = { orgName: orgRegex };
 
     // Run independent queries in parallel
-    const [assessments, registeredUsers, activeInviteCount, recentInvites] = await Promise.all([
-      Assessment.find({ ...assessmentFilter, isDeleted: { $ne: true } }).lean(),
-      User.find(teamFilter).lean(),
-      Invitation.countDocuments({ ...teamFilter, used: false }),
-      Invitation.find({ ...teamFilter, ...dateFilter }).sort({ createdAt: -1 }).limit(5).lean()
+    const [assessments, registeredUsers, allRegisteredEmails, assessmentEmails, activeInviteEmails, recentInvites] = await Promise.all([
+      Assessment.find({ orgName: orgRegex, isDeleted: { $ne: true } }).lean(),
+      User.find({ orgName: orgRegex, role: { $ne: "admin" } }).lean(),
+      User.distinct("email", { orgName: orgRegex }),
+      Assessment.distinct("employeeEmail", { orgName: orgRegex, isDeleted: { $ne: true } }),
+      Invitation.distinct("email", { orgName: orgRegex, role: { $ne: "admin" }, used: false, expiredAt: { $gte: new Date() }, isDeleted: { $ne: true } }),
+      Invitation.find({ orgName: orgRegex, role: { $ne: "admin" }, ...dateFilter }).sort({ createdAt: -1 }).limit(5).lean()
     ]);
+
+    const regSet = new Set([
+      ...allRegisteredEmails.filter(e => e).map(e => e.toLowerCase()),
+      ...assessmentEmails.filter(e => e).map(e => e.toLowerCase())
+    ]);
+    const normalizedInvites = new Set(activeInviteEmails.filter(e => e).map(e => e.toLowerCase()));
+    const activeInviteCount = Array.from(normalizedInvites).filter(e => !regSet.has(e)).length;
 
     // 3. Unique People Discovery
     const peopleMap = new Map();
@@ -699,7 +711,7 @@ export const getAdminIntelligence = async (req, res) => {
     // 4. Role Breakdown
     const roleStats = {
       manager: uniquePeople.filter(p => p.role?.toLowerCase() === "manager").length,
-      leader: uniquePeople.filter(p => p.role?.toLowerCase() === "leader").length,
+      leader: uniquePeople.filter(p => p.role?.toLowerCase() === "leader" || p.role?.toLowerCase() === "senior-leader").length,
       employee: uniquePeople.filter(p => p.role?.toLowerCase() === "employee").length,
     };
 
@@ -786,7 +798,11 @@ export const getLeaderIntelligence = async (req, res) => {
     const [assessments, registeredUsers, activeInviteCount, recentInvites] = await Promise.all([
       Assessment.find({ ...assessmentFilter, isDeleted: { $ne: true } }).lean(),
       User.find(broadFilter).lean(),
-      Invitation.countDocuments({ ...broadFilter, used: false, department: requesterDept }),
+      Invitation.distinct("email", { ...broadFilter, used: false, department: requesterDept, expiredAt: { $gte: new Date() }, isDeleted: { $ne: true } }).then(async emails => {
+        const registered = await User.distinct("email", { ...broadFilter, department: requesterDept });
+        const regSet = new Set(registered.map(e => e.toLowerCase()));
+        return emails.filter(e => !regSet.has(e.toLowerCase())).length;
+      }),
       Invitation.find({ ...broadFilter, ...dateFilter }).sort({ createdAt: -1 }).limit(20).lean() // fetch more, filter later
     ]);
 
