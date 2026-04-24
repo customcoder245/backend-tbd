@@ -213,26 +213,27 @@ class PDFReportService {
             --border: {{colors.border}};
             --white: {{colors.white}};
             --accent: {{colors.accent}};
-            --card-shadow: 0 10px 25px -5px rgba(26, 54, 82, 0.04), 0 8px 10px -6px rgba(26, 54, 82, 0.04);
+            --card-shadow: 0 10px 25px -5px rgba(26, 54, 82, 0.06), 0 8px 10px -6px rgba(26, 54, 82, 0.06);
         }
 
-        * { font-display: swap; box-sizing: border-box; -webkit-print-color-adjust: exact; }
-        body { margin: 0; padding: 0; background: #f1f5f9; font-family: 'Inter', sans-serif; }
+        * { font-display: swap; box-sizing: border-box; }
+        body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
 
         .page { 
             width: 210mm; 
-            min-height: 297mm; 
-            padding: 20mm 18mm; 
+            height: 297mm; 
+            padding: 22mm 18mm; 
             position: relative; 
             display: flex; 
             flex-direction: column; 
             background: var(--white); 
             page-break-after: always; 
             break-after: page;
-            margin: 0 auto;
+            overflow: hidden;
         }
-        
-        /* Watermark */
+        .page:last-of-type { page-break-after: auto; break-after: auto; }
+
+        /* Headers & Footers */
         .page::before {
             content: "POD-360";
             position: absolute;
@@ -241,35 +242,21 @@ class PDFReportService {
             transform: translate(-50%, -50%) rotate(-45deg);
             font-size: 150pt;
             font-weight: 900;
-            color: rgba(241, 245, 249, 0.35);
-            z-index: 0;
+            color: rgba(241, 245, 249, 0.3);
+            z-index: -1;
             pointer-events: none;
         }
-
-        .inner-header { position: relative; z-index: 10; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid var(--accent); padding-bottom: 5mm; margin-bottom: 10mm; }
+        .inner-header { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid var(--accent); padding-bottom: 5mm; margin-bottom: 12mm; }
         .inner-header .report-tag { font-size: 8.5pt; font-weight: 800; color: var(--secondary); text-transform: uppercase; letter-spacing: 2px; }
         .inner-header .logo-small { height: 8mm; }
         
-        .inner-footer { 
-            margin-top: auto; 
-            padding-top: 5mm; 
-            border-top: 1.5px solid var(--accent); 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            font-size: 8pt; 
-            color: var(--light-text); 
-            font-weight: 600;
-            position: relative;
-            z-index: 10;
-            background: white;
-        }
+        .inner-footer { position: absolute; bottom: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: center; border-top: 1.5px solid var(--accent); padding-top: 5mm; font-size: 8pt; color: var(--light-text); font-weight: 600; }
 
-        /* Cover Page Override */
-        .cover-page { padding: 0; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); height: 297mm; }
+        /* Cover Page */
+        .cover-page { padding: 0; display: flex; flex-direction: row; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); }
         .cover-sidebar { width: 90mm; height: 100%; background: var(--primary); display: flex; flex-direction: column; align-items: center; padding-top: 35mm; position: relative; overflow: hidden; }
         .cover-sidebar::after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.05) 0%, transparent 50%); }
-        .cover-content { flex: 1; padding: 45mm 22mm; display: flex; flex-direction: column; position: relative; z-index: 5; }
+        .cover-content { flex: 1; padding: 45mm 22mm; display: flex; flex-direction: column; position: relative; }
         
         .logo-white { width: 60mm; filter: brightness(0) invert(1); z-index: 2; }
         .brand-header { font-size: 26pt; font-weight: 800; color: var(--primary); margin-bottom: 2mm; letter-spacing: 3px; }
@@ -278,65 +265,65 @@ class PDFReportService {
         .report-subtitle { font-size: 22pt; color: var(--primary); font-weight: 400; margin-bottom: 35mm; letter-spacing: -0.5px; }
         .report-subtitle strong { font-weight: 800; color: var(--secondary); }
 
-        /* Content Sections */
-        .content-body { position: relative; z-index: 5; flex: 1; }
+        .info-block { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; }
+        .info-group { margin-bottom: 8mm; }
+        .info-label { font-size: 7.5pt; font-weight: 800; color: var(--light-text); text-transform: uppercase; margin-bottom: 2mm; letter-spacing: 1.5px; }
+        .info-value { font-size: 14pt; font-weight: 600; color: var(--primary); }
 
         /* Typography */
-        h1 { font-size: 28pt; font-weight: 800; color: var(--primary); margin: 0 0 8mm 0; letter-spacing: -1.5px; line-height: 1.1; }
-        h2 { font-size: 19pt; font-weight: 800; color: var(--primary); margin: 10mm 0 6mm 0; display: flex; align-items: center; letter-spacing: -0.5px; }
+        h1 { font-size: 30pt; font-weight: 800; color: var(--primary); margin: 0 0 10mm 0; letter-spacing: -1.5px; line-height: 1.1; }
+        h2 { font-size: 20pt; font-weight: 800; color: var(--primary); margin: 12mm 0 8mm 0; display: flex; align-items: center; letter-spacing: -0.5px; }
         h2::before { content: ''; width: 8mm; height: 2mm; background: var(--secondary); display: inline-block; margin-right: 5mm; border-radius: 1mm; }
-        p { font-size: 10.5pt; color: var(--text); margin-bottom: 4mm; line-height: 1.65; }
+        p { font-size: 11pt; color: var(--text); margin-bottom: 5mm; line-height: 1.7; }
 
-        /* Cards */
-        .card { background: #FFFFFF; padding: 8mm; border-radius: 5mm; margin-bottom: 8mm; border: 1px solid var(--border); box-shadow: var(--card-shadow); position: relative; page-break-inside: avoid; }
-        .card-accent { position: absolute; left: 0; top: 8mm; bottom: 8mm; width: 6px; border-radius: 0 3mm 3mm 0; background: var(--secondary); }
-        .block-title { font-weight: 800; color: var(--primary); font-size: 9pt; margin-bottom: 4mm; text-transform: uppercase; letter-spacing: 2px; display: flex; align-items: center; }
-        .block-title::after { content: ''; flex: 1; height: 1.5px; background: linear-gradient(to right, var(--accent), transparent); margin-left: 6mm; }
+        /* Inner Cards */
+        .card { background: #FFFFFF; padding: 10mm; border-radius: 6mm; margin-bottom: 10mm; border: 1px solid var(--border); box-shadow: var(--card-shadow); position: relative; }
+        .card-accent { position: absolute; left: 0; top: 10mm; bottom: 10mm; width: 6px; border-radius: 0 3mm 3mm 0; background: var(--secondary); }
+        .block-title { font-weight: 800; color: var(--primary); font-size: 9.5pt; margin-bottom: 5mm; text-transform: uppercase; letter-spacing: 2px; display: flex; align-items: center; }
+        .block-title::after { content: ''; flex: 1; height: 2px; background: linear-gradient(to right, var(--accent), transparent); margin-left: 6mm; }
 
         /* Visuals */
-        .summary-hero { display: flex; align-items: center; gap: 15mm; margin-bottom: 10mm; background: linear-gradient(135deg, var(--accent) 0%, #ffffff 100%); padding: 8mm; border-radius: 5mm; border: 1px solid var(--border); page-break-inside: avoid; }
-        .visual-container { position: relative; width: 240px; height: 140px; }
-        .gauge-val { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); font-size: 32pt; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
-        .gauge-label { position: absolute; top: 92%; left: 50%; transform: translate(-50%, -50%); font-size: 9.5pt; font-weight: 800; color: var(--secondary); text-transform: uppercase; letter-spacing: 1.5px; }
+        .summary-hero { display: flex; align-items: center; gap: 18mm; margin-bottom: 12mm; background: linear-gradient(135deg, var(--accent) 0%, #ffffff 100%); padding: 10mm; border-radius: 6mm; border: 1px solid var(--border); }
+        .visual-container { position: relative; width: 260px; height: 150px; }
+        .gauge-val { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); font-size: 36pt; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
+        .gauge-label { position: absolute; top: 92%; left: 50%; transform: translate(-50%, -50%); font-size: 10pt; font-weight: 800; color: var(--secondary); text-transform: uppercase; letter-spacing: 1.5px; }
 
         /* Domain Header */
-        .domain-header-box { background: linear-gradient(135deg, var(--primary) 0%, #2c5282 100%); color: white; padding: 10mm; border-radius: 5mm; margin-bottom: 10mm; position: relative; overflow: hidden; box-shadow: 0 8px 25px rgba(26, 54, 82, 0.12); page-break-inside: avoid; }
-        .domain-desc { font-size: 11pt; color: rgba(255,255,255,0.9); margin-top: 3mm; line-height: 1.6; font-weight: 400; max-width: 95%; }
-        .domain-header-box h1 { color: white; margin: 0; font-size: 28pt; }
+        .domain-header-box { background: linear-gradient(135deg, var(--primary) 0%, #2c5282 100%); color: white; padding: 12mm; border-radius: 6mm; margin-bottom: 12mm; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(26, 54, 82, 0.15); }
+        .domain-header-box::after { content: ''; position: absolute; top: -50%; right: -20%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); border-radius: 50%; }
+        .domain-desc { font-size: 12pt; color: rgba(255,255,255,0.9); margin-top: 4mm; line-height: 1.6; font-weight: 400; max-width: 90%; }
+        .domain-header-box h1 { color: white; margin: 0; font-size: 32pt; }
 
         /* Tables */
-        .table-container { margin: 6mm 0; border-radius: 5mm; overflow: hidden; border: 1px solid var(--border); box-shadow: var(--card-shadow); page-break-inside: avoid; }
+        .table-container { margin: 8mm 0; border-radius: 6mm; overflow: hidden; border: 1px solid var(--border); box-shadow: var(--card-shadow); }
         .table { width: 100%; border-collapse: collapse; }
-        .table th { background: #f8fafc; text-align: left; padding: 4mm 5mm; font-size: 9pt; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 2px solid var(--accent); }
-        .table td { padding: 4.5mm 5mm; border-bottom: 1px solid var(--accent); font-size: 10.5pt; vertical-align: middle; color: var(--text); }
+        .table th { background: #f8fafc; text-align: left; padding: 5mm 6mm; font-size: 9.5pt; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 2px solid var(--accent); }
+        .table td { padding: 5.5mm 6mm; border-bottom: 1px solid var(--accent); font-size: 11pt; vertical-align: middle; color: var(--text); }
         .table tr:last-child td { border-bottom: none; }
 
         /* Status Badges */
-        .badge { display: inline-flex; align-items: center; padding: 1.5mm 4mm; border-radius: 50px; font-size: 8.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .badge { display: inline-flex; align-items: center; padding: 2mm 5mm; border-radius: 50px; font-size: 9pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
         .badge-flow { background: #d1fae5; color: #065f46; }
         .badge-resistance { background: #fef3c7; color: #92400e; }
         .badge-friction { background: #fee2e2; color: #991b1b; }
 
-        /* Lists */
+        /* Bullet Lists */
         .bullet-list { list-style: none; padding: 0; margin: 0; }
-        .bullet-item { display: flex; margin-bottom: 4mm; font-size: 10.5pt; align-items: flex-start; color: var(--text); line-height: 1.5; }
-        .bullet-dot { width: 6px; height: 6px; background: var(--secondary); border-radius: 50%; margin-right: 4mm; margin-top: 2mm; flex-shrink: 0; }
+        .bullet-item { display: flex; margin-bottom: 5mm; font-size: 11pt; align-items: flex-start; color: var(--text); line-height: 1.5; }
+        .bullet-dot { width: 8px; height: 8px; background: var(--secondary); border-radius: 50%; margin-right: 5mm; margin-top: 2.2mm; flex-shrink: 0; box-shadow: 0 0 0 3px var(--accent); }
         
-        .score-summary-box { display: flex; justify-content: space-between; align-items: center; color: white; padding: 8mm 12mm; border-radius: 5mm; margin-bottom: 10mm; box-shadow: 0 12px 25px -5px rgba(0,0,0,0.1); position: relative; overflow: hidden; page-break-inside: avoid; }
-        .score-label { font-size: 9.5pt; font-weight: 700; opacity: 0.9; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 1.5mm; }
-        .score-value-large { font-size: 28pt; font-weight: 800; }
+        .score-summary-box { display: flex; justify-content: space-between; align-items: center; color: white; padding: 10mm 14mm; border-radius: 6mm; margin-bottom: 12mm; box-shadow: 0 15px 35px -5px rgba(0,0,0,0.15); position: relative; overflow: hidden; }
+        .score-summary-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to right, rgba(0,0,0,0.1), transparent); }
+        .score-label { font-size: 10pt; font-weight: 700; opacity: 0.9; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2mm; position: relative; }
+        .score-value-large { font-size: 32pt; font-weight: 800; position: relative; }
 
-        .subdomain-detail-card { border: 1px solid var(--border); border-left: 6px solid var(--secondary); padding: 7mm 9mm; border-radius: 5mm; margin-bottom: 8mm; background: var(--white); box-shadow: var(--card-shadow); page-break-inside: avoid; }
-        .subdomain-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4mm; padding-bottom: 3mm; border-bottom: 1px solid var(--accent); }
-        .subdomain-name { font-size: 14pt; font-weight: 800; color: var(--primary); }
-        .subdomain-insight-text { font-size: 10pt; color: var(--text); line-height: 1.6; background: #f8fafc; padding: 5mm; border-radius: 3mm; margin-bottom: 5mm; border: 1px solid var(--border); }
+        .subdomain-detail-card { border: 1px solid var(--border); border-left: 8px solid var(--secondary); padding: 8mm 10mm; border-radius: 6mm; margin-bottom: 10mm; background: var(--white); box-shadow: var(--card-shadow); }
+        .subdomain-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5mm; padding-bottom: 4mm; border-bottom: 1px solid var(--accent); }
+        .subdomain-name { font-size: 15pt; font-weight: 800; color: var(--primary); }
+        .subdomain-insight-text { font-size: 11pt; color: var(--text); line-height: 1.7; background: #f8fafc; padding: 6mm; border-radius: 4mm; margin-bottom: 6mm; border: 1px solid var(--border); }
         
-        .sub-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
-        .sub-metric-label { font-weight: 800; color: var(--primary); text-transform: uppercase; font-size: 8.5pt; margin-bottom: 4mm; display: flex; align-items: center; opacity: 0.8; }
-        
-        @media print {
-            .page { margin: 0; border: none; box-shadow: none; }
-        }
+        .sub-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; }
+        .sub-metric-label { font-weight: 800; color: var(--primary); text-transform: uppercase; font-size: 9pt; margin-bottom: 5mm; display: flex; align-items: center; opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -445,70 +432,66 @@ class PDFReportService {
             <div class="report-tag">POD-360™ • Domain Analysis</div>
             <img src="${BRAND_LOGO_URL}" class="logo-small" />
         </div>
-        <div class="content-body">
-            <div class="domain-header-box">
-                <h1 style="margin-bottom: 3mm;">{{name}}</h1>
-                <div class="domain-desc">{{description}}</div>
-            </div>
-            <div class="score-summary-box" style="background: linear-gradient(135deg, {{gaugeColor score}} 0%, {{gaugeColor score}}dd 100%);">
-                <div><div class="score-label">Domain Efficiency Score</div><div class="score-value-large">{{round score}}%</div></div>
-                <div style="text-align: right;"><div class="score-label">Current State</div><div class="score-value-large" style="font-size: 20pt; text-transform: uppercase; letter-spacing: 1px;">{{getClassification score}}</div></div>
-            </div>
-            <div class="card">
-                <div class="card-accent"></div>
-                <div class="block-title">Qualitative Insights</div>
-                <ul class="bullet-list">{{#each insights}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}</ul>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 4mm;">
-                <div class="card" style="margin-bottom: 0;"><div class="card-accent" style="background: var(--flow);"></div><div class="block-title">Strategic Actions</div><ul class="bullet-list">{{#each okrs}}<li class="bullet-item" style="font-size: 10pt; margin-bottom: 3mm;"><div class="bullet-dot" style="width: 6px; height: 6px; margin-top: 1.8mm;"></div>{{this}}</li>{{/each}}</ul></div>
-                <div class="card" style="margin-bottom: 0;"><div class="card-accent"></div><div class="block-title">Leadership Focus</div><ul class="bullet-list">{{#each coaching}}<li class="bullet-item" style="font-size: 10pt; margin-bottom: 3mm;"><div class="bullet-dot" style="width: 6px; height: 6px; margin-top: 1.8mm;"></div>{{this}}</li>{{/each}}</ul></div>
-            </div>
+        <div class="domain-header-box">
+            <h1 style="margin-bottom: 3mm;">{{name}}</h1>
+            <div class="domain-desc">{{description}}</div>
+        </div>
+        <div class="score-summary-box" style="background: linear-gradient(135deg, {{gaugeColor score}} 0%, {{gaugeColor score}}dd 100%);">
+            <div><div class="score-label">Domain Efficiency Score</div><div class="score-value-large">{{round score}}%</div></div>
+            <div style="text-align: right;"><div class="score-label">Current State</div><div class="score-value-large" style="font-size: 20pt; text-transform: uppercase; letter-spacing: 1px;">{{getClassification score}}</div></div>
+        </div>
+        <div class="card">
+            <div class="card-accent"></div>
+            <div class="block-title">Qualitative Insights</div>
+            <ul class="bullet-list">{{#each insights}}<li class="bullet-item"><div class="bullet-dot"></div>{{this}}</li>{{/each}}</ul>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 4mm;">
+            <div class="card" style="margin-bottom: 0;"><div class="card-accent" style="background: var(--flow);"></div><div class="block-title">Strategic Actions</div><ul class="bullet-list">{{#each okrs}}<li class="bullet-item" style="font-size: 10pt; margin-bottom: 3mm;"><div class="bullet-dot" style="width: 6px; height: 6px; margin-top: 1.8mm;"></div>{{this}}</li>{{/each}}</ul></div>
+            <div class="card" style="margin-bottom: 0;"><div class="card-accent"></div><div class="block-title">Leadership Focus</div><ul class="bullet-list">{{#each coaching}}<li class="bullet-item" style="font-size: 10pt; margin-bottom: 3mm;"><div class="bullet-dot" style="width: 6px; height: 6px; margin-top: 1.8mm;"></div>{{this}}</li>{{/each}}</ul></div>
         </div>
         <div class="inner-footer"><div>Confidential Assessment Report • {{../userName}}</div><div>Talent By Design • Page {{add (multiply @index 2) 3}}</div></div>
     </div>
 
-    <!-- SUB-DOMAIN PAGE(S) -->
+    <!-- SUB-DOMAIN PAGE -->
     <div class="page">
         <div class="inner-header">
             <div class="report-tag">{{name}} • Sub-Domain Analysis</div>
             <img src="${BRAND_LOGO_URL}" class="logo-small" />
         </div>
-        <div class="content-body">
-            <h1 style="margin-top: 5mm;">Sub-Domain Deep Dive</h1>
-            <p style="color: var(--text); margin-bottom: 10mm; font-size: 11.5pt;">A granular analysis of the performance drivers within the <strong>{{name}}</strong> domain. These metrics pinpoint specific areas for targeted intervention.</p>
-            
-            <div style="display: flex; flex-direction: column; gap: 8mm;">
-            {{#each subdomains}}
-            <div class="subdomain-detail-card" style="border-left-color: {{gaugeColor score}};">
-                <div class="subdomain-header">
-                    <div class="subdomain-name">{{name}}</div>
-                    <div style="display: flex; align-items: center; gap: 4mm;">
-                        <div style="font-size: 14pt; font-weight: 800; color: {{gaugeColor score}};">{{round score}}%</div>
-                        <span class="badge badge-{{toLowerCase state}}">{{state}}</span>
-                    </div>
+        <h1 style="margin-top: 5mm;">Sub-Domain Deep Dive</h1>
+        <p style="color: var(--text); margin-bottom: 10mm; font-size: 11.5pt;">A granular analysis of the performance drivers within the <strong>{{name}}</strong> domain. These metrics pinpoint specific areas for targeted intervention.</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 8mm;">
+        {{#each subdomains}}
+        <div class="subdomain-detail-card" style="border-left-color: {{gaugeColor score}};">
+            <div class="subdomain-header">
+                <div class="subdomain-name">{{name}}</div>
+                <div style="display: flex; align-items: center; gap: 4mm;">
+                    <div style="font-size: 14pt; font-weight: 800; color: {{gaugeColor score}};">{{round score}}%</div>
+                    <span class="badge badge-{{toLowerCase state}}">{{state}}</span>
                 </div>
-                <p style="font-style: italic; font-size: 9.5pt; color: var(--primary); margin-bottom: 4mm; font-weight: 500; opacity: 0.8;">{{description}}</p>
-                <div class="subdomain-insight-text">
-                    {{insight}}
-                </div>
+            </div>
+            <p style="font-style: italic; font-size: 9.5pt; color: var(--primary); margin-bottom: 4mm; font-weight: 500; opacity: 0.8;">{{description}}</p>
+            <div class="subdomain-insight-text">
+                {{insight}}
+            </div>
 
-                <div class="sub-metrics">
-                    <div>
-                        <div class="sub-metric-label"><div style="width: 12px; height: 2px; background: var(--secondary); margin-right: 3mm;"></div>Priority Actions</div>
-                        <ul class="bullet-list">
-                            {{#each okrs}}<li class="bullet-item" style="font-size: 9pt; margin-bottom: 2mm;"><div class="bullet-dot" style="width: 5px; height: 5px; margin-top: 1.5mm;"></div>{{this}}</li>{{/each}}
-                        </ul>
-                    </div>
-                    <div>
-                        <div class="sub-metric-label"><div style="width: 12px; height: 2px; background: var(--secondary); margin-right: 3mm;"></div>Growth Tips</div>
-                        <ul class="bullet-list">
-                            {{#each coaching}}<li class="bullet-item" style="font-size: 9pt; margin-bottom: 2mm;"><div class="bullet-dot" style="width: 5px; height: 5px; margin-top: 1.5mm;"></div>{{this}}</li>{{/each}}
-                        </ul>
-                    </div>
+            <div class="sub-metrics">
+                <div>
+                    <div class="sub-metric-label"><div style="width: 12px; height: 2px; background: var(--secondary); margin-right: 3mm;"></div>Priority Actions</div>
+                    <ul class="bullet-list">
+                        {{#each okrs}}<li class="bullet-item" style="font-size: 9pt; margin-bottom: 2mm;"><div class="bullet-dot" style="width: 5px; height: 5px; margin-top: 1.5mm;"></div>{{this}}</li>{{/each}}
+                    </ul>
+                </div>
+                <div>
+                    <div class="sub-metric-label"><div style="width: 12px; height: 2px; background: var(--secondary); margin-right: 3mm;"></div>Growth Tips</div>
+                    <ul class="bullet-list">
+                        {{#each coaching}}<li class="bullet-item" style="font-size: 9pt; margin-bottom: 2mm;"><div class="bullet-dot" style="width: 5px; height: 5px; margin-top: 1.5mm;"></div>{{this}}</li>{{/each}}
+                    </ul>
                 </div>
             </div>
-            {{/each}}
-            </div>
+        </div>
+        {{/each}}
         </div>
         <div class="inner-footer"><div>Confidential Assessment Report • {{../userName}}</div><div>Talent By Design • Page {{add (multiply @index 2) 4}}</div></div>
     </div>
@@ -517,38 +500,36 @@ class PDFReportService {
     <!-- CONCLUSION PAGE -->
     <div class="page">
         <div class="inner-header"><div class="report-tag">POD-360™ • Strategic Path Forward</div><img src="${BRAND_LOGO_URL}" class="logo-small" /></div>
-        <div class="content-body">
-            <h1 style="margin-top: 5mm; font-size: 32pt;">Conclusion & Path Forward</h1>
-            <p style="color: var(--text); line-height: 1.7; margin-bottom: 12mm; font-size: 11.5pt;">This assessment represents a snapshot of your organizational health. The journey from <strong>Friction to Flow</strong> is ongoing, and these insights provide the roadmap for your next phase of growth. Consistency and alignment are the keys to scaling your human potential.</p>
-            
-            <div class="card" style="padding: 10mm; margin-bottom: 12mm; border-left: 6px solid var(--primary);">
-                <div class="block-title" style="margin-bottom: 5mm;">Key Organizational Priority</div>
-                <p style="font-size: 12pt; line-height: 1.7; color: var(--primary); font-weight: 500;">Our analysis indicates that the most immediate opportunity for impact lies within your focus areas. Focusing your resources here will resolve critical bottlenecks and accelerate performance across all other domains.</p>
-            </div>
+        <h1 style="margin-top: 5mm; font-size: 32pt;">Conclusion & Path Forward</h1>
+        <p style="color: var(--text); line-height: 1.7; margin-bottom: 12mm; font-size: 11.5pt;">This assessment represents a snapshot of your organizational health. The journey from <strong>Friction to Flow</strong> is ongoing, and these insights provide the roadmap for your next phase of growth. Consistency and alignment are the keys to scaling your human potential.</p>
+        
+        <div class="card" style="padding: 10mm; margin-bottom: 12mm; border-left: 6px solid var(--primary);">
+            <div class="block-title" style="margin-bottom: 5mm;">Key Organizational Priority</div>
+            <p style="font-size: 12pt; line-height: 1.7; color: var(--primary); font-weight: 500;">Our analysis indicates that the most immediate opportunity for impact lies within your focus areas. Focusing your resources here will resolve critical bottlenecks and accelerate performance across all other domains.</p>
+        </div>
 
-            <div class="card" style="padding: 10mm; background: #fcfcfc;">
-                <div class="card-accent" style="background: var(--secondary);"></div>
-                <div class="block-title" style="margin-bottom: 6mm;">Implementation Roadmap</div>
-                <div style="margin-bottom: 6mm; display: flex; gap: 6mm;">
-                    <div style="font-weight: 800; color: var(--secondary); font-size: 10pt; min-width: 40mm; text-transform: uppercase;">Phase 1: Awareness</div>
-                    <div><p style="font-size: 10pt; margin: 0;">Share the findings with leadership to build a shared language around Friction and Flow. Normalize the data across all teams.</p></div>
-                </div>
-                <div style="margin-bottom: 6mm; display: flex; gap: 6mm;">
-                    <div style="font-weight: 800; color: var(--secondary); font-size: 10pt; min-width: 40mm; text-transform: uppercase;">Phase 2: Alignment</div>
-                    <div><p style="font-size: 10pt; margin: 0;">Integrate the recommended OKRs into your quarterly planning. Assign owners to each priority action to ensure accountability.</p></div>
-                </div>
-                <div style="display: flex; gap: 6mm;">
-                    <div style="font-weight: 800; color: var(--secondary); font-size: 10pt; min-width: 40mm; text-transform: uppercase;">Phase 3: Activation</div>
-                    <div><p style="font-size: 10pt; margin: 0;">Execute the growth tips provided in the Coaching sections. Monitor the "Flow" indicators weekly and adjust as needed.</p></div>
-                </div>
+        <div class="card" style="padding: 10mm; background: #fcfcfc;">
+            <div class="card-accent" style="background: var(--secondary);"></div>
+            <div class="block-title" style="margin-bottom: 6mm;">Implementation Roadmap</div>
+            <div style="margin-bottom: 6mm; display: flex; gap: 6mm;">
+                <div style="font-weight: 800; color: var(--secondary); font-size: 10pt; min-width: 40mm; text-transform: uppercase;">Phase 1: Awareness</div>
+                <div><p style="font-size: 10pt; margin: 0;">Share the findings with leadership to build a shared language around Friction and Flow. Normalize the data across all teams.</p></div>
+            </div>
+            <div style="margin-bottom: 6mm; display: flex; gap: 6mm;">
+                <div style="font-weight: 800; color: var(--secondary); font-size: 10pt; min-width: 40mm; text-transform: uppercase;">Phase 2: Alignment</div>
+                <div><p style="font-size: 10pt; margin: 0;">Integrate the recommended OKRs into your quarterly planning. Assign owners to each priority action to ensure accountability.</p></div>
+            </div>
+            <div style="display: flex; gap: 6mm;">
+                <div style="font-weight: 800; color: var(--secondary); font-size: 10pt; min-width: 40mm; text-transform: uppercase;">Phase 3: Activation</div>
+                <div><p style="font-size: 10pt; margin: 0;">Execute the growth tips provided in the Coaching sections. Monitor the "Flow" indicators weekly and adjust as needed.</p></div>
             </div>
         </div>
         
-        <div style="margin-top: auto; padding-bottom: 20mm; position: relative; z-index: 10;">
+        <div style="margin-top: auto; padding-bottom: 20mm;">
             <div style="color: {{colors.secondary}}; margin: 0 0 5mm 0; font-size: 26pt; font-weight: 800; line-height: 1.1;">Scale Your Potential</div>
         </div>
 
-        <div class="inner-footer" style="height: auto; flex-direction: column; align-items: stretch; padding-top: 6mm; border-top: 2px solid var(--accent); background: transparent;">
+        <div class="inner-footer" style="height: auto; flex-direction: column; align-items: stretch; padding-top: 6mm; border-top: 2px solid var(--accent);">
             <div style="display: flex; justify-content: space-between; margin-bottom: 4mm; font-size: 8.5pt; color: var(--light-text); font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
                 <div>Confidential Assessment Report • {{userName}}</div>
                 <div>Talent By Design • Page 9</div>
