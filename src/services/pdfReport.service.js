@@ -1,4 +1,6 @@
 import handlebars from 'handlebars';
+import { PDFDocument, rgb } from 'pdf-lib';
+import fs from 'fs';
 
 const BRAND_LOGO_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1774516563/logos/talent_by_design_logo_new.svg";
 
@@ -38,7 +40,7 @@ class PDFReportService {
         };
 
         this.synergyIntro = "Your data is distributed across these domains to create a 'Portfolio Score'. We look for the Equilibrium Point (the center) as the marker for organizational stability. Large deviances indicate potential burnout or systemic fragility.";
-        
+
         this.roleSynergyData = {
             "leader": {
                 name: "Senior Leader",
@@ -96,7 +98,7 @@ class PDFReportService {
                         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--single-process'],
                         headless: 'new'
                     });
-                } 
+                }
                 // Vercel Environment (Serverless)
                 else if (process.env.VERCEL) {
                     console.log("[PDFService] Launching Puppeteer-Core for Vercel...");
@@ -109,7 +111,7 @@ class PDFReportService {
                         headless: chromium.headless,
                         ignoreHTTPSErrors: true,
                     });
-                } 
+                }
                 // Local Development (Windows/Mac)
                 else {
                     console.log("[PDFService] Launching Puppeteer for Local Dev...");
@@ -129,7 +131,7 @@ class PDFReportService {
                             "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
                             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
                         ];
-                        
+
                         let executablePath = null;
                         for (const p of localPaths) {
                             if (fs.existsSync(p)) {
@@ -181,7 +183,7 @@ class PDFReportService {
         try {
             const browser = await this._getBrowser();
             page = await browser.newPage();
-            
+
             // Speed up: Intercept and skip unnecessary requests
             await page.setRequestInterception(true);
             page.on('request', (req) => {
@@ -194,27 +196,75 @@ class PDFReportService {
             });
 
             // Set timeouts
-            page.setDefaultNavigationTimeout(30000); 
+            page.setDefaultNavigationTimeout(30000);
             page.setDefaultTimeout(30000);
 
             console.log("[PDFService] Rendering content...");
-            await page.setContent(html, { 
+            await page.setContent(html, {
                 waitUntil: 'networkidle0'
             });
-            
+
             console.log("[PDFService] Printing PDF...");
             const pdfBuffer = await page.pdf({
                 format: 'A4',
                 printBackground: true,
-                margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
-                displayHeaderFooter: false,
+                margin: { top: '25mm', right: '0mm', bottom: '20mm', left: '0mm' },
+                displayHeaderFooter: true,
+                headerTemplate: `
+                    <div style="font-family: 'Helvetica', 'Arial', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 20mm; color: #448CD2; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; -webkit-print-color-adjust: exact;">
+                        <div style="flex: 1;">POD-360™ Performance Intelligence</div>
+                        <div style="flex: 1; text-align: right;">
+                            <span style="color: #1A3652; font-weight: 900; letter-spacing: 2px;">TALENT BY DESIGN</span>
+                        </div>
+                    </div>
+                `,
+                footerTemplate: `
+                    <div style="font-family: 'Helvetica', 'Arial', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 20mm; color: #64748B; border-top: 1px solid #f1f5f9; padding-top: 4mm; -webkit-print-color-adjust: exact;">
+                        <div style="flex: 1;">Confidential • Talent By Design</div>
+                        <div style="flex: 1; text-align: right;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>
+                    </div>
+                `,
                 timeout: 30000
             });
 
-            return pdfBuffer;
+            // Use pdf-lib to mask header/footer on page 1
+            try {
+                console.log("[PDFService] Masking header/footer on Page 1...");
+                const pdfDoc = await PDFDocument.load(pdfBuffer);
+                const pages = pdfDoc.getPages();
+                if (pages.length > 0) {
+                    const firstPage = pages[0];
+                    const { width, height } = firstPage.getSize();
+
+                    // Mask Header (Top 25mm)
+                    // 1mm approx 2.83 points
+                    const maskHeight = 25 * 2.83;
+                    firstPage.drawRectangle({
+                        x: 0,
+                        y: height - maskHeight,
+                        width: width,
+                        height: maskHeight,
+                        color: rgb(1, 1, 1), // White
+                    });
+
+                    // Mask Footer (Bottom 20mm)
+                    const footerMaskHeight = 20 * 2.83;
+                    firstPage.drawRectangle({
+                        x: 0,
+                        y: 0,
+                        width: width,
+                        height: footerMaskHeight,
+                        color: rgb(1, 1, 1), // White
+                    });
+                }
+                const modifiedPdfBuffer = await pdfDoc.save();
+                return Buffer.from(modifiedPdfBuffer);
+            } catch (maskError) {
+                console.error("[PDFService] Masking failed, returning original PDF:", maskError);
+                return pdfBuffer;
+            }
         } catch (error) {
             console.error("PDF GENERATION ERROR:", error.message);
-            // If browser crashed, reset it
             if (error.message.includes('Browser closed') || error.message.includes('disconnected')) {
                 this._browser = null;
                 this._launchingPromise = null;
@@ -224,7 +274,6 @@ class PDFReportService {
             if (page) {
                 await page.close().catch(e => console.error("Error closing page:", e));
             }
-            // We do NOT close the browser here to allow reuse
         }
     }
 
@@ -240,29 +289,30 @@ class PDFReportService {
 <head>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: {{colors.primary}};
-            --secondary: {{colors.secondary}};
-            --sidebar: {{colors.sidebar}};
-            --friction: {{colors.friction}};
-            --flow: {{colors.flow}};
-            --resistance: {{colors.resistance}};
-            --text: {{colors.text}};
-            --light-text: {{colors.lightText}};
+            --primary: #1A3652;
+            --secondary: #448CD2;
+            --sidebar: #EDF5FD;
+            --friction: #FF5656;
+            --flow: #30AD43;
+            --resistance: #FEE114;
+            --text: #334155;
+            --light-text: #64748B;
             --border: #E2E8F0;
             --white: #FFFFFF;
             --accent: #F8FAFC;
+            --primary-gradient: linear-gradient(135deg, #1A3652 0%, #448CD2 100%);
         }
 
         * { font-display: swap; box-sizing: border-box; }
-        body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; font-family: 'Inter', sans-serif; }
+        body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; font-family: 'Inter', sans-serif; color: var(--text); background: #fcfcfc; }
 
         .page { 
             width: 210mm; 
-            height: 297mm; 
-            padding: 20mm 18mm; 
+            min-height: 297mm; 
+            padding: 0mm 20mm; 
             position: relative; 
             display: flex; 
             flex-direction: column; 
@@ -278,134 +328,355 @@ class PDFReportService {
         }
         .page:last-of-type { page-break-after: auto; break-after: auto; }
 
-        .inner-header { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 5mm; margin-bottom: 12mm; }
-        .inner-header .report-tag { font-size: 8pt; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 1px; }
-        .inner-header .logo-small { height: 7mm; }
-        
-        .inner-footer { position: absolute; bottom: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 4mm; font-size: 8pt; color: var(--light-text); font-weight: 500; }
+
 
         /* Cover Page */
-        .cover-page { padding: 0; display: flex; flex-direction: row; background: var(--white); }
-        .cover-sidebar { width: 75mm; height: 100%; background: #438cd1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 80mm; position: relative; box-shadow: 5px 0 20px rgba(0,0,0,0.05); z-index: 10; }
-        .cover-content { flex: 1; padding: 50mm 20mm; display: flex; flex-direction: column; position: relative; background: #FAFAFA; }
+        .cover-page { 
+            padding: 0; 
+            display: flex; 
+            flex-direction: column; 
+            background: #ffffff;
+            justify-content: space-between;
+            overflow: hidden;
+            position: relative;
+        }
         
-        .logo-cover { width: 45mm; }
-        .brand-header { font-size: 20pt; font-weight: 800; color: var(--primary); margin-bottom: 2mm; letter-spacing: 4px; text-transform: uppercase; }
-        .brand-tagline { font-size: 8.5pt; font-weight: 500; color: var(--secondary); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 40mm; }
-        
-        .report-title-container { border-left: 4px solid var(--secondary); padding-left: 8mm; margin-bottom: 35mm; }
-        .report-title { font-size: 28pt; font-weight: 900; color: var(--primary); margin-bottom: 4mm; line-height: 1.2; letter-spacing: 0; }
-        .report-subtitle { font-size: 18pt; color: var(--light-text); font-weight: 400; }
-        .report-subtitle strong { font-weight: 700; color: var(--primary); }
+        .cover-bg-accent {
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(68, 140, 210, 0.08) 0%, rgba(26, 54, 82, 0) 70%);
+            border-radius: 50%;
+            z-index: 0;
+        }
 
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: auto; border-top: 1px solid var(--border); padding-top: 10mm; }
-        .info-group { margin-bottom: 6mm; }
-        .info-label { font-size: 7pt; font-weight: 800; color: var(--light-text); text-transform: uppercase; margin-bottom: 1.5mm; letter-spacing: 1.5px; }
-        .info-value { font-size: 11pt; font-weight: 600; color: var(--primary); letter-spacing: 0.5px; }
+        .cover-bg-bottom {
+            position: absolute;
+            bottom: -150px;
+            left: -150px;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(26, 54, 82, 0.05) 0%, rgba(68, 140, 210, 0) 70%);
+            border-radius: 50%;
+            z-index: 0;
+        }
+
+        .cover-top-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: var(--primary-gradient);
+            z-index: 10;
+        }
+
+        .cover-content {
+            position: relative;
+            z-index: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40mm 25mm 25mm 25mm;
+        }
+
+        .cover-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-logo-main {
+            width: 55mm;
+        }
+
+        .brand-tagline {
+            font-family: 'Outfit', sans-serif;
+            font-size: 9pt;
+            font-weight: 700;
+            color: var(--secondary);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .cover-body {
+            margin-top: 20mm;
+        }
+
+        .report-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 11pt;
+            font-weight: 700;
+            color: var(--secondary);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 5mm;
+        }
+
+        .main-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 58pt;
+            font-weight: 900;
+            color: var(--primary);
+            line-height: 0.9;
+            letter-spacing: -2.5px;
+            margin-bottom: 8mm;
+        }
+
+        .main-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: 22pt;
+            font-weight: 300;
+            color: var(--light-text);
+            max-width: 80%;
+            line-height: 1.3;
+        }
+
+        .main-subtitle strong {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .cover-footer {
+            border-top: 1.5px solid #f1f5f9;
+            padding-top: 15mm;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10mm;
+        }
+
+        .footer-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2mm;
+        }
+
+        .footer-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 8pt;
+            font-weight: 700;
+            color: var(--light-text);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .footer-value {
+            font-family: 'Inter', sans-serif;
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--primary);
+        }
 
         /* Typography */
-        h1 { font-size: 24pt; font-weight: 900; color: var(--primary); margin: 0 0 6mm 0; letter-spacing: -0.5px; text-transform: uppercase; }
-        h2 { font-size: 16pt; font-weight: 700; color: var(--primary); margin: 10mm 0 6mm 0; border-bottom: 1px solid var(--border); padding-bottom: 3mm; letter-spacing: -0.5px; }
-        p { font-size: 10pt; color: var(--text); margin-bottom: 4mm; line-height: 1.6; font-weight: 400; }
+        h1 { font-family: 'Outfit', sans-serif; font-size: 26pt; font-weight: 800; color: var(--primary); margin: 0 0 8mm 0; letter-spacing: -1px; }
+        h2 { font-family: 'Outfit', sans-serif; font-size: 18pt; font-weight: 700; color: var(--primary); margin: 12mm 0 6mm 0; letter-spacing: -0.5px; }
+        p { font-size: 10.5pt; color: var(--text); margin-bottom: 5mm; line-height: 1.7; font-weight: 400; }
 
         /* Inner Cards */
-        .card { background: #FFFFFF; padding: 8mm; border-radius: 3mm; margin-bottom: 8mm; border: 1px solid rgba(226, 232, 240, 0.6); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); position: relative; }
-        .card-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--secondary); border-radius: 3mm 0 0 3mm; }
-        .block-title { font-weight: 800; color: var(--primary); font-size: 8.5pt; margin-bottom: 4mm; text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 1px solid var(--accent); padding-bottom: 2mm; }
+        .card { 
+            background: #f8fafc; 
+            padding: 8mm; 
+            border-radius: 4mm; 
+            margin-bottom: 8mm; 
+            border: 1px solid #e2e8f0; 
+            position: relative; 
+        }
+        .card-insight {
+            background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+            border-left: 5px solid var(--secondary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+        }
+        .block-title { 
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700; 
+            color: var(--secondary); 
+            font-size: 9pt; 
+            margin-bottom: 4mm; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+        }
 
         /* Visuals */
-        .summary-hero { display: flex; align-items: center; gap: 10mm; margin-bottom: 10mm; background: #FFFFFF; padding: 8mm 12mm; border-radius: 3mm; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid rgba(226, 232, 240, 0.5); }
-        .visual-container { position: relative; width: 260px; height: 150px; flex-shrink: 0; }
-        .gauge-val { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); font-size: 36pt; font-weight: 900; color: var(--primary); letter-spacing: -2px; }
-        .gauge-label { position: absolute; top: 90%; left: 50%; transform: translate(-50%, -50%); font-size: 8pt; font-weight: 800; color: var(--secondary); text-transform: uppercase; letter-spacing: 1.5px; }
+        .summary-hero { 
+            display: flex; 
+            align-items: center; 
+            gap: 15mm; 
+            margin-bottom: 12mm; 
+            background: var(--white); 
+            padding: 10mm; 
+            border-radius: 5mm; 
+            box-shadow: 0 15px 40px rgba(0,0,0,0.04); 
+            border: 1px solid #f1f5f9; 
+        }
+        .visual-container { position: relative; width: 220px; height: 130px; flex-shrink: 0; }
+        .gauge-val { position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%); font-size: 38pt; font-weight: 900; color: var(--primary); letter-spacing: -2px; font-family: 'Outfit', sans-serif; }
+        .gauge-label { position: absolute; top: 95%; left: 50%; transform: translate(-50%, -50%); font-size: 9pt; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 2px; }
 
         /* Domain Header */
-        .domain-header-box { background: linear-gradient(135deg, var(--primary) 0%, #102438 100%); color: white; padding: 12mm; border-radius: 3mm; margin-bottom: 10mm; position: relative; overflow: hidden; box-shadow: 0 8px 25px rgba(26, 54, 82, 0.15); }
-        .domain-header-box::after { content: ''; position: absolute; top: 0; right: 0; width: 150px; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03)); transform: skewX(-15deg); }
-        .domain-desc { font-size: 10pt; color: rgba(255,255,255,0.85); margin-top: 4mm; line-height: 1.6; font-weight: 300; max-width: 90%; }
-        .domain-header-box h1 { color: white; margin: 0; font-size: 28pt; letter-spacing: -1px; }
+        .domain-header-box { 
+            background: var(--primary-gradient); 
+            color: white; 
+            padding: 15mm; 
+            border-radius: 5mm; 
+            margin-bottom: 10mm; 
+            position: relative; 
+            overflow: hidden; 
+            box-shadow: 0 15px 35px rgba(26, 54, 82, 0.2); 
+        }
+        .domain-header-box::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+        }
+        .domain-desc { 
+            font-size: 11pt; 
+            color: rgba(255,255,255,0.9); 
+            margin-top: 5mm; 
+            line-height: 1.7; 
+            font-weight: 300; 
+            max-width: 85%; 
+        }
+        .domain-header-box h1 { color: white; margin: 0; font-size: 32pt; }
 
         /* Tables */
-        .table-container { margin: 6mm 0; border-radius: 2mm; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .table-container { margin: 8mm 0; border-radius: 4mm; overflow: hidden; border: 1px solid #f1f5f9; }
         .table { width: 100%; border-collapse: collapse; }
-        .table th { background: #F8FAFC; text-align: left; padding: 4mm 5mm; font-size: 8pt; font-weight: 800; color: var(--light-text); text-transform: uppercase; letter-spacing: 1px; }
-        .table td { padding: 4mm 5mm; border-bottom: 1px solid var(--border); font-size: 9.5pt; color: var(--text); }
+        .table th { background: #f8fafc; text-align: left; padding: 5mm 6mm; font-size: 8.5pt; font-weight: 700; color: var(--light-text); text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 2px solid #e2e8f0; }
+        .table td { padding: 5mm 6mm; border-bottom: 1px solid #f1f5f9; font-size: 10.5pt; color: var(--text); }
         .table tr:last-child td { border-bottom: none; }
 
         /* Status Badges */
-        .badge { display: inline-flex; align-items: center; padding: 1.5mm 3.5mm; border-radius: 2mm; font-size: 7.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-        .badge-high { background: rgba(48, 173, 67, 0.1); color: var(--flow); border: 1px solid rgba(48, 173, 67, 0.2); }
-        .badge-medium { background: rgba(254, 225, 20, 0.15); color: #B39D00; border: 1px solid rgba(254, 225, 20, 0.3); }
-        .badge-low { background: rgba(255, 86, 86, 0.1); color: var(--friction); border: 1px solid rgba(255, 86, 86, 0.2); }
+        .badge { 
+            display: inline-flex; 
+            align-items: center; 
+            padding: 1.5mm 4mm; 
+            border-radius: 50px; 
+            font-size: 8pt; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            font-family: 'Outfit', sans-serif;
+        }
+        .badge-high { background: #dcfce7; color: #166534; }
+        .badge-medium { background: #fef9c3; color: #854d0e; }
+        .badge-low { background: #fee2e2; color: #991b1b; }
 
         /* Bullet Lists */
         .bullet-list { list-style: none; padding: 0; margin: 0; }
-        .bullet-item { display: flex; margin-bottom: 2.5mm; font-size: 9.5pt; align-items: flex-start; color: var(--text); line-height: 1.5; }
-        .bullet-dot { width: 4px; height: 4px; background: var(--secondary); border-radius: 50%; margin-right: 4mm; margin-top: 2.5mm; flex-shrink: 0; }
+        .bullet-item { display: flex; margin-bottom: 3.5mm; font-size: 10pt; align-items: flex-start; color: var(--text); line-height: 1.6; }
+        .bullet-dot { width: 6px; height: 6px; background: var(--secondary); border-radius: 50%; margin-right: 5mm; margin-top: 2.5mm; flex-shrink: 0; }
         
-        .score-summary-box { display: flex; justify-content: space-between; align-items: center; color: white; padding: 6mm 10mm; border-radius: 2mm; margin-bottom: 8mm; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .score-label { font-size: 8pt; font-weight: 700; text-transform: uppercase; opacity: 0.9; letter-spacing: 1px; }
-        .score-value-large { font-size: 24pt; font-weight: 900; letter-spacing: -1px; }
+        .score-summary-box { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            color: white; 
+            padding: 8mm 12mm; 
+            border-radius: 4mm; 
+            margin-bottom: 10mm; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            position: relative;
+            overflow: hidden;
+        }
+        .score-label { font-family: 'Outfit', sans-serif; font-size: 9pt; font-weight: 600; text-transform: uppercase; opacity: 0.9; letter-spacing: 1.5px; }
+        .score-value-large { font-family: 'Outfit', sans-serif; font-size: 28pt; font-weight: 800; letter-spacing: -1px; }
 
-        .subdomain-compact-card { border: 1px solid rgba(226, 232, 240, 0.8); padding: 6mm 8mm; border-radius: 3mm; margin-bottom: 5mm; background: #FFFFFF; position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.02); }
-        .subdomain-compact-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2mm; border-bottom: 1px solid var(--accent); padding-bottom: 2mm; }
-        .subdomain-compact-name { font-size: 11.5pt; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
-        .subdomain-compact-score { font-size: 10pt; font-weight: 800; color: var(--secondary); background: rgba(68, 140, 210, 0.05); padding: 1mm 3mm; border-radius: 2mm; }
-        .subdomain-compact-desc { font-size: 8.5pt; color: var(--light-text); font-style: italic; margin-bottom: 4mm; line-height: 1.5; }
-        .subdomain-compact-insight { 
-            font-size: 9.5pt; 
-            color: var(--text); 
-            background: #F8FAFC; 
-            padding: 4mm 5mm; 
-            border-radius: 2mm; 
-            margin-bottom: 4mm; 
-            border-left: 3px solid var(--secondary); 
-            line-height: 1.5; 
-            break-inside: avoid;
+        .subdomain-analysis-card {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            margin-bottom: 15mm;
+            box-shadow: none;
+        }
+        .subdomain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6mm;
         }
         .sub-metrics-grid { 
             display: grid; 
             grid-template-columns: 1fr 1fr; 
-            gap: 8mm; 
-            break-inside: auto;
+            gap: 10mm; 
+            margin-top: 8mm;
         }
-        .sub-metrics-grid > div {
-            break-inside: avoid;
+        .sub-metric-box {
+            background: #f8fafc;
+            padding: 7mm;
+            border-radius: 4mm;
+            border: 1px solid #e2e8f0;
         }
-        .sub-metric-title { font-size: 7pt; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 3mm; letter-spacing: 1px; }
+        .sub-metric-title { 
+            font-family: 'Outfit', sans-serif;
+            font-size: 9pt; 
+            font-weight: 700; 
+            color: var(--primary); 
+            text-transform: uppercase; 
+            margin-bottom: 5mm; 
+            letter-spacing: 1.5px; 
+            display: flex;
+            align-items: center;
+            gap: 2mm;
+        }
+        .sub-metric-title::before {
+            content: '';
+            width: 3px;
+            height: 12px;
+            background: var(--secondary);
+            border-radius: 2px;
+        }
+
+        .highlight-box {
+            background: #eff6ff;
+            border-radius: 3mm;
+            padding: 5mm 6mm;
+            margin-top: 8mm;
+            border-left: 4px solid var(--secondary);
+        }
     </style>
 </head>
 <body>
     <!-- COVER PAGE -->
     <div class="page cover-page">
-        <div class="cover-sidebar">
-            <img src="${BRAND_LOGO_URL}" class="logo-cover" />
-        </div>
+        <div class="cover-bg-accent"></div>
+        <div class="cover-bg-bottom"></div>
+        <div class="cover-top-line"></div>
+        
         <div class="cover-content">
-            <div class="brand-header">TALENT BY DESIGN</div>
-            <div class="brand-tagline">SCALING HUMAN POTENTIAL IN A DIGITAL WORLD</div>
-            
-            <div class="report-title-container">
-                <div class="report-title">POD-360™</div>
-                <div class="report-subtitle">Confidential <strong>Performance Profile</strong></div>
+            <div class="cover-header">
+                <img src="${BRAND_LOGO_URL}" class="brand-logo-main" />
+                <div class="brand-tagline">Performance Intelligence</div>
             </div>
-            
-            <div class="info-grid">
-                <div class="info-group">
-                    <div class="info-label">PARTICIPANT</div>
-                    <div class="info-value">{{userName}}</div>
+
+            <div class="cover-body">
+                <div class="report-label">Strategic Organizational Review</div>
+                <div class="main-title">POD-360™</div>
+                <div class="main-subtitle">
+                    Transforming data into <strong>Executive Clarity</strong> and sustainable performance.
                 </div>
-                <div class="info-group">
-                    <div class="info-label">ORGANIZATION</div>
-                    <div class="info-value">{{orgName}}</div>
+            </div>
+
+            <div class="cover-footer">
+                <div class="footer-item">
+                    <div class="footer-label">Prepared For</div>
+                    <div class="footer-value">{{userName}}</div>
                 </div>
-                <div class="info-group">
-                    <div class="info-label">DATE ISSUED</div>
-                    <div class="info-value">{{dateStr}}</div>
+                <div class="footer-item">
+                    <div class="footer-label">Organization</div>
+                    <div class="footer-value">{{orgName}}</div>
                 </div>
-                <div class="info-group">
-                    <div class="info-label">PROFILE STATUS</div>
-                    <div class="info-value" style="color: var(--flow);">Verified</div>
+                <div class="footer-item">
+                    <div class="footer-label">Issue Date</div>
+                    <div class="footer-value">{{dateStr}}</div>
                 </div>
             </div>
         </div>
@@ -414,219 +685,170 @@ class PDFReportService {
     {{#unless isMasterReport}}
     <!-- SUMMARY PAGE -->
     <div class="page">
-        <div class="inner-header">
-            <div class="report-tag">POD-360™ Performance Profile</div>
-            <img src="${BRAND_LOGO_URL}" class="logo-small" />
-        </div>
-        <h1>THE DATA SYNERGY</h1>
-        <div style="margin-bottom: 10mm; border-left: 4px solid var(--secondary); padding-left: 8mm; background: var(--accent); padding-top: 6mm; padding-bottom: 6mm; border-radius: 0 4mm 4mm 0;">
-            <p style="font-style: italic; margin-bottom: 4mm; color: var(--primary); font-size: 12pt; font-weight: 500;">{{synergyIntro}}</p>
-            <div style="display: flex; align-items: center; gap: 3mm; margin-bottom: 2mm;">
-                <div style="width: 10px; height: 10px; background: var(--secondary); border-radius: 2px;"></div>
-                <p style="font-weight: 800; color: var(--secondary); margin: 0; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 1.5px;">Recipient: {{synergyRole.name}}</p>
+
+        
+        <h1>The Data Synergy</h1>
+        
+        <div style="margin-bottom: 12mm; border-left: 5px solid var(--secondary); padding-left: 10mm; background: #f8fafc; padding-block: 8mm; border-radius: 0 5mm 5mm 0; box-shadow: 0 10px 30px rgba(0,0,0,0.02);">
+            <p style="font-size: 12pt; color: var(--primary); font-weight: 500; margin-bottom: 6mm; line-height: 1.6;">{{synergyIntro}}</p>
+            <div style="display: flex; flex-direction: column; gap: 4mm;">
+                <div style="display: flex; align-items: center; gap: 3mm;">
+                    <span style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--secondary); font-size: 8.5pt; text-transform: uppercase; letter-spacing: 2px;">Assessed Role: {{synergyRole.name}}</span>
+                </div>
+                <p style="color: var(--light-text); font-size: 10.5pt; margin: 0; line-height: 1.6;">{{synergyRole.description}}</p>
             </div>
-            <p style="color: var(--text); line-height: 1.6; margin: 0; font-size: 10.5pt;">{{synergyRole.description}}</p>
         </div>
+
         <div class="summary-hero">
             <div class="visual-container">
-                <svg width="260" height="150" viewBox="0 0 200 110">
+                <svg width="220" height="130" viewBox="0 0 200 110">
                     <defs>
                         <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:{{gaugeColor report.scores.overall}};stop-opacity:0.6" />
+                            <stop offset="0%" style="stop-color:{{gaugeColor report.scores.overall}};stop-opacity:0.7" />
                             <stop offset="100%" style="stop-color:{{gaugeColor report.scores.overall}};stop-opacity:1" />
                         </linearGradient>
+                        <filter id="shadow">
+                            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1" />
+                        </filter>
                     </defs>
-                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#e2e8f0" stroke-width="20" stroke-linecap="round" />
-                    <path d="M 20 100 A 80 80 0 0 1 {{gaugePath 80 report.scores.overall}}" fill="none" stroke="url(#gaugeGradient)" stroke-width="20" stroke-linecap="round" />
-                    <circle cx="{{gaugePathX 80 report.scores.overall}}" cy="{{gaugePathY 80 report.scores.overall}}" r="8" fill="white" stroke="{{gaugeColor report.scores.overall}}" stroke-width="4" />
+                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#f1f5f9" stroke-width="18" stroke-linecap="round" />
+                    <path d="M 20 100 A 80 80 0 0 1 {{gaugePath 80 report.scores.overall}}" fill="none" stroke="url(#gaugeGradient)" stroke-width="18" stroke-linecap="round" filter="url(#shadow)" />
+                    <circle cx="{{gaugePathX 80 report.scores.overall}}" cy="{{gaugePathY 80 report.scores.overall}}" r="7" fill="white" stroke="{{gaugeColor report.scores.overall}}" stroke-width="4" />
                 </svg>
                 <div class="gauge-val">{{round report.scores.overall}}%</div>
                 <div class="gauge-label">{{getClassification report.scores.overall}}</div>
             </div>
             <div style="flex: 1;">
-                <p style="font-size: 13pt; font-weight: 800; color: var(--primary); margin-bottom: 3mm; letter-spacing: -0.5px;">Performance Overview</p>
-                <p style="font-size: 11pt; margin-bottom: 0;">Your overall performance score is <strong style="color: var(--secondary); font-size: 13pt;">{{round report.scores.overall}}%</strong>, indicating a state of <strong style="color: {{gaugeColor report.scores.overall}};">{{getClassification report.scores.overall}}</strong>. This metric aggregates all strategic domains to provide a holistic view of your organizational footprint.</p>
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 15pt; font-weight: 700; color: var(--primary); margin: 0 0 4mm 0; letter-spacing: -0.5px;">Portfolio Score</h3>
+                <p style="font-size: 11pt; margin-bottom: 0; line-height: 1.7;">Your consolidated performance score is <strong style="color: var(--secondary); font-size: 14pt; font-family: 'Outfit', sans-serif;">{{round report.scores.overall}}%</strong>. This indicates a state of <strong style="color: {{gaugeColor report.scores.overall}};">{{getClassification report.scores.overall}} Efficiency</strong> across your organizational footprint.</p>
             </div>
         </div>
-        <div class="card">
-            <div class="card-accent"></div>
-            <div class="block-title">Key Strategic Insight</div>
-            <p style="font-size: 12.5pt; font-weight: 600; color: var(--primary); line-height: 1.6; margin: 0;">{{aiInsight.description}}</p>
+
+        <div class="card card-insight">
+            <div class="block-title">Key Strategic Intelligence</div>
+            <p style="font-size: 12.5pt; font-weight: 600; color: var(--primary); line-height: 1.7; margin: 0; letter-spacing: -0.2px;">{{aiInsight.description}}</p>
         </div>
-        <h2 style="margin-top: 8mm;">Domain Performance</h2>
+
+        <h2 style="margin-top: 10mm;">Domain Analysis Matrix</h2>
         <div class="table-container">
             <table class="table">
-                <thead><tr><th>Domain Area</th><th>Score</th><th>Current State</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Strategic Domain</th>
+                        <th>Efficiency</th>
+                        <th>Current State</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {{#each domainPages}}
-                    <tr><td style="font-weight: 700; font-size: 11.5pt;">{{name}}</td><td style="font-weight: 800; color: var(--primary); font-size: 12pt;">{{round score}}%</td><td><span class="badge badge-{{toLowerCase (getClassification score)}}">{{getClassification score}}</span></td></tr>
+                    <tr>
+                        <td style="font-weight: 700; color: var(--primary); font-size: 11pt;">{{name}}</td>
+                        <td style="font-weight: 800; color: var(--secondary); font-size: 12pt; font-family: 'Outfit', sans-serif;">{{round score}}%</td>
+                        <td><span class="badge badge-{{toLowerCase (getClassification score)}}">{{getClassification score}}</span></td>
+                    </tr>
                     {{/each}}
                 </tbody>
             </table>
         </div>
 
+
     </div>
 
     {{#each domainPages}}
-    <!-- DOMAIN + SUBDOMAIN COMBINED FLOW PAGE -->
+    <!-- DOMAIN ANALYSIS PAGE -->
     <div class="page page-flow" style="display: block;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr>
-                    <td style="padding: 0;">
-                        <div class="inner-header">
-                            <div class="report-tag">POD-360™ • Domain Analysis</div>
-                            <img src="${BRAND_LOGO_URL}" class="logo-small" />
-                        </div>
-                    </td>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="padding: 0; padding-top: 8mm;">
-                        <div class="domain-header-box">
-                            <h1 style="margin-bottom: 2mm;">{{name}}</h1>
-                            <div class="domain-desc">{{description}}</div>
-                        </div>
-                        <div class="score-summary-box" style="background: {{gaugeColor score}};">
-                            <div><div class="score-label">Domain Efficiency Score</div><div class="score-value-large">{{round score}}%</div></div>
-                            <div style="text-align: right;"><div class="score-label">Current State</div><div class="score-value-large" style="font-size: 18pt;">{{getClassification score}}</div></div>
-                        </div>
 
-                        <div style="height: 10mm;"></div>
 
-                        <!-- SUBDOMAINS flow directly below -->
-                        {{#each subdomainPages}}
-                        {{#each this}}
-                        <div style="{{#unless @../first}}margin-top: 12mm; border-top: 2px solid var(--border); padding-top: 10mm;{{/unless}}">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6mm; border-bottom: 2px solid var(--border); padding-bottom: 4mm;">
-                                <div>
-                                    <div style="font-size: 9pt; color: var(--light-text); font-weight: 700; text-transform: uppercase; margin-bottom: 1mm;">Sub-Domain Analysis</div>
-                                    <h1 style="margin: 0; font-size: 20pt; letter-spacing: -0.5px;">{{name}}</h1>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 22pt; font-weight: 800; color: var(--secondary); line-height: 1;">{{round score}}%</div>
-                                    <div style="font-size: 9pt; font-weight: 700; color: var(--light-text); text-transform: uppercase;">Rating: {{state}}</div>
-                                </div>
-                            </div>
+        <div class="domain-header-box">
+            <h1>{{name}}</h1>
+            <div class="domain-desc">{{description}}</div>
+        </div>
 
-                            <p style="font-size: 10.5pt; line-height: 1.6; color: var(--text); margin-bottom: 8mm; font-weight: 400;">{{description}}</p>
+        <div class="score-summary-box" style="background: {{gaugeColor score}};">
+            <div style="position: absolute; right: -50px; top: -50px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+            <div>
+                <div class="score-label">Domain Efficiency</div>
+                <div class="score-value-large">{{round score}}%</div>
+            </div>
+            <div style="text-align: right; z-index: 1;">
+                <div class="score-label">Maturity Level</div>
+                <div class="score-value-large" style="font-size: 20pt; text-transform: uppercase;">{{getClassification score}}</div>
+            </div>
+        </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; align-items: start; margin-bottom: 10mm;">
-                                <!-- Column 1: Insights -->
-                                <div style="break-inside: avoid; page-break-inside: avoid;">
-                                    <div style="font-weight: 800; color: var(--secondary); font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4mm; display: flex; align-items: center; gap: 2mm;">
-                                        <div style="width: 8px; height: 8px; background: var(--secondary); border-radius: 2px;"></div>
-                                        Insight for {{name}}
-                                    </div>
-                                    <div class="subdomain-compact-insight" style="margin-bottom: 0; padding: 5mm; background: #F8FAFC; border-left: 4px solid var(--secondary);">
-                                        {{#each insight}}
-                                        <div style="{{#unless @last}}margin-bottom: 3mm;{{/unless}}; font-size: 10pt; line-height: 1.5; color: #334155;">{{this}}</div>
-                                        {{/each}}
-                                    </div>
-                                </div>
+        <!-- SUBDOMAINS -->
+        {{#each subdomainPages}}
+        {{#each this}}
+        <div class="subdomain-analysis-card">
+            <div class="subdomain-header">
+                <div>
+                    <div style="font-family: 'Outfit', sans-serif; font-size: 8pt; color: var(--secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2mm;">Sub-Domain Focus</div>
+                    <h2 style="margin: 0; font-size: 22pt; border: none; padding: 0;">{{name}}</h2>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-family: 'Outfit', sans-serif; font-size: 26pt; font-weight: 800; color: var(--secondary); line-height: 1;">{{round score}}%</div>
+                    <div class="badge badge-{{toLowerCase state}}" style="margin-top: 2mm;">{{state}}</div>
+                </div>
+            </div>
 
-                                <!-- Column 2: Framework -->
-                                {{#if modelDescription.length}}
-                                <div style="break-inside: avoid; page-break-inside: avoid;">
-                                    <div style="font-weight: 800; color: var(--primary); font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4mm; display: flex; align-items: center; gap: 2mm;">
-                                        <div style="width: 8px; height: 8px; background: var(--primary) ; border-radius: 2px;"></div>
-                                        POD-360 Model
-                                    </div>
-                                    <div style="font-size: 10pt; line-height: 1.6; color: var(--text);">
-                                        {{#each modelDescription}}
-                                        <div style="{{#unless @last}}margin-bottom: 2.5mm;{{/unless}}">• {{this}}</div>
-                                        {{/each}}
-                                    </div>
-                                </div>
-                                {{/if}}
-                            </div>
+            <p style="font-size: 11pt; line-height: 1.7; color: var(--text); margin-bottom: 8mm;">{{description}}</p>
 
-                            <!-- ROADMAP SECTION -->
-                            <div style="border-top: 1px solid var(--border); padding-top: 10mm; margin-top: 10mm; break-inside: avoid; page-break-inside: avoid;">
-                                <div style="margin-bottom: 8mm;">
-                                    <div style="font-size: 9pt; color: var(--light-text); font-weight: 700; text-transform: uppercase; margin-bottom: 1mm;">Implementation Roadmap</div>
-                                    <h2 style="margin: 0; font-size: 16pt; border: none; padding: 0;">{{name}}: Path Forward</h2>
-                                </div>
+            <div style="background: #f1f5f9; padding: 6mm 8mm; border-radius: 4mm; border-left: 5px solid var(--primary); margin-bottom: 10mm;">
+                <div class="block-title" style="margin-bottom: 3mm; color: var(--primary);">Contextual Insight</div>
+                {{#each insight}}
+                <div style="font-size: 10.5pt; line-height: 1.6; color: var(--text); margin-bottom: 2mm;">{{this}}</div>
+                {{/each}}
+            </div>
 
-                                <div class="sub-metrics-grid" style="margin-top: 0; gap: 8mm;">
-                                    <div style="background: white; border: 1px solid var(--border); padding: 6mm; border-radius: 4px; border-top: 4px solid var(--secondary);">
-                                        <div class="sub-metric-title" style="font-size: 11pt; color: var(--secondary); margin-bottom: 5mm; font-weight: 800;">Priority Actions (OKRs)</div>
-                                        <ul class="bullet-list">
-                                            {{#each okrs}}<li class="bullet-item" style="font-size: 9.5pt; margin-bottom: 3.5mm;"><div class="bullet-dot" style="width: 5px; height: 5px; margin-top: 1.5mm; background: var(--secondary);"></div>{{this}}</li>{{/each}}
-                                        </ul>
-                                    </div>
-                                    <div style="background: white; border: 1px solid var(--border); padding: 6mm; border-radius: 4px; border-top: 4px solid var(--primary);">
-                                        <div class="sub-metric-title" style="font-size: 11pt; color: var(--primary); margin-bottom: 5mm; font-weight: 800;">Growth &amp; Coaching Tips</div>
-                                        <ul class="bullet-list">
-                                            {{#each coaching}}<li class="bullet-item" style="font-size: 9.5pt; margin-bottom: 3.5mm;"><div class="bullet-dot" style="width: 5px; height: 5px; margin-top: 1.5mm; background: var(--primary);"></div>{{this}}</li>{{/each}}
-                                        </ul>
-                                    </div>
-                                </div>
-
-                                {{#if recommendedPrograms.length}}
-                                <div style="margin-top: 10mm; background: #F1F5F9; padding: 7mm; border-radius: 4px; border-left: 5px solid var(--primary); break-inside: avoid;">
-                                    <div style="font-weight: 800; color: var(--text); font-size: 10pt; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5mm;">Recommended Development Programs</div>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;">
-                                        {{#each recommendedPrograms}}
-                                        <div style="display: flex; gap: 3mm; align-items: flex-start; font-size: 9.5pt; color: #334155; line-height: 1.4;">
-                                            <div style="min-width: 6px; height: 6px; background: var(--primary); border-radius: 50%; margin-top: 1.5mm;"></div>
-                                            {{this}}
-                                        </div>
-                                        {{/each}}
-                                    </div>
-                                </div>
-                                {{/if}}
-                            </div>
-                        </div>
+            <div class="sub-metrics-grid">
+                <div class="sub-metric-box" style="border-top: 4px solid var(--secondary);">
+                    <div class="sub-metric-title">Priority Actions (OKRs)</div>
+                    <ul class="bullet-list">
+                        {{#each okrs}}
+                        <li class="bullet-item">
+                            <div class="bullet-dot"></div>
+                            {{this}}
+                        </li>
                         {{/each}}
+                    </ul>
+                </div>
+                <div class="sub-metric-box" style="border-top: 4px solid var(--primary);">
+                    <div class="sub-metric-title">Coaching & Development</div>
+                    <ul class="bullet-list">
+                        {{#each coaching}}
+                        <li class="bullet-item">
+                            <div class="bullet-dot" style="background: var(--primary);"></div>
+                            {{this}}
+                        </li>
                         {{/each}}
+                    </ul>
+                </div>
+            </div>
 
-                        <div style="height: 15mm;"></div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+            {{#if recommendedPrograms.length}}
+            <div class="highlight-box">
+                <div class="block-title" style="margin-bottom: 4mm;">Recommended Programs</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;">
+                    {{#each recommendedPrograms}}
+                    <div style="display: flex; align-items: center; gap: 3mm; font-size: 10pt; font-weight: 600; color: var(--primary);">
+                        <div style="width: 5px; height: 5px; background: var(--secondary); border-radius: 50%;"></div>
+                        {{this}}
+                    </div>
+                    {{/each}}
+                </div>
+            </div>
+            {{/if}}
+        </div>
+        {{/each}}
+        {{/each}}
+
+
     </div>
     {{/each}}
-
-    <!-- CONCLUSION PAGE -->
-    <div class="page">
-        <div class="inner-header"><div class="report-tag">POD-360™ • Strategic Path Forward</div><img src="${BRAND_LOGO_URL}" class="logo-small" /></div>
-        <h1 style="margin-top: 5mm;">Conclusion & Path Forward</h1>
-        <p>This assessment represents a snapshot of your organizational health. The journey toward <strong>High Performance</strong> is ongoing, and these insights provide the roadmap for your next phase of growth. Consistency and alignment are the keys to scaling your human potential.</p>
-        
-        <div class="card" style="border-left: 4px solid var(--primary); margin-bottom: 10mm;">
-            <div class="block-title">Key Organizational Priority</div>
-            <p style="font-weight: 500; color: var(--primary); margin: 0;">Our analysis indicates that the most immediate opportunity for impact lies within your focus areas. Focusing your resources here will resolve critical bottlenecks and accelerate performance across all other domains.</p>
-        </div>
-
-        <div class="card" style="background: var(--accent);">
-            <div class="block-title" style="color: var(--secondary);">Implementation Roadmap</div>
-            <div style="margin-bottom: 6mm; display: grid; grid-template-columns: 45mm 1fr; gap: 4mm; align-items: start;">
-                <div style="font-weight: 800; color: var(--secondary); font-size: 9pt; text-transform: uppercase;">Phase 1: Awareness</div>
-                <p style="font-size: 10pt; margin: 0;">Share the findings with leadership to build a shared language around Friction and Flow. Normalize the data across all teams.</p>
-            </div>
-            <div style="margin-bottom: 6mm; display: grid; grid-template-columns: 45mm 1fr; gap: 4mm; align-items: start;">
-                <div style="font-weight: 800; color: var(--secondary); font-size: 9pt; text-transform: uppercase;">Phase 2: Alignment</div>
-                <p style="font-size: 10pt; margin: 0;">Integrate the recommended OKRs into your quarterly planning. Assign owners to each priority action to ensure accountability.</p>
-            </div>
-            <div style="display: grid; grid-template-columns: 45mm 1fr; gap: 4mm; align-items: start;">
-                <div style="font-weight: 800; color: var(--secondary); font-size: 9pt; text-transform: uppercase;">Phase 3: Activation</div>
-                <p style="font-size: 10pt; margin: 0;">Execute the growth tips provided in the Coaching sections. Monitor the "High Performance" indicators weekly and adjust as needed.</p>
-            </div>
-        </div>
-        
-        <div style="margin-top: auto; padding-bottom: 15mm; border-bottom: 2px solid var(--secondary);">
-            <div style="color: var(--secondary); font-size: 24pt; font-weight: 800; letter-spacing: -1px;">Scale Your Potential</div>
-        </div>
-
-
-    </div>
     {{/unless}}
 </body>
 </html>
-        `;
+`;
 
         // Register Helpers
         if (!this._template) {
@@ -696,7 +918,7 @@ class PDFReportService {
                 const dData = report.scores?.domains?.[dName];
                 if (!dData) return null;
                 const fb = dData.feedback || {};
-                
+
                 const subdomains = domainStructure[dName].map(sName => {
                     const subData = dData.subdomains?.[sName];
                     const subScore = typeof subData === 'object' ? subData.score : (subData || 60);
@@ -774,10 +996,10 @@ class PDFReportService {
                         }
                     };
 
-                    const fallback = fallbacks[sName] || { 
-                        insight: "Consistency in this area varies across teams.", 
-                        okrs: [], 
-                        coaching: [], 
+                    const fallback = fallbacks[sName] || {
+                        insight: "Consistency in this area varies across teams.",
+                        okrs: [],
+                        coaching: [],
                         model: "The POD-360 model emphasizes consistent leadership application and data-driven feedback loops.",
                         programs: ["Leadership Excellence Labs", "Executive Performance Toolkit"]
                     };
@@ -787,7 +1009,7 @@ class PDFReportService {
                     let defaultOkrs = fallback.okrs;
                     let defaultCoaching = fallback.coaching;
                     let defaultPrograms = fallback.programs;
-                    
+
                     let subInsightArray = [];
                     if (Array.isArray(rawInsight)) {
                         subInsightArray = rawInsight;
@@ -823,7 +1045,7 @@ class PDFReportService {
                 }
 
                 return {
-                    name: dName, 
+                    name: dName,
                     score: Math.round(dData.score),
                     state: this._getClassification(dData.score),
                     description: this.domainDescriptions[dName] || "",
@@ -834,9 +1056,7 @@ class PDFReportService {
                 };
             }).filter(p => p !== null);
         }
-
         return this._template(templateData);
     }
 }
-
 export default new PDFReportService();
