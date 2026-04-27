@@ -467,9 +467,10 @@ export const getSuperAdminIntelligence = async (req, res) => {
       usersByRole,
       employeeInvites,
       employeeAssessments,
-      inviteCount,
+      invitedEmailsList,
       adminCount,
-      totalCompleted,
+      completedEmailsList,
+      totalCompletedRaw,
       completionByRole,
       recentAssessments,
       recentInvites
@@ -487,8 +488,9 @@ export const getSuperAdminIntelligence = async (req, res) => {
         "userDetails.role": { $regex: /employee/i },
         isDeleted: { $ne: true }
       }, "userDetails.email").lean(),
-      Invitation.distinct("email", { role: { $ne: "admin" }, expiredAt: { $gte: new Date() }, isDeleted: { $ne: true } }).then(emails => emails.length),
+      Invitation.distinct("email", { role: { $ne: "admin" }, isDeleted: { $ne: true } }),
       User.countDocuments({ role: "admin" }), // Keep for role stats but don't use for participation
+      Assessment.distinct("userDetails.email", { isCompleted: true, isDeleted: { $ne: true } }),
       Assessment.countDocuments({ isCompleted: true, isDeleted: { $ne: true } }),
       Assessment.aggregate([
         { $match: { isCompleted: true, isDeleted: { $ne: true } } },
@@ -519,8 +521,18 @@ export const getSuperAdminIntelligence = async (req, res) => {
     };
     const totalUsers = Object.values(roleStats).reduce((a, b) => a + b, 0);
 
-    const totalAssigned = inviteCount; // exclude adminCount here
-    const totalPending = totalAssigned > totalCompleted ? totalAssigned - totalCompleted : 0;
+    const totalCompletedCount = totalCompletedRaw; // Use the total count from DB
+    const totalCompletedUnique = completedEmailsList.length;
+
+    // Total Assigned is the UNION of everyone invited + everyone who completed
+    const allAssignedParticipants = new Set([
+      ...invitedEmailsList.map(e => e.toLowerCase()),
+      ...completedEmailsList.map(e => e.toLowerCase())
+    ]);
+
+    const totalAssigned = allAssignedParticipants.size;
+    const totalCompletedDisplay = totalCompletedCount; 
+    const totalPending = totalAssigned > totalCompletedUnique ? totalAssigned - totalCompletedUnique : 0;
 
     const roleCompletionRates = {
       admin: roleStats.admin > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "admin")?.count || 0) / roleStats.admin) * 100) : 0,
@@ -579,15 +591,15 @@ export const getSuperAdminIntelligence = async (req, res) => {
       stats: [
         { label: "Onboarded Organizations", value: totalOrgs, icon: "solar:buildings-2-bold-duotone", color: "#448CD2", growth: "+4%", path: "/dashboard/org-assessments" },
         { label: "Client Base Users", value: totalUsers, icon: "solar:users-group-rounded-bold-duotone", color: "#8E54E9", growth: "+12%", path: "/dashboard/users" },
-        { label: "Verified Assessments", value: totalCompleted, icon: "solar:checklist-minimalistic-bold-duotone", color: "#4776E6", growth: "+18%", path: "/dashboard/assessment-history" },
+        { label: "Verified Assessments", value: totalCompletedDisplay, icon: "solar:checklist-minimalistic-bold-duotone", color: "#4776E6", growth: "+18%", path: "/dashboard/assessment-history" },
         { label: "Onboarding Health", value: `${healthRate}%`, icon: "solar:shield-check-bold-duotone", color: "#10b981", growth: "Stable", path: "/dashboard/org-assessments" },
       ],
       userBreakdown: roleStats,
       participation: {
         assigned: totalAssigned,
-        completed: totalCompleted,
+        completed: totalCompletedDisplay,
         pending: totalPending,
-        rate: totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0
+        rate: totalAssigned > 0 ? Math.min(100, Math.round((completedEmailsList.length / totalAssigned) * 100)) : 0
       },
       completionByRole: roleCompletionRates,
       recentActivities: activity,
@@ -653,8 +665,8 @@ export const getAdminIntelligence = async (req, res) => {
       ...allRegisteredEmails.filter(e => e).map(e => e.toLowerCase()),
       ...assessmentEmails.filter(e => e).map(e => e.toLowerCase())
     ]);
-    const normalizedInvites = new Set(activeInviteEmails.filter(e => e).map(e => e.toLowerCase()));
-    const activeInviteCount = Array.from(normalizedInvites).filter(e => !regSet.has(e)).length;
+    const normalizedInvites = (activeInviteEmails || []).map(e => e.toLowerCase());
+    const activeInviteCount = normalizedInvites.filter(e => !regSet.has(e)).length;
 
     // 3. Unique People Discovery
     const peopleMap = new Map();
@@ -689,6 +701,21 @@ export const getAdminIntelligence = async (req, res) => {
         lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : (existing?.lastScore || 0),
         classification: a.isCompleted ? a.classification : (existing?.classification || null)
       });
+    });
+
+    // Add pending invitations that haven't registered or started yet
+    normalizedInvites.forEach(email => {
+      if (!peopleMap.has(email)) {
+        peopleMap.set(email, {
+          email,
+          name: email,
+          role: "Employee",
+          status: "Invited",
+          assessmentStatus: "Not Started",
+          lastScore: 0,
+          classification: null
+        });
+      }
     });
 
     const uniquePeople = Array.from(peopleMap.values());
