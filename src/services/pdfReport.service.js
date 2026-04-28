@@ -1,6 +1,7 @@
 import handlebars from 'handlebars';
 import { PDFDocument, rgb } from 'pdf-lib';
 import fs from 'fs';
+import feedbackData from '../data/domainSubdomainFeedback.js';
 
 const BRAND_LOGO_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1774516563/logos/talent_by_design_logo_new.svg";
 
@@ -730,6 +731,37 @@ class PDFReportService {
             </table>
         </div>
 
+        <!-- POD-360 MODEL TRIANGLE (Summary Page Only) -->
+        <div style="background: #EDF5FD; border-left: 5px solid var(--secondary); border-radius: 4mm; padding: 7mm 10mm 7mm 8mm; margin-top: 10mm; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
+            <div style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 9pt; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5mm;">POD-360&#8482; Model Performance Intelligence</div>
+                <svg width="260" height="250" viewBox="0 0 300 290" style="display: block; margin: 0 auto; -webkit-print-color-adjust: exact;">
+                    <!-- Background triangle: T(150,35) L(30,243) R(270,243) -->
+                    <polygon points="150,35 30,243 270,243" fill="#dceaf7" stroke="#aecde8" stroke-width="1.5"/>
+                    <!-- People Potential zone (top, dark navy) -->
+                    <polygon points="{{@root.triangleSVG.pp}}" fill="#1A3652" opacity="0.88"/>
+                    <!-- Operational Steadiness zone (bottom-left, mid blue) -->
+                    <polygon points="{{@root.triangleSVG.os}}" fill="#2563a8" opacity="0.78"/>
+                    <!-- Digital Fluency zone (bottom-right, light blue) -->
+                    <polygon points="{{@root.triangleSVG.df}}" fill="#448CD2" opacity="0.62"/>
+                    
+                    <!-- Labels and Scores -->
+                    <!-- TOP: People Potential -->
+                    <text x="150" y="8" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">PEOPLE</text>
+                    <text x="150" y="19" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">POTENTIAL</text>
+                    <text x="150" y="32" text-anchor="middle" font-family="'Outfit', sans-serif" font-size="11" font-weight="800" fill="#1A3652">{{@root.triangleSVG.ppScore}}%</text>
+
+                    <!-- BOTTOM LEFT: Operational Steadiness -->
+                    <text x="35" y="254" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">OPERATIONAL</text>
+                    <text x="35" y="265" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">STEADINESS</text>
+                    <text x="35" y="280" text-anchor="middle" font-family="'Outfit', sans-serif" font-size="11" font-weight="800" fill="#2563a8">{{@root.triangleSVG.osScore}}%</text>
+
+                    <!-- BOTTOM RIGHT: Digital Fluency -->
+                    <text x="265" y="254" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">DIGITAL</text>
+                    <text x="265" y="265" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">FLUENCY</text>
+                    <text x="265" y="280" text-anchor="middle" font-family="'Outfit', sans-serif" font-size="11" font-weight="800" fill="#448CD2">{{@root.triangleSVG.dfScore}}%</text>
+                </svg>
+        </div>
+
 
     </div>
 
@@ -755,6 +787,8 @@ class PDFReportService {
             </div>
         </div>
 
+
+
         <!-- SUBDOMAINS -->
         {{#each subdomainPages}}
         {{#each this}}
@@ -770,7 +804,22 @@ class PDFReportService {
                 </div>
             </div>
 
-            <p style="font-size: 11pt; line-height: 1.7; color: var(--text); margin-bottom: 8mm;">{{description}}</p>
+            <p style="font-size: 11pt; line-height: 1.7; color: var(--text); margin-bottom: 6mm;">{{description}}</p>
+
+            <!-- POD-360 INSIGHT (per subdomain) -->
+            {{#if modelDescription}}
+            <div style="background: #EDF5FD; border-left: 5px solid var(--secondary); border-radius: 4mm; padding: 6mm 8mm; margin-bottom: 10mm; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
+                <div style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 9pt; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4mm;">POD-360&#8482; Model</div>
+                <div style="display: flex; align-items: flex-start; gap: 3mm;">
+                    <span style="color: #448CD2; font-size: 11pt; flex-shrink: 0; margin-top: 1px;">&#9733;</span>
+                    <div>
+                        {{#each modelDescription}}
+                        <div style="font-size: 10pt; line-height: 1.65; color: #334155;">{{this}}</div>
+                        {{/each}}
+                    </div>
+                </div>
+            </div>
+            {{/if}}
 
             <div style="background: #f1f5f9; padding: 6mm 8mm; border-radius: 4mm; border-left: 5px solid var(--primary); margin-bottom: 10mm;">
                 <div class="block-title" style="margin-bottom: 3mm; color: var(--primary);">Contextual Insight</div>
@@ -893,6 +942,35 @@ class PDFReportService {
                 "Digital Fluency": ["Data, AI & Automation Readiness", "Digital Communication & Collaboration", "Mindset, Confidence and Change Readiness", "Tool & System Proficiency"]
             };
 
+            // POD-360 model data: keyed by role, then subdomain name, then classification
+            const pod360RoleData = feedbackData[roleKey] || feedbackData['leader'] || feedbackData['admin'] || {};
+
+            // Normalize subdomain name for lookup — handles minor naming variants
+            // e.g. "Mindset, Confidence and Change Readiness" vs "Mindset, Confidence, and Change Readiness"
+            const resolvePod360Key = (name) => {
+                if (pod360RoleData[name]) return name;
+                const normalise = s => s.toLowerCase().replace(/,\s*and\s+/g, ' and ').replace(/\s+/g, ' ').trim();
+                return Object.keys(pod360RoleData).find(k => normalise(k) === normalise(name)) || null;
+            };
+
+            // Precompute triangle SVG polygon points for the POD-360 Model visualization
+            const ppScore = Math.round(report.scores?.domains?.["People Potential"]?.score || 0);
+            const osScore = Math.round(report.scores?.domains?.["Operational Steadiness"]?.score || 0);
+            const dfScore = Math.round(report.scores?.domains?.["Digital Fluency"]?.score || 0);
+
+            const ppFrac = Math.min(1, ppScore / 100);
+            const osFrac = Math.min(1, osScore / 100);
+            const dfFrac = Math.min(1, dfScore / 100);
+
+            templateData.triangleSVG = {
+                ppScore, osScore, dfScore,
+                // Perfect equilateral triangle: T=(150,35) L=(30,243) R=(270,243), C=(150,173.67)
+                // ML=(90,139)  MR=(210,139)  MB=(150,243)
+                pp: `150,173.67 ${(150-60*ppFrac).toFixed(2)},${(173.67-34.67*ppFrac).toFixed(2)} 150,${(173.67-138.67*ppFrac).toFixed(2)} ${(150+60*ppFrac).toFixed(2)},${(173.67-34.67*ppFrac).toFixed(2)}`,
+                os: `150,173.67 ${(150-60*osFrac).toFixed(2)},${(173.67-34.67*osFrac).toFixed(2)} ${(150-120*osFrac).toFixed(2)},${(173.67+69.33*osFrac).toFixed(2)} 150,${(173.67+69.33*osFrac).toFixed(2)}`,
+                df: `150,173.67 ${(150+60*dfFrac).toFixed(2)},${(173.67-34.67*dfFrac).toFixed(2)} ${(150+120*dfFrac).toFixed(2)},${(173.67+69.33*dfFrac).toFixed(2)} 150,${(173.67+69.33*dfFrac).toFixed(2)}`
+            };
+
             templateData.domainPages = ["People Potential", "Operational Steadiness", "Digital Fluency"].map(dName => {
                 const dData = report.scores?.domains?.[dName];
                 if (!dData) return null;
@@ -902,16 +980,20 @@ class PDFReportService {
                     const subData = dData.subdomains?.[sName];
                     const subScore = typeof subData === 'object' ? subData.score : (subData || 60);
                     const subFb = dData.subdomainFeedback?.[sName] || {};
-                    const fallbacks = {
-                       
-                    };
 
-                    const fallback = fallbacks[sName] || {
-                        insight: "Consistency in this area varies across teams.",
+                    // Resolve the POD-360 model entry for this subdomain + classification
+                    const classification = this._getClassification(subScore); // "Low" | "Medium" | "High"
+                    const pod360Key = resolvePod360Key(sName);
+                    const pod360 = (pod360Key ? pod360RoleData[pod360Key]?.[classification] : null) || {};
+
+                    const fallback = {
+                        insight: pod360.insight || "Consistency in this area varies across teams.",
                         okrs: [],
-                        coaching: [],
-                        model: "The POD-360 model emphasizes consistent leadership application and data-driven feedback loops.",
-                        programs: ["Leadership Excellence Labs", "Executive Performance Toolkit"]
+                        coaching: pod360.coachingTips ? getBulletedLines(pod360.coachingTips, 5) : [],
+                        model: pod360.modelDescription || "The POD-360 model emphasizes consistent leadership application and data-driven feedback loops.",
+                        programs: pod360.recommendedPrograms
+                            ? getBulletedLines(pod360.recommendedPrograms, 4)
+                            : ["Leadership Excellence Labs", "Executive Performance Toolkit"]
                     };
 
                     let rawInsight = subFb.insight || subFb.description || fallback.insight;
