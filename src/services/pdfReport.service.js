@@ -903,76 +903,7 @@ class PDFReportService {
                     const subScore = typeof subData === 'object' ? subData.score : (subData || 60);
                     const subFb = dData.subdomainFeedback?.[sName] || {};
                     const fallbacks = {
-                        "Mindset & Adaptability": {
-                            insight: "Adaptability exists in parts of the organization, but it varies by team or leader. The foundation is present, yet not consistent enough to create enterprise-wide resilience.",
-                            okrs: ["Normalize learning, adjustment, and feedback loops", "Equip managers to reinforce resilience locally", "Watch for uneven readiness across functions"],
-                            coaching: ["Model vulnerability when things don't go as planned", "Incentivize small experiments and fast learning", "Review change load at a team level regularly"],
-                            model: "Focuses on the cognitive and emotional agility required to navigate complex change, emphasizing psychological safety and rapid experimentation.",
-                            programs: ["Leadership Resilience Labs", "Change Readiness Accelerator", "Growth Mindset Workshop"]
-                        },
-                        "Psychological Health & Safety": {
-                            insight: "Psychological health and safety are not yet experienced consistently. People may hesitate to raise concerns or challenge ideas, increasing risk to culture.",
-                            okrs: ["Model candor and non-defensive listening", "Close the loop on concerns quickly", "Make respectful challenge a leadership expectation"],
-                            coaching: ["Ask 'what is one thing we aren't talking about?'", "Respond to mistakes with curiosity, not blame", "Publicly acknowledge and reward candid feedback"],
-                            model: "A framework for building high-trust environments where interpersonal risk-taking is safe, driving innovation and error reduction.",
-                            programs: ["Safety & Trust Intensives", "Inclusive Leadership Program", "Candor and Feedback Training"]
-                        },
-                        "Relational & Emotional Intelligence": {
-                            insight: "Healthy collaboration exists in places, yet some interactions still create unnecessary strain, confusion, or avoidance between teams.",
-                            okrs: ["Make feedback frequent and specific", "Strengthen manager confidence in difficult conversations", "Watch for teams where tension is going unaddressed"],
-                            coaching: ["Practice 'Active Listening' in all leadership meetings", "Encourage cross-functional empathy exercises", "Hold leaders accountable for the 'how' as much as the 'what'"],
-                            model: "Centers on social-emotional skills that facilitate high-impact collaboration and resolve interpersonal friction effectively.",
-                            programs: ["Emotional Intelligence for Leaders", "Conflict Resolution Mastery", "Team Dynamics Workshop"]
-                        },
-                        "Prioritization": {
-                            insight: "Strategic priorities are generally defined, but consistency in reinforcement varies. Focus drifts when urgent requests or local pressures rise.",
-                            okrs: ["Revisit priorities monthly or quarterly", "Create an escalation path for competing work", "Monitor where shadow priorities are emerging"],
-                            coaching: ["Say 'no' or 'not now' to non-critical requests publicly", "Ensure every team can name their top 3 priorities", "Align resource allocation strictly to core objectives"],
-                            model: "The POD-360 Prioritization Model aligns daily task execution with long-term strategic objectives to prevent 'prioritization fatigue'.",
-                            programs: ["Strategic Focus Boot Camp", "Time & Priority Management", "Executive Decision Making"]
-                        },
-                        "Workflow Clarity": {
-                            insight: "Most workflows are understood, but consistency breaks down across handoffs. Execution depends too much on individual effort instead of reliable routines.",
-                            okrs: ["Prioritize workflows with the highest business impact", "Define expected steps and owners clearly", "Look for recurring bottlenecks between functions"],
-                            coaching: ["Map out the 'messiest' handoff process this month", "Standardize documentation for core operating routines", "Remove low-value steps that slow down delivery"],
-                            model: "Emphasizes the standardization of core operating routines to reduce cognitive load and increase operational reliability.",
-                            programs: ["Process Optimization Training", "Operational Excellence Suite", "Workflow Design Lab"]
-                        },
-                        "Effective Resource Management": {
-                            insight: "Resources are mostly aligned, but adjustments are often made late. Strain builds when priorities shift faster than resource decisions do.",
-                            okrs: ["Monitor where work is outpacing capacity", "Build earlier visibility into resource risks", "Balance short-term delivery with sustainable workload"],
-                            coaching: ["Use capacity data to drive planning conversations", "Protect high-performers from 'collaboration overload'", "Stop work that no longer aligns with current strategy"],
-                            model: "Optimizes the balance between human capital and project demand, focusing on sustainable performance and burnout prevention.",
-                            programs: ["Capacity Planning Mastery", "Resource Allocation Strategy", "Sustainable Performance Lab"]
-                        },
-                        "Data, AI & Automation Readiness": {
-                            insight: "There is growing interest in automation, but usage is inconsistent. The foundation exists, yet value is not fully embedded into everyday work.",
-                            okrs: ["Reinforce where data should inform decisions", "Share successful use cases across teams", "Clarify where AI can and cannot add value today"],
-                            coaching: ["Highlight one 'Data Win' in every monthly meeting", "Incentivize automation of repetitive manual tasks", "Provide safe spaces for AI experimentation and failure"],
-                            model: "Evaluates and bridges the gap between technological capability and human adoption, focusing on value-led digital transformation.",
-                            programs: ["AI Strategy for Leaders", "Data Literacy Certification", "Digital Adoption Program"]
-                        },
-                        "Digital Communication & Collaboration": {
-                            insight: "Collaboration tools are in place, but practices vary. The organization lacks the consistency needed for seamless collaboration at scale.",
-                            okrs: ["Align teams on shared collaboration habits", "Improve consistency in file sharing and updates", "Reduce dependency on ad hoc workarounds"],
-                            coaching: ["Establish 'Rules of Engagement' for digital tools", "Centralize project communication in one shared space", "Model efficient use of asynchronous communication"],
-                            model: "Standardizes digital behaviors and tool usage to eliminate communication friction in distributed and hybrid work environments.",
-                            programs: ["Digital Habits Boot Camp", "Async Collaboration Mastery", "Tool Proficiency Workshop"]
-                        },
-                        "Mindset, Confidence and Change Readiness": {
-                            insight: "There is moderate openness to change, but confidence varies. Some parts of the organization are moving forward while others need more support.",
-                            okrs: ["Normalize learning and adjustment", "Focus support where readiness is uneven", "Use managers as confidence-builders"],
-                            coaching: ["Celebrate the 'pivot' as much as the 'plan'", "Create peer-support networks for major changes", "Clearly communicate the 'why' behind digital shifts"],
-                            model: "Assesses and builds the psychological readiness and technical confidence required for continuous digital evolution.",
-                            programs: ["Confidence in Change Program", "Digital Leadership Academy", "Resilience Training"]
-                        },
-                        "Tool & System Proficiency": {
-                            insight: "Basic proficiency exists, but many users are not fully comfortable using tools to their full value, limiting overall productivity.",
-                            okrs: ["Move beyond awareness into applied skill-building", "Use peer learning and practical examples", "Focus on common pain points by role"],
-                            coaching: ["Create 'Cheat Sheets' for most common workflows", "Dedicate time for team-led tool training", "Measure tool adoption and address specific gaps"],
-                            model: "Focuses on maximizing the ROI of existing technology investments through deep user proficiency and optimized workflows.",
-                            programs: ["Advanced Tool Training", "Platform Power User Program", "Digital Efficiency Labs"]
-                        }
+                       
                     };
 
                     const fallback = fallbacks[sName] || {
