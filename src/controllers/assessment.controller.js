@@ -478,7 +478,7 @@ export const getSuperAdminIntelligence = async (req, res) => {
       Invitation.distinct("orgName"),
       User.distinct("orgName"),
       Assessment.distinct("orgName", { isDeleted: { $ne: true } }),
-      Assessment.distinct("orgName", { isCompleted: true, isDeleted: { $ne: true } }),
+      Assessment.distinct("orgName", { isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter }),
       User.aggregate([
         { $match: { role: { $ne: "superAdmin" } } },
         { $group: { _id: "$role", count: { $sum: 1 } } }
