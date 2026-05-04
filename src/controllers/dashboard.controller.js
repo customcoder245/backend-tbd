@@ -103,7 +103,7 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
         if (!targetUser && queryUserId && (mongoose.Types.ObjectId.isValid(userId) || userId.startsWith("pending_"))) {
             // Check if userId is invitation ID or pending_...
             const searchId = userId.startsWith("pending_") ? null : userId;
-            
+
             let invite = null;
             if (searchId && mongoose.Types.ObjectId.isValid(searchId)) {
                 invite = await Invitation.findById(searchId);
@@ -117,8 +117,8 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
                 isGuest = true;
             } else {
                 // Check if it's a direct assessment ID
-                const reportCheck = (searchId && mongoose.Types.ObjectId.isValid(searchId)) 
-                    ? await SubmittedAssessment.findById(searchId).lean() 
+                const reportCheck = (searchId && mongoose.Types.ObjectId.isValid(searchId))
+                    ? await SubmittedAssessment.findById(searchId).lean()
                     : null;
                 if (reportCheck) {
                     queryEmail = reportCheck.userDetails?.email;
@@ -370,12 +370,11 @@ export const getDomainDetailedReport = async (req, res) => {
                 if (subKey) {
                     feedback = domainData.subdomainFeedback[subKey];
                 } else {
-                    feedback = domainData.feedback || {};
+                    feedback = {}; // Ensure we start fresh for subdomain default fallbacks
                 }
             }
         } else {
             feedback = domainData.feedback || {};
-            // ❌ REMOVED aggregation logic that caused "all insights in one place" bug
         }
 
         // --- AUTOMATED FALLBACKS ---
@@ -679,7 +678,7 @@ async function getOrganizationContextData(req, res) {
         if (!contextManager && queryUserId && (mongoose.Types.ObjectId.isValid(queryUserId) || queryUserId.startsWith("pending_"))) {
             // If queryUserId is 'pending_...', we use the email part to find the invitation
             const inviteId = queryUserId.startsWith("pending_") ? null : queryUserId;
-            
+
             let invite = null;
             if (inviteId && mongoose.Types.ObjectId.isValid(inviteId)) {
                 invite = await Invitation.findById(inviteId);
