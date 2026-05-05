@@ -211,20 +211,22 @@ class PDFReportService {
             const pdfBuffer = await page.pdf({
                 format: 'A4',
                 printBackground: true,
-                margin: { top: '25mm', right: '0mm', bottom: '20mm', left: '0mm' },
+                margin: { top: '15mm', right: '0mm', bottom: '12mm', left: '0mm' },
                 displayHeaderFooter: true,
                 headerTemplate: `
-                    <div style="font-family: 'Helvetica', 'Arial', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 20mm; color: #448CD2; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; -webkit-print-color-adjust: exact;">
-                        <div style="flex: 1;">POD-360™ Performance Intelligence</div>
-                        <div style="flex: 1; text-align: right;">
-                            <span style="color: #1A3652; font-weight: 900; letter-spacing: 2px;">${userName}</span>
+                    <div style="font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 7.5pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 15mm; color: #64748B; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; -webkit-print-color-adjust: exact;">
+                        <div style="display: flex; align-items: center; gap: 1.5mm;">
+                            <span style="color: #448CD2; font-weight: 800;">POD-360™</span>
+                            <span style="opacity: 0.3;">|</span>
+                            <span>Intelligence Report</span>
                         </div>
+                        <div style="color: #1A3652; font-weight: 700; letter-spacing: 0.5px;">${userName}</div>
                     </div>
                 `,
                 footerTemplate: `
-                    <div style="font-family: 'Helvetica', 'Arial', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 20mm; color: #64748B; border-top: 1px solid #f1f5f9; padding-top: 4mm; -webkit-print-color-adjust: exact;">
-                        <div style="flex: 1;">Confidential • Talent By Design</div>
-                        <div style="flex: 1; text-align: right;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>
+                    <div style="font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 7.5pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 15mm; color: #94A3B8; -webkit-print-color-adjust: exact;">
+                        <div style="font-weight: 400;">Confidential © Talent By Design</div>
+                        <div style="font-weight: 600; color: #64748B;">PAGE <span class="pageNumber"></span> / <span class="totalPages"></span></div>
                     </div>
                 `,
                 timeout: 30000
@@ -281,8 +283,10 @@ class PDFReportService {
 
     _buildHTML(data) {
         const { report, user, aiInsight, isMasterReport, comparisonData } = data;
-        const userName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "Participant";
-        const orgName = isMasterReport ? data.orgName : (user?.orgName || "Talent By Design");
+        const orgName = isMasterReport ? (data.orgName || user?.orgName || "Organization") : (user?.orgName || "Talent By Design");
+        const userName = isMasterReport 
+            ? `${orgName} Intelligence Report`
+            : (`${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "Participant");
         const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
         const templateSource = `
@@ -320,8 +324,8 @@ class PDFReportService {
 
         .page { 
             width: 210mm; 
-            min-height: 252mm; 
-            padding: 0mm 20mm; 
+            min-height: 270mm; 
+            padding: 0mm 15mm; 
             position: relative; 
             display: flex; 
             flex-direction: column; 
@@ -338,12 +342,35 @@ class PDFReportService {
         }
         .page:last-of-type { page-break-after: auto; break-after: auto; }
 
+        /* PDF Uniformity and Page Break Optimizations */
+        h1, h2, h3, h4, h5 { 
+            break-after: avoid; 
+            page-break-after: avoid; 
+        }
 
+        /* Allow large cards to break if they have content, but keep smaller components together */
+        .summary-hero, 
+        .table-container, 
+        .score-summary-box, 
+        .sub-metric-box, 
+        .highlight-box,
+        .subdomain-header,
+        .card-insight-box { 
+            break-inside: avoid; 
+            page-break-inside: avoid; 
+        }
+
+        /* Orphans and Widows prevention for text blocks */
+        p, .bullet-item {
+            orphans: 3;
+            widows: 3;
+        }
 
         /* Cover Page */
         .cover-page { 
             width: 210mm;
-            height: 252mm;
+            height: 270mm;
+            min-height: 270mm !important;
             padding: 0 !important; 
             display: flex; 
             flex-direction: column; 
@@ -423,7 +450,7 @@ class PDFReportService {
 
         .cover-footer {
             position: absolute;
-            bottom: 5mm;
+            bottom: 15mm;
             left: 20mm;
             right: 20mm;
             display: grid;
@@ -457,16 +484,17 @@ class PDFReportService {
         }
 
         /* Typography */
-        h1 { font-family: 'Outfit', sans-serif; font-size: 26pt; font-weight: 800; color: var(--primary); margin: 0 0 8mm 0; letter-spacing: -1px; }
-        h2 { font-family: 'Outfit', sans-serif; font-size: 18pt; font-weight: 700; color: var(--primary); margin: 12mm 0 6mm 0; letter-spacing: -0.5px; }
-        p { font-size: 10.5pt; color: var(--text); margin-bottom: 5mm; line-height: 1.7; font-weight: 400; }
+        /* Typography - Compact & Perfect */
+        h1 { font-family: 'Outfit', sans-serif; font-size: 22pt; font-weight: 800; color: var(--primary); margin: 0 0 4mm 0; letter-spacing: -0.8px; line-height: 1.1; }
+        h2 { font-family: 'Outfit', sans-serif; font-size: 15pt; font-weight: 700; color: var(--primary); margin: 6mm 0 3mm 0; letter-spacing: -0.4px; }
+        p { font-size: 10pt; color: var(--text); margin-bottom: 3mm; line-height: 1.5; font-weight: 400; }
 
-        /* Inner Cards */
+        /* Inner Cards - Compact */
         .card { 
             background: #f8fafc; 
-            padding: 8mm; 
-            border-radius: 4mm; 
-            margin-bottom: 8mm; 
+            padding: 4mm 6mm; 
+            border-radius: 3mm; 
+            margin-bottom: 4mm; 
             border: 1px solid #e2e8f0; 
             position: relative; 
         }
@@ -490,9 +518,9 @@ class PDFReportService {
             display: flex; 
             align-items: center; 
             gap: 15mm; 
-            margin-bottom: 12mm; 
+            margin-bottom: 8mm; 
             background: var(--white); 
-            padding: 10mm; 
+            padding: 8mm 10mm; 
             border-radius: 5mm; 
             box-shadow: 0 15px 40px rgba(0,0,0,0.04); 
             border: 1px solid #f1f5f9; 
@@ -501,86 +529,87 @@ class PDFReportService {
         .gauge-val { position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%); font-size: 38pt; font-weight: 900; color: var(--primary); letter-spacing: -2px; font-family: 'Outfit', sans-serif; }
         .gauge-label { position: absolute; top: 95%; left: 50%; transform: translate(-50%, -50%); font-size: 9pt; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 2px; }
 
-        /* Domain Header */
+        /* Domain Header - Side-by-Side Flex */
+        .domain-flex-header {
+            display: flex;
+            gap: 4mm;
+            margin-bottom: 6mm;
+            align-items: stretch;
+        }
         .domain-header-box { 
+            flex: 1.6;
             background: var(--primary-gradient); 
             color: white; 
-            padding: 15mm; 
-            border-radius: 5mm; 
-            margin-bottom: 10mm; 
+            padding: 6mm 8mm; 
+            border-radius: 4mm; 
+            margin-bottom: 0; 
             position: relative; 
             overflow: hidden; 
-            box-shadow: 0 15px 35px rgba(26, 54, 82, 0.2); 
+            box-shadow: 0 10px 25px rgba(26, 54, 82, 0.2); 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
-        .domain-header-box::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 300px;
-            height: 300px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 50%;
-        }
+        .domain-header-box h1 { color: white; margin: 0; font-size: 20pt; line-height: 1.1; }
         .domain-desc { 
-            font-size: 11pt; 
+            font-size: 9pt; 
             color: rgba(255,255,255,0.9); 
-            margin-top: 5mm; 
-            line-height: 1.7; 
+            margin-top: 3mm; 
+            line-height: 1.4; 
             font-weight: 300; 
-            max-width: 85%; 
         }
-        .domain-header-box h1 { color: white; margin: 0; font-size: 32pt; }
+        .score-summary-box { 
+            flex: 1;
+            display: flex; 
+            flex-direction: column;
+            justify-content: center;
+            align-items: center; 
+            color: white; 
+            padding: 4mm 6mm; 
+            border-radius: 4mm; 
+            margin-bottom: 0; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+        .score-label { font-family: 'Outfit', sans-serif; font-size: 8pt; font-weight: 600; text-transform: uppercase; opacity: 0.9; letter-spacing: 1.5px; }
+        .score-value-large { font-family: 'Outfit', sans-serif; font-size: 22pt; font-weight: 800; letter-spacing: -1px; }
 
-        /* Tables */
-        .table-container { margin: 8mm 0; border-radius: 4mm; overflow: hidden; border: 1px solid #f1f5f9; }
+        /* Tables - Compact */
+        .table-container { margin: 6mm 0; border-radius: 3mm; overflow: hidden; border: 1px solid #f1f5f9; }
         .table { width: 100%; border-collapse: collapse; }
-        .table th { background: #f8fafc; text-align: left; padding: 5mm 6mm; font-size: 8.5pt; font-weight: 700; color: var(--light-text); text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 2px solid #e2e8f0; }
-        .table td { padding: 5mm 6mm; border-bottom: 1px solid #f1f5f9; font-size: 10.5pt; color: var(--text); }
+        .table th { background: #f8fafc; text-align: left; padding: 4mm 5mm; font-size: 8pt; font-weight: 700; color: var(--light-text); text-transform: uppercase; letter-spacing: 1.2px; border-bottom: 2px solid #e2e8f0; }
+        .table td { padding: 4mm 5mm; border-bottom: 1px solid #f1f5f9; font-size: 9.5pt; color: var(--text); }
         .table tr:last-child td { border-bottom: none; }
 
         /* Status Badges */
         .badge { 
             display: inline-flex; 
             align-items: center; 
-            padding: 1.5mm 4mm; 
+            padding: 1.2mm 3.5mm; 
             border-radius: 50px; 
-            font-size: 8pt; 
+            font-size: 7.5pt; 
             font-weight: 700; 
             text-transform: uppercase; 
-            letter-spacing: 1px; 
+            letter-spacing: 0.8px; 
             font-family: 'Outfit', sans-serif;
         }
         .badge-high { background: #dcfce7; color: #166534; }
         .badge-medium { background: #fef9c3; color: #854d0e; }
         .badge-low { background: #fee2e2; color: #991b1b; }
 
-        /* Bullet Lists */
+        /* Bullet Lists - Compact */
         .bullet-list { list-style: none; padding: 0; margin: 0; }
-        .bullet-item { display: flex; margin-bottom: 3.5mm; font-size: 10pt; align-items: flex-start; color: var(--text); line-height: 1.6; }
-        .bullet-dot { width: 6px; height: 6px; background: var(--secondary); border-radius: 50%; margin-right: 5mm; margin-top: 2.5mm; flex-shrink: 0; }
-        
-        .score-summary-box { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            color: white; 
-            padding: 8mm 12mm; 
-            border-radius: 4mm; 
-            margin-bottom: 10mm; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
-            position: relative;
-            overflow: hidden;
-        }
-        .score-label { font-family: 'Outfit', sans-serif; font-size: 9pt; font-weight: 600; text-transform: uppercase; opacity: 0.9; letter-spacing: 1.5px; }
-        .score-value-large { font-family: 'Outfit', sans-serif; font-size: 28pt; font-weight: 800; letter-spacing: -1px; }
+        .bullet-item { display: flex; margin-bottom: 1.5mm; font-size: 10pt; align-items: flex-start; color: var(--text); line-height: 1.35; }
+        .bullet-dot { width: 5px; height: 5px; background: var(--secondary); border-radius: 50%; margin-right: 4mm; margin-top: 1.8mm; flex-shrink: 0; }
 
         .subdomain-analysis-card {
             background: transparent;
             border: none;
             border-radius: 0;
             padding: 0;
-            margin-bottom: 15mm;
+            margin-bottom: 6mm;
             box-shadow: none;
         }
         .subdomain-header {
@@ -597,18 +626,18 @@ class PDFReportService {
         }
         .sub-metric-box {
             background: #f8fafc;
-            padding: 7mm;
-            border-radius: 4mm;
+            padding: 5mm 6mm;
+            border-radius: 3mm;
             border: 1px solid #e2e8f0;
         }
         .sub-metric-title { 
             font-family: 'Outfit', sans-serif;
-            font-size: 9pt; 
+            font-size: 8.5pt; 
             font-weight: 700; 
             color: var(--primary); 
             text-transform: uppercase; 
-            margin-bottom: 5mm; 
-            letter-spacing: 1.5px; 
+            margin-bottom: 3mm; 
+            letter-spacing: 1.2px; 
             display: flex;
             align-items: center;
             gap: 2mm;
@@ -669,13 +698,13 @@ class PDFReportService {
         
         <h1>The Data Synergy</h1>
         
-        <div style="margin-bottom: 12mm; border-left: 5px solid var(--secondary); padding-left: 10mm; background: #f8fafc; padding-block: 8mm; border-radius: 0 5mm 5mm 0; box-shadow: 0 10px 30px rgba(0,0,0,0.02);">
-            <p style="font-size: 12pt; color: var(--primary); font-weight: 500; margin-bottom: 6mm; line-height: 1.6;">{{synergyIntro}}</p>
-            <div style="display: flex; flex-direction: column; gap: 4mm;">
+            <div style="margin-bottom: 8mm; border-left: 5px solid var(--secondary); padding-left: 8mm; background: #f8fafc; padding-block: 6mm; border-radius: 0 4mm 4mm 0; box-shadow: 0 8px 25px rgba(0,0,0,0.02);">
+            <p style="font-size: 11pt; color: var(--primary); font-weight: 500; margin-bottom: 4mm; line-height: 1.5;">{{synergyIntro}}</p>
+            <div style="display: flex; flex-direction: column; gap: 3mm;">
                 <div style="display: flex; align-items: center; gap: 3mm;">
-                    <span style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--secondary); font-size: 8.5pt; text-transform: uppercase; letter-spacing: 2px;">Assessed Role: {{synergyRole.name}}</span>
+                    <span style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--secondary); font-size: 8pt; text-transform: uppercase; letter-spacing: 2px;">Assessed Role: {{synergyRole.name}}</span>
                 </div>
-                <p style="color: var(--light-text); font-size: 10.5pt; margin: 0; line-height: 1.6;">{{synergyRole.description}}</p>
+                <p style="color: var(--light-text); font-size: 9.5pt; margin: 0; line-height: 1.5;">{{synergyRole.description}}</p>
             </div>
         </div>
 
@@ -699,14 +728,14 @@ class PDFReportService {
                 <div class="gauge-label">{{getClassification report.scores.overall}}</div>
             </div>
             <div style="flex: 1;">
-                <h3 style="font-family: 'Outfit', sans-serif; font-size: 15pt; font-weight: 700; color: var(--primary); margin: 0 0 4mm 0; letter-spacing: -0.5px;">Portfolio Score</h3>
-                <p style="font-size: 11pt; margin-bottom: 0; line-height: 1.7;">Your consolidated performance score is <strong style="color: var(--secondary); font-size: 14pt; font-family: 'Outfit', sans-serif;">{{round report.scores.overall}}%</strong>. This indicates a state of <strong style="color: {{gaugeColor report.scores.overall}};">{{getClassification report.scores.overall}} Efficiency</strong> across your organizational footprint.</p>
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 14pt; font-weight: 700; color: var(--primary); margin: 0 0 3mm 0; letter-spacing: -0.5px;">Portfolio Score</h3>
+                <p style="font-size: 10pt; margin-bottom: 0; line-height: 1.5;">Your consolidated performance score is <strong style="color: var(--secondary); font-size: 12pt; font-family: 'Outfit', sans-serif;">{{round report.scores.overall}}%</strong>. This indicates a state of <strong style="color: {{gaugeColor report.scores.overall}};">{{getClassification report.scores.overall}} Efficiency</strong> across your organizational footprint.</p>
             </div>
         </div>
 
         <div class="card card-insight">
             <div class="block-title">Key Strategic Intelligence</div>
-            <p style="font-size: 12.5pt; font-weight: 600; color: var(--primary); line-height: 1.7; margin: 0; letter-spacing: -0.2px;">{{aiInsight.description}}</p>
+            <p style="font-size: 11pt; font-weight: 600; color: var(--primary); line-height: 1.5; margin: 0; letter-spacing: -0.2px;">{{aiInsight.description}}</p>
         </div>
 
         <h2 style="margin-top: 10mm;">Domain Analysis Matrix</h2>
@@ -732,9 +761,9 @@ class PDFReportService {
         </div>
 
         <!-- POD-360 MODEL TRIANGLE (Summary Page Only) -->
-        <div style="background: #EDF5FD; border-left: 5px solid var(--secondary); border-radius: 4mm; padding: 7mm 10mm 7mm 8mm; margin-top: 10mm; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
-            <div style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 9pt; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5mm;">POD-360&#8482; Model Performance Intelligence</div>
-                <svg width="260" height="250" viewBox="0 0 300 290" style="display: block; margin: 0 auto; -webkit-print-color-adjust: exact;">
+        <div style="background: #EDF5FD; border-left: 5px solid var(--secondary); border-radius: 4mm; padding: 5mm 8mm; margin-top: 6mm; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
+            <div style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 8.5pt; color: var(--primary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3mm;">POD-360&#8482; Model Performance Intelligence</div>
+                <svg width="220" height="210" viewBox="0 0 300 290" style="display: block; margin: 0 auto; -webkit-print-color-adjust: exact;">
                     <!-- Background triangle: T(150,35) L(30,243) R(270,243) -->
                     <polygon points="150,35 30,243 270,243" fill="#dceaf7" stroke="#aecde8" stroke-width="1.5"/>
                     <!-- People Potential zone (top, dark navy) -->
@@ -769,21 +798,16 @@ class PDFReportService {
     <!-- DOMAIN ANALYSIS PAGE -->
     <div class="page page-flow" style="display: block;">
 
+        <div class="domain-flex-header">
+            <div class="domain-header-box">
+                <h1>{{name}}</h1>
+                <div class="domain-desc">{{description}}</div>
+            </div>
 
-        <div class="domain-header-box">
-            <h1>{{name}}</h1>
-            <div class="domain-desc">{{description}}</div>
-        </div>
-
-        <div class="score-summary-box" style="background: {{gaugeColor score}};">
-            <div style="position: absolute; right: -50px; top: -50px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
-            <div>
+            <div class="score-summary-box" style="background: {{gaugeColor score}};">
                 <div class="score-label">Domain Efficiency</div>
                 <div class="score-value-large">{{round score}}%</div>
-            </div>
-            <div style="text-align: right; z-index: 1;">
-                <div class="score-label">Maturity Level</div>
-                <div class="score-value-large" style="font-size: 20pt; text-transform: uppercase;">{{getClassification score}}</div>
+                <div class="badge badge-{{toLowerCase (getClassification score)}}" style="margin-top: 1.5mm; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">{{getClassification score}}</div>
             </div>
         </div>
 
@@ -804,7 +828,7 @@ class PDFReportService {
                 </div>
             </div>
 
-            <p style="font-size: 11pt; line-height: 1.7; color: var(--text); margin-bottom: 6mm;">{{description}}</p>
+            <p style="font-size: 10pt; line-height: 1.5; color: var(--text); margin-bottom: 4mm;">{{description}}</p>
 
             <!-- POD-360 INSIGHT (per subdomain) -->
             {{#if modelDescription}}
@@ -821,10 +845,10 @@ class PDFReportService {
             </div>
             {{/if}}
 
-            <div style="background: #f1f5f9; padding: 6mm 8mm; border-radius: 4mm; border-left: 5px solid var(--primary); margin-bottom: 10mm;">
-                <div class="block-title" style="margin-bottom: 3mm; color: var(--primary);">Contextual Insight</div>
+            <div class="card-insight-box" style="background: #f1f5f9; padding: 5mm 7mm; border-radius: 4mm; border-left: 5px solid var(--primary); margin-bottom: 6mm;">
+                <div class="block-title" style="margin-bottom: 2mm; color: var(--primary);">Contextual Insight</div>
                 {{#each insight}}
-                <div style="font-size: 10.5pt; line-height: 1.6; color: var(--text); margin-bottom: 2mm;">{{this}}</div>
+                <div style="font-size: 9.5pt; line-height: 1.4; color: var(--text); margin-bottom: 1.5mm;">{{this}}</div>
                 {{/each}}
             </div>
 
