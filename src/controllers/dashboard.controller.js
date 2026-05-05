@@ -976,38 +976,44 @@ export const releaseReport = async (req, res) => {
         assessment.isReleased = true;
         await assessment.save();
 
-        // 📧 GENERATE PDF & SEND ATTACHMENT
-        try {
-            const targetUser = assessment.userDetails;
-            const reportType = assessment.stakeholder || "Professional Assessment";
+        // Snapshot data as plain object so it survives after response is sent
+        const assessmentData = assessment.toObject();
+        const targetUser = assessmentData.userDetails;
+        const reportType = assessmentData.stakeholder || "Professional Assessment";
 
-            // 1. Prepare data for PDF (including comparison)
-            const domainScoresArray = Object.values(assessment.scores?.domains || {});
-            const avgScore = domainScoresArray.length > 0
-                ? domainScoresArray.reduce((acc, d) => acc + (d.score || 0), 0) / domainScoresArray.length : 0;
-            const aiInsight = {
-                title: avgScore > 75 ? "Excellence Sustained" : avgScore < 50 ? "Opportunity for Shift" : "Performance Trajectory",
-                description: `Average score of ${Math.round(avgScore)}% across all domains.`,
-                type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
-            };
-
-            // Mocking comparisonData or fetching if possible (simplified for email)
-            const data = {
-                report: assessment,
-                user: targetUser,
-                aiInsight,
-                hasReport: true
-            };
-
-            const pdfBuffer = await PDFReportService.generateReportBuffer(data);
-            await sendReportReleasedEmail(targetUser, reportType, pdfBuffer);
-        } catch (err) {
-            console.error("[ReleaseReport] Delivery failed but status updated:", err.message);
-        }
-
+        // Send response immediately so the UI doesn't wait
         res.status(200).json({
-            message: "Report successfully released and user notified.",
+            message: "Report successfully released and user will be notified shortly.",
             isReleased: true
+        });
+
+        // 📧 GENERATE PDF & SEND ATTACHMENT (Run in background after response)
+        setImmediate(async () => {
+            try {
+                console.log("[ReleaseReport] Starting background PDF generation & email...");
+
+                const domainScoresArray = Object.values(assessmentData.scores?.domains || {});
+                const avgScore = domainScoresArray.length > 0
+                    ? domainScoresArray.reduce((acc, d) => acc + (d.score || 0), 0) / domainScoresArray.length : 0;
+                const aiInsight = {
+                    title: avgScore > 75 ? "Excellence Sustained" : avgScore < 50 ? "Opportunity for Shift" : "Performance Trajectory",
+                    description: `Average score of ${Math.round(avgScore)}% across all domains.`,
+                    type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
+                };
+
+                const data = {
+                    report: assessmentData,
+                    user: targetUser,
+                    aiInsight,
+                    hasReport: true
+                };
+
+                const pdfBuffer = await PDFReportService.generateReportBuffer(data);
+                await sendReportReleasedEmail(targetUser, reportType, pdfBuffer);
+                console.log(`[ReleaseReport] Email sent successfully to ${targetUser?.email}`);
+            } catch (err) {
+                console.error("[ReleaseReport] Background delivery failed:", err.message, err.stack);
+            }
         });
     } catch (error) {
         console.error("Error in releaseReport:", error);

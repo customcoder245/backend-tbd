@@ -879,7 +879,7 @@ class PDFReportService {
 
             {{#if recommendedPrograms.length}}
             <div class="highlight-box">
-                <div class="block-title" style="margin-bottom: 4mm;">Recommended Programs</div>
+                <div class="block-title" style="margin-bottom: 4mm;">RECOMMENDED PROGRAMS AND INITIATIVES</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;">
                     {{#each recommendedPrograms}}
                     <div style="display: flex; align-items: center; gap: 3mm; font-size: 10pt; font-weight: 600; color: var(--primary);">
