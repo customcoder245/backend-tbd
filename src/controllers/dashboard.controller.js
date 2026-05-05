@@ -951,7 +951,7 @@ export const releaseReport = async (req, res) => {
 
         const requester = await User.findById(loggedInUserId);
         const rRole = requester?.role?.toLowerCase();
-        const isAuthorized = rRole === "superadmin" || rRole === "super_admin";
+        const isAuthorized = rRole === "superadmin" || rRole === "super_admin" || rRole === "admin";
 
         if (!isAuthorized) {
             return res.status(403).json({ message: "Only Super Admin and Admin can release reports." });
