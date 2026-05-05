@@ -853,16 +853,37 @@ class PDFReportService {
             </div>
 
             <div class="sub-metrics-grid">
-                <div class="sub-metric-box" style="border-top: 4px solid var(--secondary);">
+                <div class="sub-metric-box" style="border-top: 4px solid var(--secondary); background: #ffffff;">
                     <div class="sub-metric-title">Priority Actions (OKRs)</div>
-                    <ul class="bullet-list">
-                        {{#each okrs}}
-                        <li class="bullet-item">
-                            <div class="bullet-dot"></div>
-                            {{this}}
-                        </li>
-                        {{/each}}
-                    </ul>
+                    {{#if okrs.focus}}
+                    <div style="font-size: 8.5pt; font-weight: 700; color: var(--secondary); margin-bottom: 3mm; padding: 1.5mm 2.5mm; background: #f0f7ff; border-radius: 1.5mm; border-left: 3px solid var(--secondary);">
+                        <span style="opacity: 0.7; text-transform: uppercase; font-size: 7pt; letter-spacing: 0.5px; display: block; margin-bottom: 0.5mm;">Focus Area</span>
+                        {{okrs.focus}}
+                    </div>
+                    {{/if}}
+                    
+                    {{#each okrs.list}}
+                    <div style="margin-bottom: 4mm;">
+                        {{#if title}}
+                        <div style="font-weight: 700; font-size: 9pt; color: var(--primary); margin-bottom: 2mm; display: flex; align-items: center; gap: 2mm;">
+                            <div style="width: 8px; height: 2px; background: var(--secondary); border-radius: 1px;"></div>
+                            {{title}}
+                        </div>
+                        {{/if}}
+                        <ul class="bullet-list" style="margin-left: 2mm;">
+                            {{#each keyResults}}
+                            <li class="bullet-item">
+                                <div class="bullet-dot"></div>
+                                {{this}}
+                            </li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/each}}
+                    
+                    {{#unless okrs.list.length}}
+                    <p style="font-size: 9pt; color: var(--light-text); font-style: italic;">No specific objectives defined for this period.</p>
+                    {{/unless}}
                 </div>
                 <div class="sub-metric-box" style="border-top: 4px solid var(--primary);">
                     <div class="sub-metric-title">Coaching & Development</div>
@@ -949,6 +970,55 @@ class PDFReportService {
                 .map(l => l.trim().replace(/^[•\-\*]\s*/, ''))
                 .filter(l => l.length > 0)
                 .slice(0, limit);
+        };
+
+        const parseStructuredOKRs = (text) => {
+            if (!text || !text.trim()) return { focus: "", list: [] };
+            
+            let focus = "";
+            let remainingText = text;
+            
+            // Extract [FOCUS] if present
+            const focusMatch = text.match(/\[FOCUS\]\s*([\s\S]*?)(?:\r?\n\r?\n|\r?\n|$)/i);
+            if (focusMatch) {
+                focus = focusMatch[1].trim();
+                remainingText = text.replace(focusMatch[0], "").trim();
+            }
+
+            // Split into blocks by double newlines
+            const blocks = remainingText.split(/\r?\n\r?\n+/).map(b => b.trim()).filter(b => b.length > 0);
+            
+            const list = blocks.map(block => {
+                const lines = block.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length === 0) return null;
+                
+                let title = "";
+                let keyResults = [];
+                
+                // Heuristic: if first line doesn't start with bullet, it's a title
+                const firstLine = lines[0];
+                const isBullet = /^[•\-\*]/.test(firstLine);
+                
+                if (!isBullet && lines.length > 1) {
+                    title = firstLine;
+                    keyResults = lines.slice(1).map(l => l.replace(/^[•\-\*]\s*/, ''));
+                } else {
+                    // All lines are key results
+                    keyResults = lines.map(l => l.replace(/^[•\-\*]\s*/, ''));
+                }
+                
+                return { title, keyResults };
+            }).filter(item => item !== null);
+
+            // Fallback for old simple list format if no blocks were parsed but text exists
+            if (list.length === 0 && remainingText.trim()) {
+                const lines = getBulletedLines(remainingText, 10);
+                if (lines.length > 0) {
+                    list.push({ title: "", keyResults: lines });
+                }
+            }
+
+            return { focus, list };
         };
 
         const templateData = {
@@ -1049,7 +1119,7 @@ class PDFReportService {
                         description: this.subdomainDescriptions[sName] || "",
                         modelDescription: subInsightProcessed, // Swapped: Insight data goes to Model section
                         insight: modelDescriptionProcessed,    // Swapped: Model data goes to Insight box
-                        okrs: getBulletedLines(subFb.objectives || "", 5).concat(defaultOkrs).slice(0, 5),
+                        okrs: parseStructuredOKRs(subFb.objectives || ""),
                         coaching: getBulletedLines(subFb.coachingTips || "", 5).concat(defaultCoaching).slice(0, 5),
                         recommendedPrograms: getBulletedLines(subFb.recommendedPrograms || "", 4).concat(defaultPrograms).slice(0, 4)
                     };
@@ -1066,7 +1136,7 @@ class PDFReportService {
                     state: this._getClassification(dData.score),
                     description: this.domainDescriptions[dName] || "",
                     insights: getBulletedLines(fb.insight || fb.modelDescription || "", 5),
-                    okrs: getBulletedLines(fb.objectives || "", 5),
+                    okrs: parseStructuredOKRs(fb.objectives || ""),
                     coaching: getBulletedLines(fb.coachingTips || "", 5),
                     subdomainPages: chunkedSubdomains
                 };
