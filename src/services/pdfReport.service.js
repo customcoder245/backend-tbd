@@ -211,10 +211,10 @@ class PDFReportService {
             const pdfBuffer = await page.pdf({
                 format: 'A4',
                 printBackground: true,
-                margin: { top: '15mm', right: '0mm', bottom: '12mm', left: '0mm' },
+                margin: { top: '22mm', right: '0mm', bottom: '18mm', left: '0mm' },
                 displayHeaderFooter: true,
                 headerTemplate: `
-                    <div style="font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 7.5pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 15mm; color: #64748B; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; -webkit-print-color-adjust: exact;">
+                    <div style="font-family: 'Quicksand', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 20mm 5mm 20mm; color: #64748B; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; -webkit-print-color-adjust: exact; border-bottom: 1px solid #E2E8F0;">
                         <div style="display: flex; align-items: center; gap: 1.5mm;">
                             <span style="color: #448CD2; font-weight: 800;">POD-360™</span>
                             <span style="opacity: 0.3;">|</span>
@@ -224,7 +224,7 @@ class PDFReportService {
                     </div>
                 `,
                 footerTemplate: `
-                    <div style="font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 7.5pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 15mm; color: #94A3B8; -webkit-print-color-adjust: exact;">
+                    <div style="font-family: 'Quicksand', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 5mm 20mm 0 20mm; color: #94A3B8; -webkit-print-color-adjust: exact; border-top: 1px solid #E2E8F0;">
                         <div style="font-weight: 400;">Confidential © Talent By Design</div>
                         <div style="font-weight: 600; color: #64748B;">PAGE <span class="pageNumber"></span> / <span class="totalPages"></span></div>
                     </div>
@@ -241,24 +241,24 @@ class PDFReportService {
                     const firstPage = pages[0];
                     const { width, height } = firstPage.getSize();
 
-                    // Mask Header (Top 25mm + 1mm overlap)
-                    const maskHeight = 26 * 2.835;
+                    // Mask Header (Top 28mm to ensure full coverage of borders)
+                    const maskHeight = 28 * 2.835;
                     firstPage.drawRectangle({
                         x: 0,
                         y: height - maskHeight,
                         width: width,
                         height: maskHeight,
-                        color: rgb(26/255, 54/255, 82/255), // Navy
+                        color: rgb(26 / 255, 54 / 255, 82 / 255), // Navy (#1A3652)
                     });
 
-                    // Mask Footer (Bottom 20mm + 1mm overlap)
-                    const footerMaskHeight = 21 * 2.835;
+                    // Mask Footer (Bottom 25mm to ensure full coverage)
+                    const footerMaskHeight = 25 * 2.835;
                     firstPage.drawRectangle({
                         x: 0,
                         y: 0,
                         width: width,
                         height: footerMaskHeight,
-                        color: rgb(26/255, 54/255, 82/255), // Navy
+                        color: rgb(26 / 255, 54 / 255, 82 / 255), // Navy (#1A3652)
                     });
                 }
                 const modifiedPdfBuffer = await pdfDoc.save();
@@ -284,7 +284,7 @@ class PDFReportService {
     _buildHTML(data) {
         const { report, user, aiInsight, isMasterReport, comparisonData } = data;
         const orgName = isMasterReport ? (data.orgName || user?.orgName || "Organization") : (user?.orgName || "Talent By Design");
-        const userName = isMasterReport 
+        const userName = isMasterReport
             ? `${orgName} Intelligence Report`
             : (`${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "Participant");
         const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -295,7 +295,7 @@ class PDFReportService {
 <head>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #1A3652;
@@ -318,29 +318,32 @@ class PDFReportService {
             padding: 0; 
             background: #ffffff; 
             -webkit-print-color-adjust: exact; 
-            font-family: 'Inter', sans-serif; 
+            font-family: 'Quicksand', sans-serif; 
             color: var(--text); 
         }
 
         .page { 
             width: 210mm; 
-            min-height: 270mm; 
-            padding: 0mm 15mm; 
+            min-height: 255mm; 
+            padding: 5mm 20mm 5mm 20mm; 
             position: relative; 
             display: flex; 
             flex-direction: column; 
             background: #ffffff; 
-            page-break-after: always; 
-            break-after: page;
+            page-break-before: always; 
+            break-before: page;
             overflow: hidden;
             box-sizing: border-box;
         }
+        .page:first-of-type, .cover-page {
+            page-break-before: avoid !important;
+            break-before: avoid !important;
+        }
         .page-flow {
-            min-height: 297mm;
+            min-height: 255mm;
             height: auto !important;
             overflow: visible !important;
         }
-        .page:last-of-type { page-break-after: auto; break-after: auto; }
 
         /* PDF Uniformity and Page Break Optimizations */
         h1, h2, h3, h4, h5 { 
@@ -369,8 +372,8 @@ class PDFReportService {
         /* Cover Page */
         .cover-page { 
             width: 210mm;
-            height: 270mm;
-            min-height: 270mm !important;
+            height: 250mm;
+            min-height: 250mm !important;
             padding: 0 !important; 
             display: flex; 
             flex-direction: column; 
@@ -422,7 +425,7 @@ class PDFReportService {
         }
 
         .cover-main-title {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Quicksand', sans-serif;
             font-size: 64pt;
             font-weight: 900;
             line-height: 0.85;
@@ -432,7 +435,7 @@ class PDFReportService {
         }
 
         .cover-subtitle {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Quicksand', sans-serif;
             font-size: 18pt;
             font-weight: 300;
             letter-spacing: 6px;
@@ -450,7 +453,7 @@ class PDFReportService {
 
         .cover-footer {
             position: absolute;
-            bottom: 15mm;
+            bottom: 5mm;
             left: 20mm;
             right: 20mm;
             display: grid;
@@ -468,7 +471,7 @@ class PDFReportService {
         }
 
         .footer-label {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Quicksand', sans-serif;
             font-size: 7.5pt;
             font-weight: 700;
             color: rgba(255,255,255,0.5);
@@ -477,7 +480,7 @@ class PDFReportService {
         }
 
         .footer-value {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Quicksand', sans-serif;
             font-size: 10.5pt;
             font-weight: 600;
             color: white;
@@ -485,8 +488,8 @@ class PDFReportService {
 
         /* Typography */
         /* Typography - Compact & Perfect */
-        h1 { font-family: 'Outfit', sans-serif; font-size: 22pt; font-weight: 800; color: var(--primary); margin: 0 0 4mm 0; letter-spacing: -0.8px; line-height: 1.1; }
-        h2 { font-family: 'Outfit', sans-serif; font-size: 15pt; font-weight: 700; color: var(--primary); margin: 6mm 0 3mm 0; letter-spacing: -0.4px; }
+        h1 { font-family: 'Quicksand', sans-serif; font-size: 22pt; font-weight: 800; color: var(--primary); margin: 2mm 0 4mm 0; letter-spacing: -0.8px; line-height: 1.1; }
+        h2 { font-family: 'Quicksand', sans-serif; font-size: 15pt; font-weight: 700; color: var(--primary); margin: 4mm 0 3mm 0; letter-spacing: -0.4px; }
         p { font-size: 10pt; color: var(--text); margin-bottom: 3mm; line-height: 1.5; font-weight: 400; }
 
         /* Inner Cards - Compact */
@@ -504,7 +507,7 @@ class PDFReportService {
             box-shadow: 0 10px 30px rgba(0,0,0,0.03);
         }
         .block-title { 
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Quicksand', sans-serif;
             font-weight: 700; 
             color: var(--secondary); 
             font-size: 9pt; 
@@ -526,14 +529,15 @@ class PDFReportService {
             border: 1px solid #f1f5f9; 
         }
         .visual-container { position: relative; width: 220px; height: 130px; flex-shrink: 0; }
-        .gauge-val { position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%); font-size: 38pt; font-weight: 900; color: var(--primary); letter-spacing: -2px; font-family: 'Outfit', sans-serif; }
+        .gauge-val { position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%); font-size: 38pt; font-weight: 900; color: var(--primary); letter-spacing: -2px; font-family: 'Quicksand', sans-serif; }
         .gauge-label { position: absolute; top: 95%; left: 50%; transform: translate(-50%, -50%); font-size: 9pt; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 2px; }
 
         /* Domain Header - Side-by-Side Flex */
         .domain-flex-header {
             display: flex;
             gap: 4mm;
-            margin-bottom: 6mm;
+            margin-bottom: 10mm;
+            margin-top: 0;
             align-items: stretch;
         }
         .domain-header-box { 
@@ -573,8 +577,8 @@ class PDFReportService {
             overflow: hidden;
             text-align: center;
         }
-        .score-label { font-family: 'Outfit', sans-serif; font-size: 8pt; font-weight: 600; text-transform: uppercase; opacity: 0.9; letter-spacing: 1.5px; }
-        .score-value-large { font-family: 'Outfit', sans-serif; font-size: 22pt; font-weight: 800; letter-spacing: -1px; }
+        .score-label { font-family: 'Quicksand', sans-serif; font-size: 8pt; font-weight: 600; text-transform: uppercase; opacity: 0.9; letter-spacing: 1.5px; }
+        .score-value-large { font-family: 'Quicksand', sans-serif; font-size: 22pt; font-weight: 800; letter-spacing: -1px; }
 
         /* Tables - Compact */
         .table-container { margin: 6mm 0; border-radius: 3mm; overflow: hidden; border: 1px solid #f1f5f9; }
@@ -593,7 +597,7 @@ class PDFReportService {
             font-weight: 700; 
             text-transform: uppercase; 
             letter-spacing: 0.8px; 
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Quicksand', sans-serif;
         }
         .badge-high { background: #dcfce7; color: #166534; }
         .badge-medium { background: #fef9c3; color: #854d0e; }
@@ -602,7 +606,17 @@ class PDFReportService {
         /* Bullet Lists - Compact */
         .bullet-list { list-style: none; padding: 0; margin: 0; }
         .bullet-item { display: flex; margin-bottom: 1.5mm; font-size: 10pt; align-items: flex-start; color: var(--text); line-height: 1.35; }
-        .bullet-dot { width: 5px; height: 5px; background: var(--secondary); border-radius: 50%; margin-right: 4mm; margin-top: 1.8mm; flex-shrink: 0; }
+        .bullet-dot { 
+            width: 6px; 
+            height: 6px; 
+            min-width: 6px;
+            aspect-ratio: 1/1;
+            background: var(--secondary); 
+            border-radius: 50%; 
+            margin-right: 4mm; 
+            margin-top: 1.8mm; 
+            flex-shrink: 0; 
+        }
 
         .subdomain-analysis-card {
             background: transparent;
@@ -631,7 +645,7 @@ class PDFReportService {
             border: 1px solid #e2e8f0;
         }
         .sub-metric-title { 
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Quicksand', sans-serif;
             font-size: 8.5pt; 
             font-weight: 700; 
             color: var(--primary); 
@@ -641,13 +655,6 @@ class PDFReportService {
             display: flex;
             align-items: center;
             gap: 2mm;
-        }
-        .sub-metric-title::before {
-            content: '';
-            width: 3px;
-            height: 12px;
-            background: var(--secondary);
-            border-radius: 2px;
         }
 
         .highlight-box {
@@ -702,7 +709,7 @@ class PDFReportService {
             <p style="font-size: 11pt; color: var(--primary); font-weight: 500; margin-bottom: 4mm; line-height: 1.5;">{{synergyIntro}}</p>
             <div style="display: flex; flex-direction: column; gap: 3mm;">
                 <div style="display: flex; align-items: center; gap: 3mm;">
-                    <span style="font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--secondary); font-size: 8pt; text-transform: uppercase; letter-spacing: 2px;">Assessed Role: {{synergyRole.name}}</span>
+                    <span style="font-family: 'Quicksand', sans-serif; font-weight: 800; color: var(--secondary); font-size: 8pt; text-transform: uppercase; letter-spacing: 2px;">Assessed Role: {{synergyRole.name}}</span>
                 </div>
                 <p style="color: var(--light-text); font-size: 9.5pt; margin: 0; line-height: 1.5;">{{synergyRole.description}}</p>
             </div>
@@ -728,8 +735,8 @@ class PDFReportService {
                 <div class="gauge-label">{{getClassification report.scores.overall}}</div>
             </div>
             <div style="flex: 1;">
-                <h3 style="font-family: 'Outfit', sans-serif; font-size: 14pt; font-weight: 700; color: var(--primary); margin: 0 0 3mm 0; letter-spacing: -0.5px;">Portfolio Score</h3>
-                <p style="font-size: 10pt; margin-bottom: 0; line-height: 1.5;">Your consolidated performance score is <strong style="color: var(--secondary); font-size: 12pt; font-family: 'Outfit', sans-serif;">{{round report.scores.overall}}%</strong>. This indicates a state of <strong style="color: {{gaugeColor report.scores.overall}};">{{getClassification report.scores.overall}} Efficiency</strong> across your organizational footprint.</p>
+                <h3 style="font-family: 'Quicksand', sans-serif; font-size: 14pt; font-weight: 700; color: var(--primary); margin: 0 0 3mm 0; letter-spacing: -0.5px;">Portfolio Score</h3>
+                <p style="font-size: 10pt; margin-bottom: 0; line-height: 1.5;">Your consolidated performance score is <strong style="color: var(--secondary); font-size: 12pt; font-family: 'Quicksand', sans-serif;">{{round report.scores.overall}}%</strong>. This indicates a state of <strong style="color: {{gaugeColor report.scores.overall}};">{{getClassification report.scores.overall}} Efficiency</strong> across your organizational footprint.</p>
             </div>
         </div>
 
@@ -752,7 +759,7 @@ class PDFReportService {
                     {{#each domainPages}}
                     <tr>
                         <td style="font-weight: 700; color: var(--primary); font-size: 11pt;">{{name}}</td>
-                        <td style="font-weight: 800; color: var(--secondary); font-size: 12pt; font-family: 'Outfit', sans-serif;">{{round score}}%</td>
+                        <td style="font-weight: 800; color: var(--secondary); font-size: 12pt; font-family: 'Quicksand', sans-serif;">{{round score}}%</td>
                         <td><span class="badge badge-{{toLowerCase (getClassification score)}}">{{getClassification score}}</span></td>
                     </tr>
                     {{/each}}
@@ -762,32 +769,54 @@ class PDFReportService {
 
         <!-- POD-360 MODEL TRIANGLE (Summary Page Only) -->
         <div style="background: #EDF5FD; border-left: 5px solid var(--secondary); border-radius: 4mm; padding: 5mm 8mm; margin-top: 6mm; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
-            <div style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 8.5pt; color: var(--primary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3mm;">POD-360&#8482; Model Performance Intelligence</div>
-                <svg width="220" height="210" viewBox="0 0 300 290" style="display: block; margin: 0 auto; -webkit-print-color-adjust: exact;">
-                    <!-- Background triangle: T(150,35) L(30,243) R(270,243) -->
-                    <polygon points="150,35 30,243 270,243" fill="#dceaf7" stroke="#aecde8" stroke-width="1.5"/>
-                    <!-- People Potential zone (top, dark navy) -->
-                    <polygon points="{{@root.triangleSVG.pp}}" fill="#1A3652" opacity="0.88"/>
-                    <!-- Operational Steadiness zone (bottom-left, mid blue) -->
-                    <polygon points="{{@root.triangleSVG.os}}" fill="#2563a8" opacity="0.78"/>
-                    <!-- Digital Fluency zone (bottom-right, light blue) -->
-                    <polygon points="{{@root.triangleSVG.df}}" fill="#448CD2" opacity="0.62"/>
-                    
-                    <!-- Labels and Scores -->
-                    <!-- TOP: People Potential -->
-                    <text x="150" y="8" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">PEOPLE</text>
-                    <text x="150" y="19" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">POTENTIAL</text>
-                    <text x="150" y="32" text-anchor="middle" font-family="'Outfit', sans-serif" font-size="11" font-weight="800" fill="#1A3652">{{@root.triangleSVG.ppScore}}%</text>
+            <div style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 8.5pt; color: var(--primary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3mm;">POD-360&#8482; Model Performance Intelligence</div>
+                <svg width="280" height="250" viewBox="-10 -5 320 320" style="display: block; margin: 0 auto; -webkit-print-color-adjust: exact; overflow: visible;">
+                    <!--
+                        Triangle: T(150,45)  L(30,255)  R(270,255)  Centroid G(150,185)
+                        Rounded corners via quadratic bezier (r≈14):
+                          T_toL=(143,57)  T_toR=(157,57)
+                          L_toT=(37,243)  L_toR=(44,255)
+                          R_toL=(256,255) R_toT=(263,243)
+                        Path: M 157,57 → L 263,243 → Q 270,255 256,255
+                              → L 44,255 → Q 30,255 37,243
+                              → L 143,57 → Q 150,45 157,57 Z
+                    -->
+                    <defs>
+                        <clipPath id="roundedTriClip">
+                            <path d="M 157,57 L 263,243 Q 270,255 256,255 L 44,255 Q 30,255 37,243 L 143,57 Q 150,45 157,57 Z"/>
+                        </clipPath>
+                    </defs>
 
-                    <!-- BOTTOM LEFT: Operational Steadiness -->
-                    <text x="35" y="254" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">OPERATIONAL</text>
-                    <text x="35" y="265" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">STEADINESS</text>
-                    <text x="35" y="280" text-anchor="middle" font-family="'Outfit', sans-serif" font-size="11" font-weight="800" fill="#2563a8">{{@root.triangleSVG.osScore}}%</text>
+                    <!-- Rounded background fill -->
+                    <path d="M 157,57 L 263,243 Q 270,255 256,255 L 44,255 Q 30,255 37,243 L 143,57 Q 150,45 157,57 Z" fill="#EDF5FD" stroke="none"/>
 
-                    <!-- BOTTOM RIGHT: Digital Fluency -->
-                    <text x="265" y="254" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">DIGITAL</text>
-                    <text x="265" y="265" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="700" fill="#1A3652">FLUENCY</text>
-                    <text x="265" y="280" text-anchor="middle" font-family="'Outfit', sans-serif" font-size="11" font-weight="800" fill="#448CD2">{{@root.triangleSVG.dfScore}}%</text>
+                    <!-- Zone polygons clipped to the rounded triangle -->
+                    <g clip-path="url(#roundedTriClip)">
+                        <!-- PP zone: T→L→G  — #1A3652 dark navy -->
+                        <polygon points="150,45 30,255 150,185" fill="#1A3652"/>
+                        <!-- OS zone: L→R→G  — #3C7CBA medium blue -->
+                        <polygon points="30,255 270,255 150,185" fill="#3C7CBA"/>
+                        <!-- DF zone: T→R→G  — #C7E0F8 lightest blue -->
+                        <polygon points="150,45 270,255 150,185" fill="#C7E0F8"/>
+                    </g>
+
+                    <!-- Rounded outline on top -->
+                    <path d="M 157,57 L 263,243 Q 270,255 256,255 L 44,255 Q 30,255 37,243 L 143,57 Q 150,45 157,57 Z" fill="none" stroke="#C7E0F8" stroke-width="2" stroke-linejoin="round"/>
+
+                    <!-- TOP label: PEOPLE POTENTIAL -->
+                    <text x="150" y="16"  text-anchor="middle" font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">PEOPLE</text>
+                    <text x="150" y="27"  text-anchor="middle" font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">POTENTIAL</text>
+                    <text x="150" y="40"  text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#1A3652">{{@root.triangleSVG.ppScore}}%</text>
+
+                    <!-- BOTTOM-LEFT label: OPERATIONAL STEADINESS -->
+                    <text x="2"   y="268" text-anchor="start"  font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">OPERATIONAL</text>
+                    <text x="2"   y="279" text-anchor="start"  font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">STEADINESS</text>
+                    <text x="2"   y="293" text-anchor="start"  font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#3C7CBA">{{@root.triangleSVG.osScore}}%</text>
+
+                    <!-- BOTTOM-RIGHT label: DIGITAL FLUENCY -->
+                    <text x="298" y="268" text-anchor="end"    font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">DIGITAL</text>
+                    <text x="298" y="279" text-anchor="end"    font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">FLUENCY</text>
+                    <text x="298" y="293" text-anchor="end"    font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#3C7CBA">{{@root.triangleSVG.dfScore}}%</text>
                 </svg>
         </div>
 
@@ -795,35 +824,35 @@ class PDFReportService {
     </div>
 
     {{#each domainPages}}
+    {{#each subdomainPages}}
     <!-- DOMAIN ANALYSIS PAGE -->
     <div class="page page-flow" style="display: block;">
 
+        {{#if @first}}
         <div class="domain-flex-header">
             <div class="domain-header-box">
-                <h1>{{name}}</h1>
-                <div class="domain-desc">{{description}}</div>
+                <h1>{{../name}}</h1>
+                <div class="domain-desc">{{../description}}</div>
             </div>
 
-            <div class="score-summary-box" style="background: {{gaugeColor score}};">
+            <div class="score-summary-box" style="background: {{gaugeColor ../score}};">
                 <div class="score-label">Domain Efficiency</div>
-                <div class="score-value-large">{{round score}}%</div>
-                <div class="badge badge-{{toLowerCase (getClassification score)}}" style="margin-top: 1.5mm; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">{{getClassification score}}</div>
+                <div class="score-value-large">{{round ../score}}%</div>
+                <div class="badge badge-{{toLowerCase (getClassification ../score)}}" style="margin-top: 1.5mm; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">{{getClassification ../score}}</div>
             </div>
         </div>
-
-
+        {{/if}}
 
         <!-- SUBDOMAINS -->
-        {{#each subdomainPages}}
         {{#each this}}
         <div class="subdomain-analysis-card">
             <div class="subdomain-header">
                 <div>
-                    <div style="font-family: 'Outfit', sans-serif; font-size: 8pt; color: var(--secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2mm;">Sub-Domain Focus</div>
+                    <div style="font-family: 'Quicksand', sans-serif; font-size: 8pt; color: var(--secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2mm;">Sub-Domain Focus</div>
                     <h2 style="margin: 0; font-size: 22pt; border: none; padding: 0;">{{name}}</h2>
                 </div>
                 <div style="text-align: right;">
-                    <div style="font-family: 'Outfit', sans-serif; font-size: 26pt; font-weight: 800; color: var(--secondary); line-height: 1;">{{round score}}%</div>
+                    <div style="font-family: 'Quicksand', sans-serif; font-size: 26pt; font-weight: 800; color: var(--secondary); line-height: 1;">{{round score}}%</div>
                     <div class="badge badge-{{toLowerCase state}}" style="margin-top: 2mm;">{{state}}</div>
                 </div>
             </div>
@@ -833,7 +862,7 @@ class PDFReportService {
             <!-- POD-360 INSIGHT (per subdomain) -->
             {{#if modelDescription}}
             <div style="background: #EDF5FD; border-left: 5px solid var(--secondary); border-radius: 4mm; padding: 6mm 8mm; margin-bottom: 10mm; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
-                <div style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 9pt; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4mm;">POD-360&#8482; Model</div>
+                <div style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 9pt; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4mm;">POD-360&#8482; Model</div>
                 <div style="display: flex; align-items: flex-start; gap: 3mm;">
                     <span style="color: #448CD2; font-size: 11pt; flex-shrink: 0; margin-top: 1px;">&#9733;</span>
                     <div>
@@ -852,40 +881,8 @@ class PDFReportService {
                 {{/each}}
             </div>
 
-            <div class="sub-metrics-grid">
-                <div class="sub-metric-box" style="border-top: 4px solid var(--secondary); background: #ffffff;">
-                    <div class="sub-metric-title">Priority Actions (OKRs)</div>
-                    {{#if okrs.focus}}
-                    <div style="font-size: 8.5pt; font-weight: 700; color: var(--secondary); margin-bottom: 3mm; padding: 1.5mm 2.5mm; background: #f0f7ff; border-radius: 1.5mm; border-left: 3px solid var(--secondary);">
-                        <span style="opacity: 0.7; text-transform: uppercase; font-size: 7pt; letter-spacing: 0.5px; display: block; margin-bottom: 0.5mm;">Focus Area</span>
-                        {{okrs.focus}}
-                    </div>
-                    {{/if}}
-                    
-                    {{#each okrs.list}}
-                    <div style="margin-bottom: 4mm;">
-                        {{#if title}}
-                        <div style="font-weight: 700; font-size: 9pt; color: var(--primary); margin-bottom: 2mm; display: flex; align-items: center; gap: 2mm;">
-                            <div style="width: 8px; height: 2px; background: var(--secondary); border-radius: 1px;"></div>
-                            {{title}}
-                        </div>
-                        {{/if}}
-                        <ul class="bullet-list" style="margin-left: 2mm;">
-                            {{#each keyResults}}
-                            <li class="bullet-item">
-                                <div class="bullet-dot"></div>
-                                {{this}}
-                            </li>
-                            {{/each}}
-                        </ul>
-                    </div>
-                    {{/each}}
-                    
-                    {{#unless okrs.list.length}}
-                    <p style="font-size: 9pt; color: var(--light-text); font-style: italic;">No specific objectives defined for this period.</p>
-                    {{/unless}}
-                </div>
-                <div class="sub-metric-box" style="border-top: 4px solid var(--primary);">
+            <div class="sub-metrics-grid" style="display: block;">
+                <div class="sub-metric-box" style="border-top: 4px solid var(--primary); background: #ffffff; width: 100%;">
                     <div class="sub-metric-title">Coaching & Development</div>
                     <ul class="bullet-list">
                         {{#each coaching}}
@@ -895,6 +892,9 @@ class PDFReportService {
                         </li>
                         {{/each}}
                     </ul>
+                    {{#unless coaching.length}}
+                    <p style="font-size: 9pt; color: var(--light-text); font-style: italic;">Coaching recommendations will be updated based on future performance cycles.</p>
+                    {{/unless}}
                 </div>
             </div>
 
@@ -904,7 +904,7 @@ class PDFReportService {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;">
                     {{#each recommendedPrograms}}
                     <div style="display: flex; align-items: center; gap: 3mm; font-size: 10pt; font-weight: 600; color: var(--primary);">
-                        <div style="width: 5px; height: 5px; background: var(--secondary); border-radius: 50%;"></div>
+                        <div style="width: 6px; height: 6px; background: var(--secondary); border-radius: 50%; flex-shrink: 0;"></div>
                         {{this}}
                     </div>
                     {{/each}}
@@ -913,54 +913,101 @@ class PDFReportService {
             {{/if}}
         </div>
         {{/each}}
-        {{/each}}
-
-
     </div>
+    {{/each}}
+
+    <!-- AGGREGATED DOMAIN OKRS PAGE -->
+    {{#if aggregatedOKRs.length}}
+    <div class="page page-flow" style="display: block;">
+        <div class="domain-flex-header" style="margin-bottom: 8mm;">
+            <div class="domain-header-box" style="background: var(--primary);">
+                <div style="font-size: 8pt; color: var(--secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 1mm;">Strategic Roadmap</div>
+                <h1 style="color: white; margin: 0; font-size: 18pt;">{{name}}: Objective Key Roles(OKRS)</h1>
+            </div>
+        </div>
+
+        <div class="sub-metrics-aggregated" style="width: 100%; margin-top: 10mm; padding: 0 5mm;">
+            {{#each aggregatedOKRs}}
+            <div style="margin-bottom: 12mm; padding-left: 8mm; border-left: 3px solid #f1f5f9; position: relative;">
+                <div style="position: absolute; top: 0; left: -3px; width: 3px; height: 30px; background: var(--secondary); border-radius: 0 0 2px 0;"></div>
+                <div style="font-weight: 800; font-size: 12pt; color: var(--primary); margin-bottom: 2mm; display: flex; align-items: center; gap: 3mm;">
+                    Sub-Domain: {{subdomainName}}
+                </div>
+
+                {{#if okrs.focus}}
+                <div style="font-size: 10pt; color: var(--text); line-height: 1.5; margin-bottom: 5mm; margin-left: 0; font-style: italic; opacity: 0.8;">
+                    {{okrs.focus}}
+                </div>
+                {{/if}}
+
+                <ul class="bullet-list" style="margin-left: 0; list-style: none; padding: 0;">
+
+                    {{#each okrs.list}}
+                    <li style="margin-bottom: 8mm; display: flex; align-items: flex-start; gap: 4mm;">
+                        <div style="width: 20px; height: 20px; background: #f0f7ff; border: 1px solid var(--secondary); color: var(--secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8.5pt; font-weight: 800; flex-shrink: 0; margin-top: 0.5mm;">
+                            {{add @index 1}}
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 10.5pt; font-weight: 700; color: var(--primary); margin-bottom: 4mm; line-height: 1.4;">{{title}}</div>
+                            
+                                <div style="display: flex; flex-direction: column; gap: 3mm;">
+                                    {{#each keyResults}}
+                                    <div style="display: flex; align-items: flex-start; gap: 3mm; font-size: 10pt; color: var(--light-text); line-height: 1.6;">
+                                        <div style="width: 6px; height: 6px; background: #cbd5e1; border-radius: 50%; margin-top: 1.5mm; flex-shrink: 0;"></div>
+                                        {{this}}
+                                    </div>
+                                    {{/each}}
+                                </div>
+                        </div>
+                    </li>
+                    {{/each}}
+                </ul>
+            </div>
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
     {{/each}}
     {{/unless}}
 </body>
 </html>
 `;
 
-        // Register Helpers
+        // Register Helpers (Ensure they are always registered)
+        const helpers = {
+            round: (val) => Math.round(val || 0),
+            getClassification: (score) => this._getClassification(score),
+            gaugeColor: (val) => {
+                const v = Math.round(val || 0);
+                if (v >= 75) return this.colors.flow;
+                if (v <= 50) return this.colors.friction;
+                return this.colors.resistance;
+            },
+            gaugePath: (r, val) => {
+                const v = Math.max(0, Math.min(val || 0, 100));
+                const angle = Math.PI + (v / 100) * Math.PI;
+                return `${100 + r * Math.cos(angle)} ${100 + r * Math.sin(angle)}`;
+            },
+            gaugePathX: (r, val) => {
+                const v = Math.max(0, Math.min(val || 0, 100));
+                const angle = Math.PI + (v / 100) * Math.PI;
+                return 100 + r * Math.cos(angle);
+            },
+            gaugePathY: (r, val) => {
+                const v = Math.max(0, Math.min(val || 0, 100));
+                const angle = Math.PI + (v / 100) * Math.PI;
+                return 100 + r * Math.sin(angle);
+            },
+            toLowerCase: (str) => (str || "").toLowerCase(),
+            add: (a, b) => (a || 0) + (b || 0),
+            multiply: (a, b) => (a || 0) * (b || 0)
+        };
+
+        Object.keys(helpers).forEach(name => {
+            handlebars.registerHelper(name, helpers[name]);
+        });
+
         if (!this._template) {
-            // Register Helpers (only once)
-            const helpers = {
-                round: (val) => Math.round(val || 0),
-                getClassification: (score) => this._getClassification(score),
-                gaugeColor: (val) => {
-                    const v = Math.round(val || 0);
-                    if (v >= 75) return this.colors.flow;
-                    if (v <= 50) return this.colors.friction;
-                    return this.colors.resistance;
-                },
-                gaugePath: (r, val) => {
-                    const v = Math.max(0, Math.min(val || 0, 100));
-                    const angle = Math.PI + (v / 100) * Math.PI;
-                    return `${100 + r * Math.cos(angle)} ${100 + r * Math.sin(angle)}`;
-                },
-                gaugePathX: (r, val) => {
-                    const v = Math.max(0, Math.min(val || 0, 100));
-                    const angle = Math.PI + (v / 100) * Math.PI;
-                    return 100 + r * Math.cos(angle);
-                },
-                gaugePathY: (r, val) => {
-                    const v = Math.max(0, Math.min(val || 0, 100));
-                    const angle = Math.PI + (v / 100) * Math.PI;
-                    return 100 + r * Math.sin(angle);
-                },
-                toLowerCase: (str) => (str || "").toLowerCase(),
-                add: (a, b) => (a || 0) + (b || 0),
-                multiply: (a, b) => (a || 0) * (b || 0)
-            };
-
-            Object.keys(helpers).forEach(name => {
-                if (!handlebars.helpers[name]) {
-                    handlebars.registerHelper(name, helpers[name]);
-                }
-            });
-
             this._template = handlebars.compile(templateSource);
         }
 
@@ -974,10 +1021,10 @@ class PDFReportService {
 
         const parseStructuredOKRs = (text) => {
             if (!text || !text.trim()) return { focus: "", list: [] };
-            
+
             let focus = "";
             let remainingText = text;
-            
+
             // Extract [FOCUS] if present
             const focusMatch = text.match(/\[FOCUS\]\s*([\s\S]*?)(?:\r?\n\r?\n|\r?\n|$)/i);
             if (focusMatch) {
@@ -987,18 +1034,18 @@ class PDFReportService {
 
             // Split into blocks by double newlines
             const blocks = remainingText.split(/\r?\n\r?\n+/).map(b => b.trim()).filter(b => b.length > 0);
-            
+
             const list = blocks.map(block => {
                 const lines = block.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
                 if (lines.length === 0) return null;
-                
+
                 let title = "";
                 let keyResults = [];
-                
+
                 // Heuristic: if first line doesn't start with bullet, it's a title
                 const firstLine = lines[0];
                 const isBullet = /^[•\-\*]/.test(firstLine);
-                
+
                 if (!isBullet && lines.length > 1) {
                     title = firstLine;
                     keyResults = lines.slice(1).map(l => l.replace(/^[•\-\*]\s*/, ''));
@@ -1006,7 +1053,7 @@ class PDFReportService {
                     // All lines are key results
                     keyResults = lines.map(l => l.replace(/^[•\-\*]\s*/, ''));
                 }
-                
+
                 return { title, keyResults };
             }).filter(item => item !== null);
 
@@ -1060,9 +1107,9 @@ class PDFReportService {
                 ppScore, osScore, dfScore,
                 // Perfect equilateral triangle: T=(150,35) L=(30,243) R=(270,243), C=(150,173.67)
                 // ML=(90,139)  MR=(210,139)  MB=(150,243)
-                pp: `150,173.67 ${(150-60*ppFrac).toFixed(2)},${(173.67-34.67*ppFrac).toFixed(2)} 150,${(173.67-138.67*ppFrac).toFixed(2)} ${(150+60*ppFrac).toFixed(2)},${(173.67-34.67*ppFrac).toFixed(2)}`,
-                os: `150,173.67 ${(150-60*osFrac).toFixed(2)},${(173.67-34.67*osFrac).toFixed(2)} ${(150-120*osFrac).toFixed(2)},${(173.67+69.33*osFrac).toFixed(2)} 150,${(173.67+69.33*osFrac).toFixed(2)}`,
-                df: `150,173.67 ${(150+60*dfFrac).toFixed(2)},${(173.67-34.67*dfFrac).toFixed(2)} ${(150+120*dfFrac).toFixed(2)},${(173.67+69.33*dfFrac).toFixed(2)} 150,${(173.67+69.33*dfFrac).toFixed(2)}`
+                pp: `150,173.67 ${(150 - 60 * ppFrac).toFixed(2)},${(173.67 - 34.67 * ppFrac).toFixed(2)} 150,${(173.67 - 138.67 * ppFrac).toFixed(2)} ${(150 + 60 * ppFrac).toFixed(2)},${(173.67 - 34.67 * ppFrac).toFixed(2)}`,
+                os: `150,173.67 ${(150 - 60 * osFrac).toFixed(2)},${(173.67 - 34.67 * osFrac).toFixed(2)} ${(150 - 120 * osFrac).toFixed(2)},${(173.67 + 69.33 * osFrac).toFixed(2)} 150,${(173.67 + 69.33 * osFrac).toFixed(2)}`,
+                df: `150,173.67 ${(150 + 60 * dfFrac).toFixed(2)},${(173.67 - 34.67 * dfFrac).toFixed(2)} ${(150 + 120 * dfFrac).toFixed(2)},${(173.67 + 69.33 * dfFrac).toFixed(2)} 150,${(173.67 + 69.33 * dfFrac).toFixed(2)}`
             };
 
             templateData.domainPages = ["People Potential", "Operational Steadiness", "Digital Fluency"].map(dName => {
@@ -1138,7 +1185,11 @@ class PDFReportService {
                     insights: getBulletedLines(fb.insight || fb.modelDescription || "", 5),
                     okrs: parseStructuredOKRs(fb.objectives || ""),
                     coaching: getBulletedLines(fb.coachingTips || "", 5),
-                    subdomainPages: chunkedSubdomains
+                    subdomainPages: chunkedSubdomains,
+                    aggregatedOKRs: subdomains.map(s => ({
+                        subdomainName: s.name,
+                        okrs: s.okrs
+                    })).filter(s => s.okrs.list.length > 0 || s.okrs.focus)
                 };
             }).filter(p => p !== null);
         }
