@@ -126,45 +126,62 @@ class PDFReportService {
         this._launchingPromise = (async () => {
             try {
                 let browser;
-                // Production / Render Environment
-                if (process.env.RENDER || process.env.NODE_ENV === 'production') {
-                    console.log("[PDFService] Launching Puppeteer for Production (Render/Linux)...");
-                    try {
-                        const puppeteer = (await import('puppeteer')).default;
-                        browser = await puppeteer.launch({
-                            args: [
-                                '--no-sandbox',
-                                '--disable-setuid-sandbox',
-                                '--disable-dev-shm-usage',
-                                '--disable-gpu',
-                                '--no-zygote',
-                                '--single-process',
-                                '--disable-extensions'
-                            ],
-                            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
-                            headless: 'new'
-                        });
-                    } catch (prodErr) {
-                        console.error("[PDFService] Primary production launch failed, attempting fallback...", prodErr.message);
-                        const puppeteer = (await import('puppeteer')).default;
-                        browser = await puppeteer.launch({
-                            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-                            headless: 'new'
+                // Production / Render / Linux Environment
+                if (process.env.RENDER || process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+                    console.log("[PDFService] Launching Puppeteer for Production (Robust Strategy)...");
+
+                    const tryLaunch = async (options) => {
+                        try {
+                            const p = (await import(options.core ? 'puppeteer-core' : 'puppeteer')).default;
+                            return await p.launch({
+                                args: options.args || [
+                                    '--no-sandbox',
+                                    '--disable-setuid-sandbox',
+                                    '--disable-dev-shm-usage',
+                                    '--disable-gpu',
+                                    '--no-zygote'
+                                ],
+                                executablePath: options.executablePath,
+                                headless: options.headless || 'new'
+                            });
+                        } catch (e) {
+                            console.error(`[PDFService] Launch attempt failed (${options.name}):`, e.message);
+                            return null;
+                        }
+                    };
+
+                    // 1. Try Vercel/Serverless style (if @sparticuz/chromium is available)
+                    if (process.env.VERCEL || process.env.RENDER) {
+                        try {
+                            const chromium = (await import('@sparticuz/chromium')).default;
+                            browser = await tryLaunch({
+                                name: "Sparticuz Chromium",
+                                core: true,
+                                args: chromium.args,
+                                executablePath: await chromium.executablePath(),
+                                headless: chromium.headless
+                            });
+                        } catch (e) {
+                            console.log("[PDFService] Sparticuz not found or failed, moving to next strategy.");
+                        }
+                    }
+
+                    // 2. Try Render/Linux Standard Chrome
+                    if (!browser) {
+                        browser = await tryLaunch({
+                            name: "Linux Google Chrome",
+                            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome'
                         });
                     }
-                }
-                // Vercel Environment (Serverless)
-                else if (process.env.VERCEL) {
-                    console.log("[PDFService] Launching Puppeteer-Core for Vercel...");
-                    const puppeteerCore = (await import('puppeteer-core')).default;
-                    const chromium = (await import('@sparticuz/chromium')).default;
-                    browser = await puppeteerCore.launch({
-                        args: chromium.args,
-                        defaultViewport: chromium.defaultViewport,
-                        executablePath: await chromium.executablePath(),
-                        headless: chromium.headless,
-                        ignoreHTTPSErrors: true,
-                    });
+
+                    // 3. Try Standard Puppeteer (downloaded chromium)
+                    if (!browser) {
+                        browser = await tryLaunch({
+                            name: "Standard Puppeteer (Default)"
+                        });
+                    }
+
+                    if (!browser) throw new Error("All Puppeteer launch strategies failed. Verify environment dependencies.");
                 }
                 // Local Development (Windows/Mac)
                 else {
