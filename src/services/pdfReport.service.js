@@ -59,6 +59,41 @@ class PDFReportService {
 
         this._browser = null;
         this._template = null;
+        this._launchingPromise = null;
+
+        // Register Helpers once (not on every request)
+        const helpers = {
+            round: (val) => Math.round(val || 0),
+            getClassification: (score) => this._getClassification(score),
+            gaugeColor: (val) => {
+                const v = Math.round(val || 0);
+                if (v >= 75) return this.colors.flow;
+                if (v <= 50) return this.colors.friction;
+                return this.colors.resistance;
+            },
+            gaugePath: (r, val) => {
+                const v = Math.max(0, Math.min(val || 0, 100));
+                const angle = Math.PI + (v / 100) * Math.PI;
+                return `${100 + r * Math.cos(angle)} ${100 + r * Math.sin(angle)}`;
+            },
+            gaugePathX: (r, val) => {
+                const v = Math.max(0, Math.min(val || 0, 100));
+                const angle = Math.PI + (v / 100) * Math.PI;
+                return 100 + r * Math.cos(angle);
+            },
+            gaugePathY: (r, val) => {
+                const v = Math.max(0, Math.min(val || 0, 100));
+                const angle = Math.PI + (v / 100) * Math.PI;
+                return 100 + r * Math.sin(angle);
+            },
+            toLowerCase: (str) => (str || "").toLowerCase(),
+            add: (a, b) => (a || 0) + (b || 0),
+            multiply: (a, b) => (a || 0) * (b || 0)
+        };
+        Object.keys(helpers).forEach(name => handlebars.registerHelper(name, helpers[name]));
+
+        // Eagerly launch browser in the background to reduce first-request latency
+        this._getBrowser().catch(err => console.log("[PDFService] Eager browser launch failed:", err.message));
     }
 
     _getClassification(score) {
@@ -187,24 +222,16 @@ class PDFReportService {
             const browser = await this._getBrowser();
             page = await browser.newPage();
 
-            // Speed up: Intercept and skip unnecessary requests
-            await page.setRequestInterception(true);
-            page.on('request', (req) => {
-                const type = req.resourceType();
-                if (['image', 'font', 'stylesheet', 'document', 'script'].includes(type)) {
-                    req.continue();
-                } else {
-                    req.abort();
-                }
-            });
+            // DISABLE JS for 5x speed boost (template is static HTML)
+            await page.setJavaScriptEnabled(false);
 
             // Set timeouts
-            page.setDefaultNavigationTimeout(30000);
-            page.setDefaultTimeout(30000);
+            page.setDefaultNavigationTimeout(10000);
+            page.setDefaultTimeout(10000);
 
             console.log("[PDFService] Rendering content...");
             await page.setContent(html, {
-                waitUntil: 'networkidle0'
+                waitUntil: 'load'
             });
 
             console.log("[PDFService] Printing PDF...");
@@ -977,40 +1004,6 @@ class PDFReportService {
 </body>
 </html>
 `;
-
-        // Register Helpers (Ensure they are always registered)
-        const helpers = {
-            round: (val) => Math.round(val || 0),
-            getClassification: (score) => this._getClassification(score),
-            gaugeColor: (val) => {
-                const v = Math.round(val || 0);
-                if (v >= 75) return this.colors.flow;
-                if (v <= 50) return this.colors.friction;
-                return this.colors.resistance;
-            },
-            gaugePath: (r, val) => {
-                const v = Math.max(0, Math.min(val || 0, 100));
-                const angle = Math.PI + (v / 100) * Math.PI;
-                return `${100 + r * Math.cos(angle)} ${100 + r * Math.sin(angle)}`;
-            },
-            gaugePathX: (r, val) => {
-                const v = Math.max(0, Math.min(val || 0, 100));
-                const angle = Math.PI + (v / 100) * Math.PI;
-                return 100 + r * Math.cos(angle);
-            },
-            gaugePathY: (r, val) => {
-                const v = Math.max(0, Math.min(val || 0, 100));
-                const angle = Math.PI + (v / 100) * Math.PI;
-                return 100 + r * Math.sin(angle);
-            },
-            toLowerCase: (str) => (str || "").toLowerCase(),
-            add: (a, b) => (a || 0) + (b || 0),
-            multiply: (a, b) => (a || 0) * (b || 0)
-        };
-
-        Object.keys(helpers).forEach(name => {
-            handlebars.registerHelper(name, helpers[name]);
-        });
 
         if (!this._template) {
             this._template = handlebars.compile(templateSource);
