@@ -241,7 +241,7 @@ class PDFReportService {
                 margin: { top: '22mm', right: '0mm', bottom: '18mm', left: '0mm' },
                 displayHeaderFooter: true,
                 headerTemplate: `
-                    <div style="font-family: 'Quicksand', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 20mm 5mm 20mm; color: #64748B; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; -webkit-print-color-adjust: exact; border-bottom: 1px solid #E2E8F0;">
+                    <div style="font-family: 'Quicksand', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 20mm 5mm 20mm; color: #64748B; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; -webkit-print-color-adjust: exact; border-bottom: 0.5px solid #F1F5F9;">
                         <div style="display: flex; align-items: center; gap: 1.5mm;">
                             <span style="color: #448CD2; font-weight: 800;">POD-360™</span>
                             <span style="opacity: 0.3;">|</span>
@@ -251,7 +251,7 @@ class PDFReportService {
                     </div>
                 `,
                 footerTemplate: `
-                    <div style="font-family: 'Quicksand', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 5mm 20mm 0 20mm; color: #94A3B8; -webkit-print-color-adjust: exact; border-top: 1px solid #E2E8F0;">
+                    <div style="font-family: 'Quicksand', sans-serif; font-size: 8pt; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 5mm 20mm 0 20mm; color: #94A3B8; -webkit-print-color-adjust: exact; border-top: 0.5px solid #F1F5F9;">
                         <div style="font-weight: 400;">Confidential © Talent By Design</div>
                         <div style="font-weight: 600; color: #64748B;">PAGE <span class="pageNumber"></span> / <span class="totalPages"></span></div>
                     </div>
@@ -548,12 +548,7 @@ class PDFReportService {
             display: flex; 
             align-items: center; 
             gap: 15mm; 
-            margin-bottom: 8mm; 
-            background: var(--white); 
-            padding: 8mm 10mm; 
-            border-radius: 5mm; 
-            box-shadow: 0 15px 40px rgba(0,0,0,0.04); 
-            border: 1px solid #f1f5f9; 
+            margin-bottom: 12mm; 
         }
         .visual-container { position: relative; width: 220px; height: 130px; flex-shrink: 0; }
         .gauge-val { position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%); font-size: 38pt; font-weight: 900; color: var(--primary); letter-spacing: -2px; font-family: 'Quicksand', sans-serif; }
@@ -691,6 +686,49 @@ class PDFReportService {
             margin-top: 8mm;
             border-left: 4px solid var(--secondary);
         }
+
+        /* Premium Sub-Domain Cards */
+        .premium-card {
+            background: var(--sidebar);
+            border-radius: 4mm;
+            padding: 6mm 8mm 6mm 10mm; /* Added left padding for the bar */
+            margin-bottom: 8mm;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+            border: 0.5px solid #F1F5F9;
+            break-inside: avoid;
+            position: relative;
+        }
+        .premium-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 6mm;
+            bottom: 6mm;
+            width: 4px;
+            background: var(--secondary);
+            border-radius: 5px; /* Full pill shape */
+        }
+        .premium-card.primary {
+            background: #f1f5f9;
+        }
+        .premium-card.primary::before {
+            background: var(--primary);
+        }
+        .premium-card.secondary {
+            background: var(--sidebar);
+        }
+        .premium-card.secondary::before {
+            background: var(--secondary);
+        }
+        .premium-card-title {
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 700;
+            font-size: 9pt;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4mm;
+        }
     </style>
 </head>
 <body>
@@ -732,7 +770,7 @@ class PDFReportService {
         
         <h1>The Data Synergy</h1>
         
-            <div style="margin-bottom: 8mm; border-left: 5px solid var(--secondary); padding-left: 8mm; background: #f8fafc; padding-block: 6mm; border-radius: 0 4mm 4mm 0; box-shadow: 0 8px 25px rgba(0,0,0,0.02);">
+            <div class="premium-card secondary">
             <p style="font-size: 11pt; color: var(--primary); font-weight: 500; margin-bottom: 4mm; line-height: 1.5;">{{synergyIntro}}</p>
             <div style="display: flex; flex-direction: column; gap: 3mm;">
                 <div style="display: flex; align-items: center; gap: 3mm;">
@@ -767,8 +805,8 @@ class PDFReportService {
             </div>
         </div>
 
-        <div class="card card-insight">
-            <div class="block-title">Key Strategic Intelligence</div>
+        <div class="premium-card secondary" style="margin-bottom: 6mm;">
+            <div class="premium-card-title">Key Strategic Intelligence</div>
             <p style="font-size: 11pt; font-weight: 600; color: var(--primary); line-height: 1.5; margin: 0; letter-spacing: -0.2px;">{{aiInsight.description}}</p>
         </div>
 
@@ -795,8 +833,8 @@ class PDFReportService {
         </div>
 
         <!-- POD-360 MODEL TRIANGLE (Summary Page Only) -->
-        <div style="background: #EDF5FD; border-left: 5px solid var(--secondary); border-radius: 4mm; padding: 5mm 8mm; margin-top: 6mm; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
-            <div style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 8.5pt; color: var(--primary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3mm;">POD-360&#8482; Model Performance Intelligence</div>
+        <div class="premium-card secondary" style="margin-top: 10mm;">
+            <div class="premium-card-title">POD-360&#8482; Model Performance Intelligence</div>
                 <svg width="280" height="250" viewBox="-10 -5 320 320" style="display: block; margin: 0 auto; -webkit-print-color-adjust: exact; overflow: visible;">
                     <!--
                         Triangle: T(150,45)  L(30,255)  R(270,255)  Centroid G(150,185)
@@ -838,12 +876,12 @@ class PDFReportService {
                     <!-- BOTTOM-LEFT label: OPERATIONAL STEADINESS -->
                     <text x="2"   y="268" text-anchor="start"  font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">OPERATIONAL</text>
                     <text x="2"   y="279" text-anchor="start"  font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">STEADINESS</text>
-                    <text x="2"   y="293" text-anchor="start"  font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#3C7CBA">{{@root.triangleSVG.osScore}}%</text>
+                    <text x="2"   y="293" text-anchor="start"  font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#1A3652">{{@root.triangleSVG.osScore}}%</text>
 
                     <!-- BOTTOM-RIGHT label: DIGITAL FLUENCY -->
                     <text x="298" y="268" text-anchor="end"    font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">DIGITAL</text>
                     <text x="298" y="279" text-anchor="end"    font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">FLUENCY</text>
-                    <text x="298" y="293" text-anchor="end"    font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#3C7CBA">{{@root.triangleSVG.dfScore}}%</text>
+                    <text x="298" y="293" text-anchor="end"    font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#1A3652">{{@root.triangleSVG.dfScore}}%</text>
                 </svg>
         </div>
 
@@ -888,50 +926,47 @@ class PDFReportService {
 
             <!-- POD-360 INSIGHT (per subdomain) -->
             {{#if modelDescription}}
-            <div style="background: #EDF5FD; border-left: 5px solid var(--secondary); border-radius: 4mm; padding: 6mm 8mm; margin-bottom: 10mm; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
-                <div style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 9pt; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4mm;">POD-360&#8482; Model</div>
-                <div style="display: flex; align-items: flex-start; gap: 3mm;">
-                    <span style="color: #448CD2; font-size: 11pt; flex-shrink: 0; margin-top: 1px;">&#9733;</span>
-                    <div>
-                        {{#each modelDescription}}
-                        <div style="font-size: 10pt; line-height: 1.65; color: #334155;">{{this}}</div>
-                        {{/each}}
-                    </div>
+            <div class="premium-card secondary">
+                <div class="premium-card-title">POD-360&#8482; Model</div>
+                {{#each modelDescription}}
+                <div style="display: flex; align-items: flex-start; gap: 3mm; margin-bottom: 2mm;">
+                    <span style="color: var(--secondary); font-size: 11pt; flex-shrink: 0;">&#9733;</span>
+                    <div style="font-size: 10pt; line-height: 1.65; color: var(--text);">{{this}}</div>
                 </div>
+                {{/each}}
             </div>
             {{/if}}
 
-            <div class="card-insight-box" style="background: #f1f5f9; padding: 5mm 7mm; border-radius: 4mm; border-left: 5px solid var(--primary); margin-bottom: 6mm;">
-                <div class="block-title" style="margin-bottom: 2mm; color: var(--primary);">Contextual Insight</div>
+            <div class="premium-card primary">
+                <div class="premium-card-title">Contextual Insight</div>
                 {{#each insight}}
-                <div style="font-size: 9.5pt; line-height: 1.4; color: var(--text); margin-bottom: 1.5mm;">{{this}}</div>
+                <div style="display: flex; align-items: flex-start; gap: 4mm; margin-bottom: 2mm;">
+                    <div style="width: 5px; height: 5px; background: var(--primary); border-radius: 50%; flex-shrink: 0; margin-top: 1.8mm;"></div>
+                    <div style="font-size: 10pt; line-height: 1.5; color: var(--text);">{{this}}</div>
+                </div>
                 {{/each}}
             </div>
 
-            <div class="sub-metrics-grid" style="display: block;">
-                <div class="sub-metric-box" style="border-top: 4px solid var(--primary); background: #ffffff; width: 100%;">
-                    <div class="sub-metric-title">Coaching & Development</div>
-                    <ul class="bullet-list">
-                        {{#each coaching}}
-                        <li class="bullet-item">
-                            <div class="bullet-dot" style="background: var(--primary);"></div>
-                            {{this}}
-                        </li>
-                        {{/each}}
-                    </ul>
-                    {{#unless coaching.length}}
-                    <p style="font-size: 9pt; color: var(--light-text); font-style: italic;">Coaching recommendations will be updated based on future performance cycles.</p>
-                    {{/unless}}
+            <div class="premium-card primary">
+                <div class="premium-card-title">Coaching & Development</div>
+                {{#each coaching}}
+                <div style="display: flex; align-items: flex-start; gap: 4mm; margin-bottom: 2mm;">
+                    <div style="width: 5px; height: 5px; background: var(--primary); border-radius: 50%; flex-shrink: 0; margin-top: 1.8mm;"></div>
+                    <div style="font-size: 10pt; line-height: 1.5; color: var(--text);">{{this}}</div>
                 </div>
+                {{/each}}
+                {{#unless coaching.length}}
+                <p style="font-size: 9.5pt; color: var(--light-text); font-style: italic;">Coaching recommendations will be updated based on future performance cycles.</p>
+                {{/unless}}
             </div>
 
             {{#if recommendedPrograms.length}}
-            <div class="highlight-box">
-                <div class="block-title" style="margin-bottom: 4mm;">RECOMMENDED PROGRAMS AND INITIATIVES</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;">
+            <div class="premium-card secondary">
+                <div class="premium-card-title">RECOMMENDED PROGRAMS AND INITIATIVES</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 8mm;">
                     {{#each recommendedPrograms}}
-                    <div style="display: flex; align-items: center; gap: 3mm; font-size: 10pt; font-weight: 600; color: var(--primary);">
-                        <div style="width: 6px; height: 6px; background: var(--secondary); border-radius: 50%; flex-shrink: 0;"></div>
+                    <div style="display: flex; align-items: flex-start; gap: 3mm; font-size: 10.5pt; font-weight: 600; color: var(--primary); line-height: 1.3;">
+                        <div style="width: 5px; height: 5px; background: var(--secondary); border-radius: 50%; flex-shrink: 0; margin-top: 1.6mm;"></div>
                         {{this}}
                     </div>
                     {{/each}}
