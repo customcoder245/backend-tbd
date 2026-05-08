@@ -128,26 +128,30 @@ class PDFReportService {
                 let browser;
                 // Production / Render Environment
                 if (process.env.RENDER || process.env.NODE_ENV === 'production') {
-                    console.log("[PDFService] Launching Puppeteer for Production/Render...");
-                    const puppeteer = (await import('puppeteer')).default;
-                    browser = await puppeteer.launch({
-                        args: [
-                            '--no-sandbox',
-                            '--disable-setuid-sandbox',
-                            '--disable-dev-shm-usage',
-                            '--disable-gpu',
-                            '--no-zygote',
-                            '--single-process',
-                            '--disable-extensions',
-                            '--disable-background-networking',
-                            '--disable-default-apps',
-                            '--disable-sync',
-                            '--disable-translate',
-                            '--metrics-recording-only',
-                            '--no-first-run'
-                        ],
-                        headless: 'new'
-                    });
+                    console.log("[PDFService] Launching Puppeteer for Production (Render/Linux)...");
+                    try {
+                        const puppeteer = (await import('puppeteer')).default;
+                        browser = await puppeteer.launch({
+                            args: [
+                                '--no-sandbox',
+                                '--disable-setuid-sandbox',
+                                '--disable-dev-shm-usage',
+                                '--disable-gpu',
+                                '--no-zygote',
+                                '--single-process',
+                                '--disable-extensions'
+                            ],
+                            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
+                            headless: 'new'
+                        });
+                    } catch (prodErr) {
+                        console.error("[PDFService] Primary production launch failed, attempting fallback...", prodErr.message);
+                        const puppeteer = (await import('puppeteer')).default;
+                        browser = await puppeteer.launch({
+                            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+                            headless: 'new'
+                        });
+                    }
                 }
                 // Vercel Environment (Serverless)
                 else if (process.env.VERCEL) {
