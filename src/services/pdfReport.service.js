@@ -581,13 +581,13 @@ class PDFReportService {
             flex-direction: column;
             justify-content: center;
         }
-        .domain-header-box h1 { color: white; margin: 0; font-size: 28pt; line-height: 1.1; font-weight: 800; }
+        .domain-header-box h1 { color: white; margin: 0; font-size: 20pt; line-height: 1.1; }
         .domain-desc { 
-            font-size: 10pt; 
+            font-size: 9pt; 
             color: rgba(255,255,255,0.9); 
-            margin-top: 4mm; 
-            line-height: 1.5; 
-            font-weight: 400; 
+            margin-top: 3mm; 
+            line-height: 1.4; 
+            font-weight: 300; 
         }
         .score-summary-box { 
             flex: 1;
@@ -838,12 +838,12 @@ class PDFReportService {
                     <!-- BOTTOM-LEFT label: OPERATIONAL STEADINESS -->
                     <text x="2"   y="268" text-anchor="start"  font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">OPERATIONAL</text>
                     <text x="2"   y="279" text-anchor="start"  font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">STEADINESS</text>
-                    <text x="2"   y="293" text-anchor="start"  font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#1A3652">{{@root.triangleSVG.osScore}}%</text>
+                    <text x="2"   y="293" text-anchor="start"  font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#3C7CBA">{{@root.triangleSVG.osScore}}%</text>
 
                     <!-- BOTTOM-RIGHT label: DIGITAL FLUENCY -->
                     <text x="298" y="268" text-anchor="end"    font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">DIGITAL</text>
                     <text x="298" y="279" text-anchor="end"    font-family="Arial,sans-serif" font-size="9"  font-weight="700" fill="#1A3652">FLUENCY</text>
-                    <text x="298" y="293" text-anchor="end"    font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#1A3652">{{@root.triangleSVG.dfScore}}%</text>
+                    <text x="298" y="293" text-anchor="end"    font-family="Arial,sans-serif" font-size="11" font-weight="800" fill="#3C7CBA">{{@root.triangleSVG.dfScore}}%</text>
                 </svg>
         </div>
 
@@ -886,13 +886,12 @@ class PDFReportService {
 
             <p style="font-size: 10pt; line-height: 1.5; color: var(--text); margin-bottom: 4mm;">{{description}}</p>
 
-            <!-- 1. POD-360 MODEL -->
+            <!-- POD-360 INSIGHT (per subdomain) -->
             {{#if modelDescription}}
-            <div style="background: linear-gradient(135deg, #f0f7ff 0%, #e9f2ff 100%); border-radius: 4mm; padding: 6mm 8mm; margin-bottom: 6mm; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.02); border: 1px solid rgba(68, 140, 210, 0.1); overflow: hidden; break-inside: avoid; -webkit-column-break-inside: avoid;">
-                <div style="position: absolute; left: 0; top: 6mm; bottom: 6mm; width: 5px; background: var(--secondary); border-radius: 0 3mm 3mm 0;"></div>
+            <div style="background: #EDF5FD; border-left: 5px solid var(--secondary); border-radius: 4mm; padding: 6mm 8mm; margin-bottom: 10mm; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
                 <div style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 9pt; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4mm;">POD-360&#8482; Model</div>
-                <div style="display: flex; align-items: flex-start; gap: 4mm;">
-                    <span style="color: var(--secondary); font-size: 11pt; flex-shrink: 0; margin-top: 1px;">&#9733;</span>
+                <div style="display: flex; align-items: flex-start; gap: 3mm;">
+                    <span style="color: #448CD2; font-size: 11pt; flex-shrink: 0; margin-top: 1px;">&#9733;</span>
                     <div>
                         {{#each modelDescription}}
                         <div style="font-size: 10pt; line-height: 1.65; color: #334155;">{{this}}</div>
@@ -902,41 +901,37 @@ class PDFReportService {
             </div>
             {{/if}}
 
-            <!-- 2. CONTEXTUAL INSIGHT -->
-            <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 4mm; padding: 6mm 8mm; margin-bottom: 6mm; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.02); border: 1px solid rgba(26, 54, 82, 0.05); overflow: hidden; break-inside: avoid; -webkit-column-break-inside: avoid;">
-                <div style="position: absolute; left: 0; top: 6mm; bottom: 6mm; width: 5px; background: var(--primary); border-radius: 0 3mm 3mm 0;"></div>
-                <div style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 9pt; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 3mm;">Contextual Insight</div>
+            <div class="card-insight-box" style="background: #f1f5f9; padding: 5mm 7mm; border-radius: 4mm; border-left: 5px solid var(--primary); margin-bottom: 6mm;">
+                <div class="block-title" style="margin-bottom: 2mm; color: var(--primary);">Contextual Insight</div>
                 {{#each insight}}
-                <div style="font-size: 10pt; line-height: 1.6; color: var(--text); margin-bottom: 2mm;">{{this}}</div>
+                <div style="font-size: 9.5pt; line-height: 1.4; color: var(--text); margin-bottom: 1.5mm;">{{this}}</div>
                 {{/each}}
             </div>
 
-            <!-- 3. COACHING & DEVELOPMENT -->
-            <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 4mm; padding: 6mm 8mm; margin-bottom: 6mm; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.02); border: 1px solid rgba(26, 54, 82, 0.05); overflow: hidden; break-inside: avoid; -webkit-column-break-inside: avoid;">
-                <div style="position: absolute; left: 0; top: 6mm; bottom: 6mm; width: 5px; background: var(--primary); border-radius: 0 3mm 3mm 0;"></div>
-                <div style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 9pt; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4mm;">Coaching & Development</div>
-                <ul class="bullet-list" style="margin: 0; padding: 0;">
-                    {{#each coaching}}
-                    <li class="bullet-item" style="margin-bottom: 2mm;">
-                        <div class="bullet-dot" style="background: var(--primary);"></div>
-                        {{this}}
-                    </li>
-                    {{/each}}
-                </ul>
-                {{#unless coaching.length}}
-                <p style="font-size: 9pt; color: var(--light-text); font-style: italic;">Coaching recommendations will be updated based on future performance cycles.</p>
-                {{/unless}}
+            <div class="sub-metrics-grid" style="display: block;">
+                <div class="sub-metric-box" style="border-top: 4px solid var(--primary); background: #ffffff; width: 100%;">
+                    <div class="sub-metric-title">Coaching & Development</div>
+                    <ul class="bullet-list">
+                        {{#each coaching}}
+                        <li class="bullet-item">
+                            <div class="bullet-dot" style="background: var(--primary);"></div>
+                            {{this}}
+                        </li>
+                        {{/each}}
+                    </ul>
+                    {{#unless coaching.length}}
+                    <p style="font-size: 9pt; color: var(--light-text); font-style: italic;">Coaching recommendations will be updated based on future performance cycles.</p>
+                    {{/unless}}
+                </div>
             </div>
 
-            <!-- 4. STRATEGIC INITIATIVES -->
             {{#if recommendedPrograms.length}}
-            <div style="background: linear-gradient(135deg, #f0f7ff 0%, #e9f2ff 100%); border-radius: 4mm; padding: 6mm 8mm; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.02); border: 1px solid rgba(68, 140, 210, 0.1); overflow: hidden; break-inside: avoid; -webkit-column-break-inside: avoid;">
-                <div style="position: absolute; left: 0; top: 6mm; bottom: 6mm; width: 5px; background: var(--secondary); border-radius: 0 3mm 3mm 0;"></div>
-                <div style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 9pt; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5mm;">Recommended Programs and Initiatives</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 8mm;">
+            <div class="highlight-box">
+                <div class="block-title" style="margin-bottom: 4mm;">RECOMMENDED PROGRAMS AND INITIATIVES</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;">
                     {{#each recommendedPrograms}}
                     <div style="display: flex; align-items: center; gap: 3mm; font-size: 10pt; font-weight: 600; color: var(--primary);">
-                        <div style="width: 5px; height: 5px; background: var(--secondary); border-radius: 50%; flex-shrink: 0;"></div>
+                        <div style="width: 6px; height: 6px; background: var(--secondary); border-radius: 50%; flex-shrink: 0;"></div>
                         {{this}}
                     </div>
                     {{/each}}
