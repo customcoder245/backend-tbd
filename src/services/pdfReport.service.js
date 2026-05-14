@@ -4,6 +4,7 @@ import fs from 'fs';
 import feedbackData from '../data/domainSubdomainFeedback.js';
 
 const BRAND_LOGO_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1774516563/logos/talent_by_design_logo_new.svg";
+const REPORT_BACK_COVER_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778732728/Frame_2147225299_grcclv.png";
 
 class PDFReportService {
     constructor() {
@@ -55,6 +56,19 @@ class PDFReportService {
                 name: "Employee",
                 description: "As an Employee, your responses reflect your day-to-day experience and interactions with your work and colleagues. Your inputs are analyzed across key domains to generate a Portfolio Score. Consistency and balance across these domains point to a healthy and supportive work environment, while significant differences may highlight areas of strain, disengagement, or operational challenges."
             }
+        };
+
+        this.subdomainIcons = {
+            "Mindset & Adaptability": "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735639/pp-ic1_pnlywx.png",
+            "Psychological Health & Safety": "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778736594/pp-ic2_klxffw.png",
+            "Relational & Emotional Intelligence": "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735638/pp-ic3_yucymc.png",
+            "Prioritization": "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735638/os-ic1_a0rscw.png",
+            "Workflow Clarity": "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735638/os-ic2_qzzofe.png",
+            "Effective Resource Management": "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735638/os-ic3_lgtro6.png",
+            "Data, AI & Automation Readiness": "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735638/df-ic1_yvhseb.png",
+            "Digital Communication & Collaboration": "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735637/df-ic3_n1iwoj.png",
+            "Mindset, Confidence and Change Readiness": "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735637/df-ic2_onwsxj.png",
+            "Tool & System Proficiency": "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735637/df-ic4_kqi22i.png"
         };
 
         this._browser = null;
@@ -805,15 +819,11 @@ class PDFReportService {
         <div class="cover-accent-top"></div>
         <div class="cover-accent-bottom"></div>
         
-        <div class="cover-logo-container" style="display: flex; flex-direction: column; align-items: center; gap: 8mm;">
-            <img src="${BRAND_LOGO_URL}" class="logo-large" />
-            {{#if orgLogo}}
-            <img src="{{orgLogo}}" style="max-height: 25mm; max-width: 60mm; object-fit: contain; filter: brightness(0) invert(1);" />
-            {{/if}}
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; z-index: 10; margin-top: -10mm; margin-bottom: 10mm;">
+            <img src="${REPORT_BACK_COVER_URL}" style="width: 65mm; height: auto; object-fit: contain;" />
         </div>
 
         <div class="cover-title-group">
-            <div class="cover-main-title">POD-360™</div>
             <div class="cover-subtitle">Performance Intelligence</div>
             <div class="cover-decoration"></div>
         </div>
@@ -965,9 +975,14 @@ class PDFReportService {
             <div class="subdomain-analysis-card">
                 <div class="subdomain-header">
                     <div>
-                        <div style="font-family: 'Quicksand', sans-serif; font-size: 6pt; color: var(--secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2mm;">Sub-Domain Focus</div>
-                        <h2 style="margin: 0; border: none; padding: 0;">{{name}}</h2>
-                        <p style="font-size: 9pt; line-height: 1.5; color: var(--text); margin-top: 2mm; margin-bottom: 0mm;">{{description}}</p>
+                        <div style="font-family: 'Quicksand', sans-serif; font-size: 6pt; color: var(--secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 1.5mm;">Sub-Domain Focus</div>
+                        <div style="display: flex; align-items: center; gap: 3mm; margin-bottom: 2mm;">
+                            {{#if icon}}
+                            <img src="{{icon}}" style="width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; image-rendering: -webkit-optimize-contrast;" />
+                            {{/if}}
+                            <h2 style="margin: 0; border: none; padding: 0;">{{name}}</h2>
+                        </div>
+                        <p style="font-size: 9pt; line-height: 1.5; color: var(--text); margin-top: 0; margin-bottom: 0mm;">{{description}}</p>
                     </div>
                     <div style="text-align: right;">
                         <div style="font-family: 'Quicksand', sans-serif; font-size: 18pt; font-weight: 800; color: var(--secondary); line-height: 1;">{{round score}}%</div>
@@ -1039,7 +1054,13 @@ class PDFReportService {
             <!-- OKR Header - matches Sub-Domain Focus style exactly -->
             <div style="margin-bottom: 7mm;">
                 <div style="font-family: 'Quicksand', sans-serif; font-size: 6pt; color: var(--secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2mm;">Strategic Roadmap</div>
-                <h2 style="margin: 0; border: none; padding: 0; color: var(--text);">{{name}}: Objective Key Results (OKRs)</h2>
+                <h2 style="margin: 0; border: none; padding: 0; color: var(--text); line-height: 1.3;">
+                    {{name}}: <br/>
+                    <span style="font-size: 11pt; color: var(--secondary); font-weight: 600;">Suggested Objectives & Key Results (OKRs)</span>
+                </h2>
+                <p style="font-size: 8pt; line-height: 1.35; color: var(--light-text); margin-top: 1mm; margin-bottom: 0;">
+                    The assessment results provide insight into areas where focused action may improve organizational performance, collaboration, and transformation outcomes. The following OKR suggestions are intended to guide coaching discussions and planning. Additional OKRs can be added and all should be tailored collaboratively to ensure alignment with organizational priorities.
+                </p>
             </div>
 
             <div class="sub-metrics-aggregated" style="width: 100%; margin-top: 5mm;">
@@ -1098,11 +1119,11 @@ class PDFReportService {
         <div class="cover-accent-top"></div>
         <div class="cover-accent-bottom"></div>
         
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 15mm; z-index: 10;">
-            <img src="${BRAND_LOGO_URL}" class="logo-large" style="margin-bottom: 10mm;" />
-            {{#if orgLogo}}
-            <img src="{{orgLogo}}" style="max-height: 25mm; max-width: 60mm; object-fit: contain; filter: brightness(0) invert(1);" />
-            {{/if}}
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; z-index: 10;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6mm;">
+                <div style="font-size: 9pt; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 4px; margin-bottom: 2mm;">Powered By</div>
+                <img src="${BRAND_LOGO_URL}" style="width: 65mm; filter: brightness(0) invert(1); opacity: 0.95;" />
+            </div>
         </div>
     </div>
 </body>
@@ -1263,6 +1284,7 @@ class PDFReportService {
                         score: Math.round(subScore),
                         state: this._getClassification(subScore),
                         description: this.subdomainDescriptions[sName] || "",
+                        icon: this.subdomainIcons[sName] || null,
                         modelDescription: subInsightProcessed, // Swapped: Insight data goes to Model section
                         insight: modelDescriptionProcessed,    // Swapped: Model data goes to Insight box
                         okrs: parseStructuredOKRs(subFb.objectives || ""),
