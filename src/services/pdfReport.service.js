@@ -819,11 +819,22 @@ class PDFReportService {
         <div class="cover-accent-top"></div>
         <div class="cover-accent-bottom"></div>
         
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; z-index: 10; margin-top: -10mm; margin-bottom: 10mm;">
-            <img src="${REPORT_BACK_COVER_URL}" style="width: 65mm; height: auto; object-fit: contain;" />
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; z-index: 10; margin-top: -15mm;">
+            <!-- Logo at Top (White Instance) -->
+            <img src="${BRAND_LOGO_URL}" style="width: 70mm; height: auto; object-fit: contain; filter: brightness(0) invert(1); margin-bottom: 10mm;" />
+            
+            <!-- Heading in Middle -->
+            <div style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 64pt; color: white; letter-spacing: -1px; line-height: 1; margin-bottom: 5mm;">POD-360™</div>
+            
+            <!-- Subtitle -->
+            <div style="font-family: 'Quicksand', sans-serif; font-weight: 400; font-size: 14pt; color: rgba(255,255,255,0.8); letter-spacing: 8px; text-transform: uppercase;">Performance Intelligence</div>
+            
+            <!-- Bottom Divider -->
+            <div style="width: 40mm; height: 1px; background: rgba(255,255,255,0.3); margin-top: 35mm;"></div>
         </div>
 
-        <div class="cover-title-group">
+        <div class="cover-title-group" style="display: none;">
+            <!-- Hidden original group to avoid layout shifts -->
             <div class="cover-subtitle">Performance Intelligence</div>
             <div class="cover-decoration"></div>
         </div>
@@ -1120,16 +1131,27 @@ class PDFReportService {
         <div class="cover-accent-bottom"></div>
         
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; z-index: 10;">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 6mm;">
-                <div style="font-size: 9pt; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 4px; margin-bottom: 2mm;">Powered By</div>
-                <img src="${BRAND_LOGO_URL}" style="width: 65mm; filter: brightness(0) invert(1); opacity: 0.95;" />
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 10mm; z-index: 10;">
+                <div style="font-family: 'Outfit', sans-serif; font-size: 11pt; color: rgba(255,255,255,0.7); letter-spacing: 3px; text-transform: uppercase;">A Partnership for Growth</div>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 12mm;">
+                    <!-- POD Tree Logo -->
+                    <img src="${REPORT_BACK_COVER_URL}" style="width: 50mm; height: auto; object-fit: contain;" />
+                    
+                    <!-- Synergy Icon (Handshake) -->
+                    <div style="width: 15mm; display: flex; align-items: center; justify-content: center;">
+                        <img src="https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778750772/fluent-emoji-high-contrast_handshake_zqxoav.png" style="width: 25px; height: 25px; filter: brightness(0) invert(1); opacity: 0.8;" />
+                    </div>
+                    
+                    {{#if orgLogo}}
+                    <img src="{{orgLogo}}" style="width: 50mm; height: auto; object-fit: contain;" />
+                    {{/if}}
+                </div>
+                <div style="margin-top: 2mm; font-family: 'Outfit', sans-serif; font-size: 7pt; color: rgba(255,255,255,0.5); letter-spacing: 1px; text-transform: uppercase;">Powered By Talent By Design</div>
             </div>
         </div>
     </div>
-</body>
-</html>
-`;
-
+    </body>
+</html>`;
 
         const getBulletedLines = (text, limit = 8) => {
             if (!text) return [];

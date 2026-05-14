@@ -75,11 +75,15 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
                 const overallAvg = Object.values(collectiveReport.scores.domains).reduce((acc, d) => acc + (d.score || 0), 0) / (Object.keys(collectiveReport.scores.domains).length || 1);
                 collectiveReport.scores.overall = Math.round(overallAvg);
 
+                // --- FETCH ORGANIZATION LOGO ---
+                const orgAdmin = await User.findOne({ orgName: orgToSearch, role: "admin" }).select("orgLogo").lean();
+
                 const responseData = {
                     report: collectiveReport,
                     firstReport: collectiveReport,
                     user: collectiveReport.userDetails,
                     isReleased: true,
+                    orgLogo: orgAdmin?.orgLogo || "",
                     hasReport: true,
                     isCollective: true
                 };
@@ -159,6 +163,10 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
             const avgScore = domainScoresArray.length > 0
                 ? domainScoresArray.reduce((acc, d) => acc + (d.score || 0), 0) / domainScoresArray.length : 0;
 
+            // --- FETCH ORGANIZATION LOGO ---
+            const targetOrgName = report.userDetails?.orgName || req.user?.orgName;
+            const orgAdmin = await User.findOne({ orgName: targetOrgName, role: "admin" }).select("orgLogo").lean();
+
             const responseData = {
                 report,
                 user: report.userDetails,
@@ -168,6 +176,7 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
                     type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
                 },
                 isReleased: report.isReleased || false,
+                orgLogo: orgAdmin?.orgLogo || "",
                 hasReport: true
             };
 
@@ -233,12 +242,28 @@ const getLatestReportData = async (req, res, targetRole, returnData = false) => 
         if (avgScore > 75) aiInsight = { title: "Excellence Sustained", description: `Score of ${Math.round(avgScore)}% — high-performance zone.`, type: "success" };
         else if (avgScore < 50 && avgScore > 0) aiInsight = { title: "Opportunity for Shift", description: `Baseline score of ${Math.round(avgScore)}%. Focus on development.`, type: "warning" };
 
+        // --- FETCH ORGANIZATION LOGO (Lookup Chain: User -> AdminId -> Org Admin) ---
+        let orgLogo = targetUser?.orgLogo || "";
+        const targetOrgName = queryOrgName || targetUser?.orgName || latestReport?.userDetails?.orgName;
+
+        if (!orgLogo && targetOrgName) {
+            if (targetUser?.adminId) {
+                const adminUser = await User.findById(targetUser.adminId).select("orgLogo").lean();
+                orgLogo = adminUser?.orgLogo || "";
+            }
+            if (!orgLogo) {
+                const orgAdmin = await User.findOne({ orgName: targetOrgName, role: "admin" }).select("orgLogo").lean();
+                orgLogo = orgAdmin?.orgLogo || "";
+            }
+        }
+
         const finalData = {
             report: latestReport,
             firstReport: firstReport,
             user: targetUser || latestReport.userDetails,
             aiInsight: latestReport.customAiInsight || aiInsight,
             isReleased: latestReport.isReleased || false,
+            orgLogo: orgLogo,
             hasReport: true
         };
 
@@ -1001,10 +1026,15 @@ export const releaseReport = async (req, res) => {
                     type: avgScore > 75 ? "success" : avgScore < 50 ? "warning" : "info"
                 };
 
+                // --- FETCH ORGANIZATION LOGO ---
+                const targetOrgName = assessmentData.userDetails?.orgName || targetUser?.orgName;
+                const orgAdmin = await User.findOne({ orgName: targetOrgName, role: "admin" }).select("orgLogo").lean();
+
                 const data = {
                     report: assessmentData,
                     user: targetUser,
                     aiInsight,
+                    orgLogo: orgAdmin?.orgLogo || "",
                     hasReport: true
                 };
 
@@ -1036,9 +1066,14 @@ export const publicDownloadReport = async (req, res) => {
         if (!report) return res.status(404).json({ message: "No report found for this email address." });
         if (!report.isReleased) return res.status(403).json({ message: "This report has not been officially released by an administrator yet." });
 
+        // --- FETCH ORGANIZATION LOGO ---
+        const targetOrgName = report.userDetails?.orgName;
+        const orgAdmin = await User.findOne({ orgName: targetOrgName, role: "admin" }).select("orgLogo").lean();
+
         const data = {
             report,
             user: report.userDetails,
+            orgLogo: orgAdmin?.orgLogo || "",
             hasReport: true
         };
 
