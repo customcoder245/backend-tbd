@@ -1,5 +1,11 @@
 import nodemailer from "nodemailer";
 import dns from "dns";
+import sgMail from "@sendgrid/mail";
+
+// Initialize SendGrid
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
 
 // Force prioritize IPv4 for network requests (fixes Gmail connection timeouts on many networks)
 if (dns.setDefaultResultOrder) {
@@ -302,14 +308,44 @@ const getEmailWrapper = (
 
 const sendEmail = async (mailOptions) => {
   try {
-    const info = await getTransporter().sendMail(mailOptions);
-    console.log("Email sent:", info.response);
+    if (process.env.SENDGRID_API_KEY) {
+      // Use SendGrid API (Works on Render/AWS/etc.)
+      const msg = {
+        to: mailOptions.to,
+        from: {
+          email: process.env.EMAIL_USER, // The email you verified in SendGrid
+          name: "Talent By Design"
+        },
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+      };
+
+      // Add attachments if present
+      if (mailOptions.attachments && mailOptions.attachments.length > 0) {
+        msg.attachments = mailOptions.attachments.map(att => ({
+          content: att.content.toString('base64'),
+          filename: att.filename,
+          type: att.contentType || 'application/pdf',
+          disposition: 'attachment'
+        }));
+      }
+
+      await sgMail.send(msg);
+      console.log(">>> [EMAIL SENT VIA SENDGRID]");
+    } else {
+      // Fallback to Nodemailer SMTP
+      const info = await getTransporter().sendMail(mailOptions);
+      console.log(">>> [EMAIL SENT VIA SMTP]:", info.response);
+    }
   } catch (error) {
     console.error(">>> [EMAIL FAIL]:", error.message);
-    console.error(error.stack);
+    if (error.response) {
+      console.error(error.response.body);
+    }
     throw new Error(`Failed to send email: ${error.message}`);
   }
 };
+
 
 
 export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {

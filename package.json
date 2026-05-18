@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
+    "@sendgrid/mail": "^8.1.6",
     "@sparticuz/chromium": "123.0.1",
     "axios": "^1.13.6",
     "cloudinary": "^2.9.0",
@@ -34,6 +35,7 @@
     "pdf-lib": "^1.17.1",
     "puppeteer": "^22.6.0",
     "puppeteer-core": "22.6.0",
+    "resend": "^6.12.3",
     "sharp": "^0.33.5",
     "xlsx": "^0.18.5"
   },
