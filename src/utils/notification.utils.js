@@ -125,34 +125,21 @@ export const notifyHierarchy = async ({ initiatorId, title, message, type = "inf
 
         // 1. Determine who needs to be notified based on role hierarchy
         if (role === "employee") {
-            // Superior levels: manager, leader, admin
+            // Superior levels: admin (manager and leader are excluded from receiving department notifications)
             const query = {
                 orgName,
-                role: { $in: ["manager", "leader", "admin"] }
+                role: "admin"
             };
-            // For managers and leaders, restrict to same department if available
             const users = await User.find(query);
-            users.forEach(user => {
-                if (user.role === "admin") {
-                    superiors.push(user);
-                } else if (department && user.department === department) {
-                    superiors.push(user);
-                }
-            });
+            superiors.push(...users);
         } else if (role === "manager") {
-            // Superior levels: leader, admin
+            // Superior levels: admin (leader is excluded from receiving department notifications)
             const query = {
                 orgName,
-                role: { $in: ["leader", "admin"] }
+                role: "admin"
             };
             const users = await User.find(query);
-            users.forEach(user => {
-                if (user.role === "admin") {
-                    superiors.push(user);
-                } else if (department && user.department === department) {
-                    superiors.push(user);
-                }
-            });
+            superiors.push(...users);
         } else if (role === "leader") {
             // Superior levels: admin
             const admins = await User.find({ orgName, role: "admin" });
