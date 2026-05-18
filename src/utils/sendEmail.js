@@ -306,6 +306,7 @@ const getEmailWrapper = (
   </body>
 </html>`;
 
+
 const sendEmail = async (mailOptions) => {
   try {
     if (process.env.SENDGRID_API_KEY) {
