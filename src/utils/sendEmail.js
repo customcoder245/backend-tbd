@@ -314,9 +314,11 @@ const sendEmail = async (mailOptions) => {
         to: mailOptions.to,
         from: {
           email: process.env.EMAIL_USER, // The email you verified in SendGrid
-          name: "Talent By Design"
+          name: "Talent By Design Support"
         },
+        replyTo: process.env.EMAIL_USER, // Crucial for spam filters
         subject: mailOptions.subject,
+        text: mailOptions.subject, // Plain text version of the subject as a fallback
         html: mailOptions.html,
       };
 
