@@ -1046,6 +1046,268 @@ const feedbackData = {
         "domain": "Digital Fluency"
       }
     }
+  },
+  "organizational_health": {
+      "Mindset & Adaptability": {
+          "Low": {
+              "insight": "Executive leaders should view this as a readiness constraint. When mindset and adaptability are low, transformation plans can appear sound on paper but stall in practice because people are operating from fatigue, uncertainty, resistance, or low confidence. This may create slower adoption, greater dependency on leadership direction, and a higher risk that teams revert to familiar habits when pressure increases.",
+              "modelDescription": "This score suggests the organization does not yet have a strong shared mindset for adapting to ambiguity, shifting priorities, or new ways of working. Change may be experienced as something imposed rather than something employees and leaders feel equipped to participate in.",
+              "coachingTips": "• Low – adaptability signals are weak and the organization may struggle to absorb change without disruption.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "People Potential"
+          },
+          "Medium": {
+              "insight": "This is a scalable opportunity. Leadership can likely accelerate progress by identifying where adaptability is already strong and translating those behaviours into repeatable practices. The executive risk is not broad resistance, but variability: some areas may move forward while others lag, creating uneven implementation, inconsistent employee experience, and avoidable drag on transformation momentum.",
+              "modelDescription": "This score indicates the organization has some capacity to adapt, though the experience is likely inconsistent. Some groups may be embracing change while others require more clarity, support, or confidence to move at the same pace.",
+              "coachingTips": "• Medium – adaptability exists, but it is uneven across teams, leaders, or work environments.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "People Potential"
+          },
+          "High": {
+              "insight": "This is a strategic asset. A high score in mindset and adaptability means leadership has permission to move with more ambition, provided change remains well-sequenced and clearly communicated. The organization is better positioned to absorb transformation, experiment with new approaches, and recover quickly from setbacks without major loss of confidence or engagement.",
+              "modelDescription": "This score indicates the organization has a strong foundation of openness, resilience, and willingness to adjust as conditions change. Employees and leaders are more likely to engage constructively with new priorities, tools, processes, or expectations.",
+              "coachingTips": "• High – adaptability is a clear organizational strength and supports transformation momentum.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "People Potential"
+          }
+      },
+      "Psychological Health & Safety": {
+          "Low": {
+              "insight": "This should be treated as an organizational risk indicator, not simply a culture concern. Low psychological health and safety can suppress early warning signs, increase burnout, and cause issues to surface only after they become more expensive to fix. Executive leaders may be receiving an incomplete picture of organizational reality if employees or managers do not feel safe escalating friction honestly.",
+              "modelDescription": "This score suggests employees may not consistently feel safe to speak up, challenge decisions, raise risks, ask for help, or admit when something is not working. The organization may be missing important signals because people are holding back.",
+              "coachingTips": "• Low – psychological safety concerns may be limiting trust, candour, and sustainable performance.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "People Potential"
+          },
+          "Medium": {
+              "insight": "The executive opportunity is to reduce dependency on individual leader style. At this level, psychological safety may be strong where managers are skilled and weaker where leadership behaviours are less consistent. This creates organizational unevenness and can distort the quality of feedback, risk reporting, and employee engagement across departments.",
+              "modelDescription": "This score indicates a mixed environment. Some teams may have strong trust and openness, while others may still experience hesitation, guarded communication, or inconsistent support when pressure is high.",
+              "coachingTips": "• Medium – safety and trust are present in parts of the organization but not experienced consistently.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "People Potential"
+          },
+          "High": {
+              "insight": "This is a powerful enabler of execution and innovation. High psychological health and safety gives leaders better access to ground-level truth, which improves decision-making and reduces the chance that risks remain hidden. The organization is well positioned to learn quickly, address friction early, and sustain performance through periods of change.",
+              "modelDescription": "This score suggests the organization has strong conditions for open communication, respectful challenge, and timely escalation of concerns. People are more likely to contribute ideas, identify risks, and participate in improvement efforts.",
+              "coachingTips": "• High – psychological safety is supporting trust, candour, and healthy organizational learning.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "People Potential"
+          }
+      },
+      "Relational & Emotional Intelligence": {
+          "Low": {
+              "insight": "Executive leaders should consider this a drag on execution quality. When relational and emotional intelligence are low, coordination problems are often misread as process problems. Teams may avoid difficult conversations, escalate prematurely, personalize conflict, or work around each other instead of solving issues directly. This can quietly increase rework, frustration, and leadership burden.",
+              "modelDescription": "This score suggests the organization may be experiencing inconsistent interpersonal trust, limited empathy, unresolved tension, or communication patterns that weaken collaboration across teams and levels.",
+              "coachingTips": "• Low – relational friction may be affecting collaboration, leadership credibility, and team effectiveness.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "People Potential"
+          },
+          "Medium": {
+              "insight": "The organization likely has enough relational strength to function day-to-day, but pressure points may reveal inconsistency. During high workload, ambiguity, or change, teams may default to siloed behaviour, defensiveness, or unclear handoffs. Executive attention should focus on strengthening cross-functional habits before relational friction becomes a barrier to strategic delivery.",
+              "modelDescription": "This score indicates the organization has a reasonable relational foundation, though emotional intelligence and collaboration behaviours may not be consistently strong across all teams or leadership groups.",
+              "coachingTips": "• Medium – relationships are functional, but collaboration quality may vary under pressure.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "People Potential"
+          },
+          "High": {
+              "insight": "This is an important enterprise capability. Strong relational and emotional intelligence improves the organization’s ability to align quickly, resolve tension, and maintain trust during transformation. It also reduces the hidden cost of conflict, making it easier for leaders to mobilize teams around strategic priorities.",
+              "modelDescription": "This score indicates strong interpersonal maturity across the organization. Leaders, managers, and employees are more likely to navigate complexity, disagreement, and change with professionalism and constructive intent.",
+              "coachingTips": "• High – relational strength is enabling collaboration, trust, and coordinated performance.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "People Potential"
+          }
+      },
+      "Prioritization": {
+          "Low": {
+              "insight": "This is a direct execution risk. Low prioritization often shows up as busyness without proportional progress, delayed decisions, overextended teams, and diluted strategic focus. Executive leaders may need to make sharper choices about what to stop, defer, sequence, or fund so the organization can concentrate capacity on the work that matters most.",
+              "modelDescription": "This score suggests the organization lacks sufficient clarity or discipline around what matters most. Teams may be managing too many competing initiatives without a shared understanding of sequencing, trade-offs, or decision authority.",
+              "coachingTips": "• Low – priorities may be unclear, competing, or changing faster than the organization can absorb.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Operational Steadiness"
+          },
+          "Medium": {
+              "insight": "The organization is likely making progress, but not as efficiently as it could. At this level, teams may understand strategic priorities but still struggle to translate them into day-to-day decisions. Executive value can be unlocked by strengthening prioritization governance, clarifying decision rights, and making trade-offs more visible across departments.",
+              "modelDescription": "This score indicates the organization has some prioritization structure, though it may not be strong enough to prevent competing demands, local interpretation, or inconsistent escalation when capacity is constrained.",
+              "coachingTips": "• Medium – priorities are generally understood, but trade-offs and sequencing may not be consistent.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Operational Steadiness"
+          },
+          "High": {
+              "insight": "This is a major execution advantage. High prioritization means leadership can move from reactive coordination toward strategic acceleration. The organization is better positioned to allocate resources intentionally, manage capacity honestly, and sustain momentum because teams understand what matters most and why.",
+              "modelDescription": "This score indicates the organization has strong clarity around priorities and is more likely to align resources, decisions, and effort to the most important outcomes.",
+              "coachingTips": "• High – prioritization discipline is supporting focus, alignment, and strategic execution.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Operational Steadiness"
+          }
+      },
+      "Workflow Clarity": {
+          "Low": {
+              "insight": "This is an operational leakage point. Low workflow clarity often results in employees spending energy navigating the system rather than delivering value. Executive leaders may see this as slower cycle times, inconsistent service quality, unclear accountability, and frustration between teams. Without clearer workflows, additional transformation activity may add complexity rather than reduce it.",
+              "modelDescription": "This score suggests teams may not have consistent clarity around processes, handoffs, ownership, information flow, or how work should move across the organization.",
+              "coachingTips": "• Low – workflow ambiguity may be creating duplication, rework, and avoidable delays.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Operational Steadiness"
+          },
+          "Medium": {
+              "insight": "The organization may be vulnerable to inconsistency and key-person dependency. While work gets done, the path may not be standardized or transparent enough to scale effectively. Executive attention should focus on simplifying handoffs, reducing ambiguity, and converting informal practices into clear, repeatable operating norms.",
+              "modelDescription": "This score indicates that core work is moving through the organization, but workflow clarity may depend heavily on experienced individuals, local habits, or team-specific workarounds.",
+              "coachingTips": "• Medium – workflows are functional but may rely on informal knowledge or inconsistent practices.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Operational Steadiness"
+          },
+          "High": {
+              "insight": "This creates a strong platform for operational maturity. High workflow clarity reduces friction, improves accountability, and enables better performance measurement. The organization is well positioned to optimize, automate, and scale work because the underlying operating model is clearer and easier to improve.",
+              "modelDescription": "This score indicates that people generally understand how work flows, who owns what, and how to move tasks or decisions forward effectively.",
+              "coachingTips": "• High – workflow clarity is enabling smoother execution and more reliable delivery.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Operational Steadiness"
+          }
+      },
+      "Effective Resource Management": {
+          "Low": {
+              "insight": "This is both a delivery and sustainability risk. Low resource management can mean teams are being asked to absorb more change than capacity allows, creating fatigue, missed deadlines, quality issues, or dependency on heroic effort. Executives may need a more transparent view of capacity, workload, and investment trade-offs before adding new priorities.",
+              "modelDescription": "This score suggests the organization may not be aligning people, time, funding, skills, or capacity effectively to the work being asked of teams.",
+              "coachingTips": "• Low – resource strain may be undermining delivery, morale, and transformation sustainability.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Operational Steadiness"
+          },
+          "Medium": {
+              "insight": "The organization may be operating in a manageable but fragile state. Some teams may have sufficient capacity while others are carrying disproportionate load. Executive leaders can improve outcomes by making resource constraints visible earlier, aligning capacity to priority work, and avoiding silent overextension in critical teams.",
+              "modelDescription": "This score indicates the organization has some resource planning discipline, though capability, capacity, and funding may not be consistently matched to strategic demand.",
+              "coachingTips": "• Medium – resources are being managed, but constraints or imbalances may still affect execution.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Operational Steadiness"
+          },
+          "High": {
+              "insight": "This is a strong indicator of mature execution discipline. High resource management allows leadership to make better strategic choices because capacity and constraints are more visible. The organization is better positioned to deliver reliably, absorb change sustainably, and invest in future capability without destabilizing current operations.",
+              "modelDescription": "This score indicates the organization is more effectively aligning capacity, skills, time, and investment to organizational priorities.",
+              "coachingTips": "• High – resource management is supporting sustainable execution and stronger delivery confidence.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Operational Steadiness"
+          }
+      },
+      "Data, AI & Automation Readiness": {
+          "Low": {
+              "insight": "This should be interpreted as a future-readiness constraint. If the organization advances AI or automation too quickly without stronger foundations, it may create confusion, risk, or low adoption. Executives should focus first on data literacy, governance, priority use cases, and practical confidence before positioning AI as an enterprise productivity lever.",
+              "modelDescription": "This score suggests foundational readiness for data-driven decision-making, AI-enabled work, or automation may be limited. Barriers may include unclear data ownership, low confidence, limited governance, inconsistent data quality, or lack of practical use cases.",
+              "coachingTips": "• Low – the organization is not yet well positioned to use data, AI, or automation at scale.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          },
+          "Medium": {
+              "insight": "The organization is entering a valuable but sensitive maturity stage. Some teams may be ready to experiment while others need clearer guardrails, training, and governance. Executive leaders can create momentum by selecting practical use cases, defining responsible AI expectations, and building confidence through visible, low-risk wins.",
+              "modelDescription": "This score indicates the organization has interest, pockets of capability, or early use cases, but readiness is likely uneven across functions and roles.",
+              "coachingTips": "• Medium – readiness for data, AI, and automation is emerging but not yet enterprise-scaled.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          },
+          "High": {
+              "insight": "This is a strategic acceleration opportunity. High readiness means the organization can move beyond awareness into targeted implementation, provided governance and ethics keep pace. Executives can use this strength to prioritize automation candidates, enhance reporting intelligence, and explore AI-supported planning, service improvement, and workforce enablement.",
+              "modelDescription": "This score indicates a strong foundation for using data, AI, and automation to improve decisions, workflows, productivity, and strategic insight.",
+              "coachingTips": "• High – the organization has strong readiness to advance data-informed, AI-enabled, and automated ways of working.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          }
+      },
+      "Digital Communication & Collaboration": {
+          "Low": {
+              "insight": "This is a productivity and alignment issue. Low digital communication maturity often leads to scattered information, duplicated files, unclear channels, meeting overload, and missed context. Executives may see downstream impacts in slower coordination, reduced transparency, and frustration across hybrid or cross-functional work.",
+              "modelDescription": "This score suggests the organization may not be using digital communication and collaboration tools in a consistent, purposeful, or efficient way.",
+              "coachingTips": "• Low – digital collaboration practices may be fragmented, inconsistent, or creating avoidable noise.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          },
+          "Medium": {
+              "insight": "The organization has a usable digital foundation but may not yet be getting full value from its tools. Some teams may collaborate effectively while others rely on workarounds or inconsistent practices. Executive attention should focus on enterprise norms, clearer ownership of digital spaces, and reducing friction in how people find information and work together.",
+              "modelDescription": "This score indicates that teams are using collaboration tools, but norms, information architecture, channel discipline, or shared expectations may vary.",
+              "coachingTips": "• Medium – digital collaboration is working in parts of the organization but lacks full consistency.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          },
+          "High": {
+              "insight": "This is a strong operating advantage, particularly for distributed or cross-functional environments. High digital collaboration maturity improves speed, transparency, and knowledge sharing. The organization is well positioned to build on this foundation through workflow integration, knowledge management, and more advanced digital workplace optimization.",
+              "modelDescription": "This score indicates the organization has strong digital collaboration behaviours and is likely using core tools in ways that support coordination, access to information, and cross-team alignment.",
+              "coachingTips": "• High – digital communication and collaboration are enabling more connected, transparent work.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          }
+      },
+      "Mindset, Confidence & Change Readiness": {
+          "Low": {
+              "insight": "This is a human adoption risk. The issue may not be the technology itself, but the confidence and support required to use it well. Low readiness can lead to passive resistance, underuse of tools, increased support demand, and inconsistent adoption. Executives should avoid assuming implementation equals adoption.",
+              "modelDescription": "This score suggests employees and/or leaders may not yet feel confident navigating digital change, learning new tools, or adapting to technology-enabled ways of working.",
+              "coachingTips": "• Low – confidence with digital change may be limiting adoption and increasing resistance or dependency.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          },
+          "Medium": {
+              "insight": "The organization has a meaningful base to build from. At this level, digital confidence can improve quickly if support is practical, relevant, and tied to real work. Executive leaders should focus on closing confidence gaps so adoption does not depend only on early adopters or technically comfortable employees.",
+              "modelDescription": "This score indicates a moderate level of confidence and openness toward digital change, though some groups may still need more practical support, reinforcement, or role-specific enablement.",
+              "coachingTips": "• Medium – digital change readiness is developing but may differ across roles, teams, or generations of work habits.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          },
+          "High": {
+              "insight": "This creates strong conditions for modernization. High confidence and readiness mean the organization can introduce new digital capabilities with less resistance and faster uptake. Executives can use this strength to advance digital transformation, provided changes remain clearly connected to business value and employee experience.",
+              "modelDescription": "This score indicates strong digital confidence and a positive orientation toward learning, adopting, and adapting to new tools or technology-enabled processes.",
+              "coachingTips": "• High – the organization is confident and ready to adopt technology-enabled change.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          }
+      },
+      "Tool & System Proficiency": {
+          "Low": {
+              "insight": "This is a practical performance issue. Low proficiency can result in errors, duplication, manual workarounds, inconsistent reporting, and underuse of existing technology investments. Executives may be paying for tools without realizing full value because the workforce has not been sufficiently enabled to use them well.",
+              "modelDescription": "This score suggests employees and managers may not have the confidence, knowledge, or consistency needed to use core systems effectively.",
+              "coachingTips": "• Low – inconsistent tool and system proficiency may be reducing productivity and increasing operational risk.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          },
+          "Medium": {
+              "insight": "The organization is likely getting partial value from its technology environment. Some users may be highly capable while others use only basic functions or rely on manual workarounds. Executive leaders can improve return on investment by targeting enablement to the workflows, teams, and systems where proficiency gaps create the most friction.",
+              "modelDescription": "This score indicates that core tools and systems are being used, though proficiency likely varies by role, team, process, or level of training.",
+              "coachingTips": "• Medium – proficiency is adequate, but capability gaps may still limit full value realization.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          },
+          "High": {
+              "insight": "This is a strong foundation for digital optimization. High proficiency means the organization can move beyond basic training toward process improvement, automation, analytics, and more advanced use of existing platforms. Executives can leverage this capability to increase efficiency and reduce reliance on manual or duplicative work.",
+              "modelDescription": "This score indicates the workforce is generally capable and confident using core tools and systems to complete work effectively.",
+              "coachingTips": "• High – strong tool and system proficiency is supporting productivity, consistency, and digital value realization.",
+              "recommendedPrograms": "",
+              "objectives": "",
+              "domain": "Digital Fluency"
+          }
+      }
   }
 };
 

@@ -10,7 +10,8 @@ import {
     exportPdfReport,
     previewPdfReport,
     getManagerTeamAvg,
-    publicDownloadReport
+    publicDownloadReport,
+    getOrgAverageReport
 } from "../controllers/dashboard.controller.js";
 import { getTooltips, updateTooltip } from "../controllers/tooltip.controller.js";
 import { protect, restrictTo } from "../middlewares/auth.middleware.js";
@@ -28,6 +29,7 @@ router.get("/employee", employeeReport);
 router.get("/manager", managerReport);
 router.get("/leader", LeaderReport);
 router.get("/admin", AdminReport);
+router.get("/org-average", getOrgAverageReport);
 
 // 🆕 Detailed Domain Analysis (Insights, OKRs, Recommendations)
 router.get("/detailed-insight", getDomainDetailedReport);

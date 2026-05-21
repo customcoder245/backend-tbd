@@ -1093,5 +1093,72 @@ export const publicDownloadReport = async (req, res) => {
     }
 };
 
+/**
+ * 🆕 ORG AVERAGE REPORT (FOR ADMIN OVERVIEW)
+ * Returns the organizational average formatted as a standard report
+ */
+export const getOrgAverageReport = async (req, res) => {
+    try {
+        req.query.includeSelf = 'true';
+        req.query.orgName = req.user.orgName;
+        
+        const role = req.user.role?.toLowerCase();
+        const isOrgWide = (role === "superadmin" || role === "super_admin" || role === "admin");
+        
+        if (!isOrgWide) {
+            req.query.department = req.user.department;
+        }
+        
+        const data = await getOrganizationContextData(req, res);
+        
+        if (!data) {
+            return res.status(404).json({ message: "No data found." });
+        }
 
+        const allAvg = data.teamAvg;
+        const domainsObj = {};
+        let overallSum = 0;
+        let domainCount = 0;
 
+        for (const [domainName, domainData] of Object.entries(allAvg)) {
+            domainsObj[domainName] = {
+                score: domainData.avgScore,
+                subdomains: domainData.subdomains
+            };
+            overallSum += domainData.avgScore;
+            if (domainData.avgScore > 0) domainCount++;
+        }
+
+        const overallScore = domainCount > 0 ? (overallSum / domainCount) : 0;
+        
+        const entityName = isOrgWide ? "Organization" : (req.user.department || "Department");
+
+        const dummyReport = {
+            scores: {
+                overall: overallScore,
+                domains: domainsObj
+            },
+            userDetails: {
+                firstName: entityName,
+                lastName: "Average",
+                orgName: req.user.orgName
+            },
+            isReleased: true
+        };
+
+        return res.status(200).json({
+            report: dummyReport,
+            user: dummyReport.userDetails,
+            aiInsight: {
+                title: `${entityName} Health`,
+                description: `Average score of ${Math.round(overallScore)}% across all domains.`,
+                type: "info"
+            },
+            hasReport: true
+        });
+
+    } catch (error) {
+        console.error("getOrgAverageReport error:", error);
+        res.status(500).json({ message: "Error fetching org average", error: error.message });
+    }
+};
