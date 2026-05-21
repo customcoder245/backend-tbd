@@ -336,42 +336,74 @@ export const getDomainDetailedReport = async (req, res) => {
 
         // ─── ASSESSMENT LOOKUP ────────────────────────────────────────────────────
         let assessment = null;
+        let domainData = null;
 
-        // Guest employee path: use email directly
-        if (isGuest || queryEmail) {
-            const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-            assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 }).lean();
+        if (req.query.isOrgAverage === 'true') {
+            const orgContext = await getOrganizationContextData(req, res);
+            if (!orgContext || !orgContext.teamAvg) {
+                return res.status(404).json({ message: "No organizational data found." });
+            }
+
+            const teamAvgDomainData = orgContext.teamAvg[domain];
+
+            if (!teamAvgDomainData) {
+                const domainKey = Object.keys(orgContext.teamAvg).find(
+                    k => k.toLowerCase().trim() === domain.toLowerCase().trim()
+                );
+                if (domainKey) {
+                    domainData = {
+                        score: orgContext.teamAvg[domainKey].avgScore,
+                        subdomains: orgContext.teamAvg[domainKey].subdomains
+                    };
+                }
+            } else {
+                domainData = {
+                    score: teamAvgDomainData.avgScore,
+                    subdomains: teamAvgDomainData.subdomains
+                };
+            }
+
+            if (!domainData) {
+                return res.status(404).json({ message: `No data found for domain: ${domain}` });
+            }
+            targetUser = requester;
         } else {
-            // Registered user path
-            const isAllowed = !queryUserId || queryUserId === loggedInUserId || rRole === "superadmin" || (requester?.orgName && requester.orgName === targetUser?.orgName);
-            if (!isAllowed) return res.status(403).json({ message: "Access denied." });
-
-            assessment = await SubmittedAssessment.findOne({ userId }).sort({ submittedAt: -1 }).lean();
-
-            if (!assessment && targetUser?.email) {
-                const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+            // Guest employee path: use email directly
+            if (isGuest || queryEmail) {
+                const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
                 assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 }).lean();
-                if (assessment) SubmittedAssessment.updateOne({ _id: assessment._id }, { $set: { userId } }).catch(() => { });
+            } else {
+                // Registered user path
+                const isAllowed = !queryUserId || queryUserId === loggedInUserId || rRole === "superadmin" || (requester?.orgName && requester.orgName === targetUser?.orgName);
+                if (!isAllowed) return res.status(403).json({ message: "Access denied." });
+
+                assessment = await SubmittedAssessment.findOne({ userId }).sort({ submittedAt: -1 }).lean();
+
+                if (!assessment && targetUser?.email) {
+                    const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+                    assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 }).lean();
+                    if (assessment) SubmittedAssessment.updateOne({ _id: assessment._id }, { $set: { userId } }).catch(() => { });
+                }
             }
-        }
 
-        if (!assessment || !assessment.scores || !assessment.scores.domains) {
-            return res.status(404).json({ message: "No scores found for this user.", hasReport: false });
-        }
-
-        let domainData = assessment.scores.domains[domain];
-        if (!domainData) {
-            // Case-insensitive fallback
-            const domainKey = Object.keys(assessment.scores.domains).find(
-                k => k.toLowerCase().trim() === domain.toLowerCase().trim()
-            );
-            if (domainKey) {
-                domainData = assessment.scores.domains[domainKey];
+            if (!assessment || !assessment.scores || !assessment.scores.domains) {
+                return res.status(404).json({ message: "No scores found for this user.", hasReport: false });
             }
-        }
 
-        if (!domainData) {
-            return res.status(404).json({ message: `No data found for domain: ${domain}` });
+            domainData = assessment.scores.domains[domain];
+            if (!domainData) {
+                // Case-insensitive fallback
+                const domainKey = Object.keys(assessment.scores.domains).find(
+                    k => k.toLowerCase().trim() === domain.toLowerCase().trim()
+                );
+                if (domainKey) {
+                    domainData = assessment.scores.domains[domainKey];
+                }
+            }
+
+            if (!domainData) {
+                return res.status(404).json({ message: `No data found for domain: ${domain}` });
+            }
         }
 
         // Check for specific subdomain feedback, otherwise fallback to domain-level feedback
