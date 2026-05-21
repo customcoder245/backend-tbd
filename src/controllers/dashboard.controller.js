@@ -341,19 +341,16 @@ export const getDomainDetailedReport = async (req, res) => {
         if (isGuest || queryEmail) {
             const emailRegex = new RegExp(`^${queryEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
             assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 }).lean();
-            console.log(`[DetailedInsight] Guest email lookup: ${assessment ? 'FOUND' : 'NOT FOUND'} for email=${queryEmail}`);
         } else {
             // Registered user path
             const isAllowed = !queryUserId || queryUserId === loggedInUserId || rRole === "superadmin" || (requester?.orgName && requester.orgName === targetUser?.orgName);
             if (!isAllowed) return res.status(403).json({ message: "Access denied." });
 
             assessment = await SubmittedAssessment.findOne({ userId }).sort({ submittedAt: -1 }).lean();
-            console.log(`[DetailedInsight] Strategy 1 (userId): ${assessment ? 'FOUND' : 'not found'}`);
 
             if (!assessment && targetUser?.email) {
                 const emailRegex = new RegExp(`^${targetUser.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
                 assessment = await SubmittedAssessment.findOne({ "userDetails.email": emailRegex }).sort({ submittedAt: -1 }).lean();
-                console.log(`[DetailedInsight] Strategy 2 (email regex): ${assessment ? 'FOUND' : 'not found'}`);
                 if (assessment) SubmittedAssessment.updateOne({ _id: assessment._id }, { $set: { userId } }).catch(() => { });
             }
         }

@@ -617,10 +617,7 @@ export const getOrganizationMembers = async (req, res) => {
       SubmittedAssessment.find({ "userDetails.orgName": orgRegex, isDeleted: { $ne: true } }).select("userDetails assessmentId _id submittedAt scores.overall createdAt").lean()
     ]);
 
-    console.log(`[getOrganizationMembers] DEBUG: Org: ${orgName}`);
-    console.log(`[getOrganizationMembers] DEBUG: Registered Users: ${registeredUsers.length}`);
-    console.log(`[getOrganizationMembers] DEBUG: Submitted Assessments: ${submittedAssessments.length}`);
-    console.log(`[getOrganizationMembers] DEBUG: Submitted emails found: ${submittedAssessments.map(s => s.userDetails?.email).join(', ')}`);
+    // Debug logs removed
 
     // Create a map of latest assessment for each user/email
     const latestAssessments = new Map();
@@ -655,7 +652,7 @@ export const getOrganizationMembers = async (req, res) => {
       }
     });
 
-    console.log(`[getOrganizationMembers] DEBUG: LatestAssessments Map Keys: ${Array.from(latestAssessments.keys()).join(', ')}`);
+    // Debug log removed
 
     // Mapping registered users
     const activeMembers = registeredUsers.map(u => {
@@ -728,7 +725,7 @@ export const getOrganizationMembers = async (req, res) => {
         const fName = (details.firstName && details.firstName !== "-") ? details.firstName : "";
         const lName = details.lastName || "";
 
-        console.log(`[getOrganizationMembers] GHOST DETECTED: ${email}`);
+        // Debug log removed
 
         allMembers.push({
           _id: data.id,
@@ -749,9 +746,7 @@ export const getOrganizationMembers = async (req, res) => {
     });
 
     const target = allMembers.find(m => m.email.toLowerCase() === "tbdemployee@yopmail.com");
-    if (target) {
-      console.log(`[getOrganizationMembers] DEBUG: Target Member Found: ${JSON.stringify(target)}`);
-    }
+    // Debug log removed
 
     res.status(200).json({
       details: {
