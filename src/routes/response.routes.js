@@ -2,6 +2,7 @@ import express from "express";
 import { saveResponse } from "../controllers/response.controller.js";
 import { flexibleProtect } from "../middlewares/auth.middleware.js";
 import { getResponsesByAssessment } from "../controllers/response.controller.js";
+import { exportIndividualReportExcel } from "../controllers/response.controller.js";
 
 const router = express.Router();
 
@@ -10,5 +11,7 @@ const router = express.Router();
  */
 router.post("/", flexibleProtect, saveResponse);
 router.get("/:assessmentId", flexibleProtect, getResponsesByAssessment);
+router.get("/:assessmentId/export", flexibleProtect, exportIndividualReportExcel);
 
 export default router;
+
