@@ -1276,24 +1276,15 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
     wsConfig.state = "hidden";
 
-    // Build dropdown lists directly from the data
-    const roleList = [...new Set(reportsData.map(r => r.role).filter(Boolean))].sort();
-    const deptList = [...new Set(reportsData.map(r => r.dept).filter(d => d && d !== "N/A"))].sort();
-    const personList = reportsData.map(r => r.empName).filter(Boolean).sort();
+    // Write headers to Config sheet columns
+    wsConfig.getCell("A1").value = "Roles (Filtered)";
+    wsConfig.getCell("B1").value = "Departments (Filtered)";
+    wsConfig.getCell("C1").value = "People (Filtered)";
+    wsConfig.getCell("D1").value = "Raw_Role";
+    wsConfig.getCell("E1").value = "Raw_Dept";
+    wsConfig.getCell("F1").value = "Raw_Person";
 
-    // Write lists to Config sheet columns
-    wsConfig.getCell("A1").value = "Roles";
-    wsConfig.getCell("B1").value = "Departments";
-    wsConfig.getCell("C1").value = "People";
-    wsConfig.getCell("D1").value = "RoleDeptMap_Role";
-    wsConfig.getCell("E1").value = "RoleDeptMap_Dept";
-    wsConfig.getCell("F1").value = "RoleDeptMap_Person";
-
-    roleList.forEach((role, i) => { wsConfig.getCell(i + 2, 1).value = role; });
-    deptList.forEach((dept, i) => { wsConfig.getCell(i + 2, 2).value = dept; });
-    personList.forEach((name, i) => { wsConfig.getCell(i + 2, 3).value = name; });
-
-    // Write full mapping table (role → dept → person) for cascading filters
+    // Write full mapping table (role → dept → person) starting at row 2 for cascading filters
     let mapRow = 2;
     reportsData.forEach(r => {
       wsConfig.getCell(mapRow, 4).value = r.role || "";
@@ -1302,37 +1293,47 @@ export const exportOrganizationReportExcel = async (req, res) => {
       mapRow++;
     });
 
-    // Build Excel-compatible comma-separated lists for data validation
-    const roleListStr = '"' + roleList.join(",") + '"';
+    // Write dynamic array formulas to _Config columns A, B, C
+    // Column A: Unique roles sorted
+    wsConfig.getCell("A2").value = {
+      formula: `SORT(UNIQUE(FILTER(_Config!$D$2:$D$10000, _Config!$D$2:$D$10000<>"","No Roles")))`
+    };
 
-    // Role dropdown (B7) - shows all unique roles
+    // Column B: Unique departments sorted, filtered by chosen Role in Home!B7
+    wsConfig.getCell("B2").value = {
+      formula: `SORT(UNIQUE(FILTER(_Config!$E$2:$E$10000, (_Config!$E$2:$E$10000<>"") * ((Home!$B$7="") + (_Config!$D$2:$D$10000=Home!$B$7) > 0), "No Departments")))`
+    };
+
+    // Column C: People sorted, filtered by chosen Role in Home!B7 and Dept in Home!F7
+    wsConfig.getCell("C2").value = {
+      formula: `SORT(FILTER(_Config!$F$2:$F$10000, (_Config!$F$2:$F$10000<>"") * ((Home!$B$7="") + (_Config!$D$2:$D$10000=Home!$B$7) > 0) * ((Home!$F$7="") + (_Config!$E$2:$E$10000=Home!$F$7) > 0), "No People"))`
+    };
+
+    // Role dropdown (B7) - links to the dynamic role list spilled from A2
     wsHome.getCell("B7").dataValidation = {
       type: "list",
       allowBlank: true,
-      formulae: [roleListStr],
+      formulae: ["_Config!$A$2#"],
       showErrorMessage: true,
       errorTitle: "Invalid Role",
       error: "Please select a role from the dropdown."
     };
 
-    // Department dropdown (F7) - shows departments filtered by selected role
-    // Uses OFFSET+MATCH to create a dynamic list from the mapping table
-    const deptListStr = '"' + deptList.join(",") + '"';
+    // Department dropdown (F7) - links to the dynamic department list spilled from B2
     wsHome.getCell("F7").dataValidation = {
       type: "list",
       allowBlank: true,
-      formulae: [deptListStr],
+      formulae: ["_Config!$B$2#"],
       showErrorMessage: true,
       errorTitle: "Invalid Department",
       error: "Please select a department from the dropdown."
     };
 
-    // Person dropdown (J7) - shows all people
-    const personListStr = '"' + personList.join(",") + '"';
+    // Person dropdown (J7) - links to the dynamic person list spilled from C2
     wsHome.getCell("J7").dataValidation = {
       type: "list",
       allowBlank: true,
-      formulae: [personListStr],
+      formulae: ["_Config!$C$2#"],
       showErrorMessage: true,
       errorTitle: "Invalid Person",
       error: "Please select a person from the dropdown."
