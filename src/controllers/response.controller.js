@@ -1262,24 +1262,25 @@ export const exportOrganizationReportExcel = async (req, res) => {
     wsConfig.getCell("C1").value = "Raw_Role";
     wsConfig.getCell("D1").value = "Raw_Person";
 
-    // Write full mapping table (role → person) starting at row 2 for dynamic filters
+    // Write mapping table (role → person) starting at row 2 — only valid entries
+    const validEntries = reportsData.filter(r => r.empName && r.role && r.role !== "N/A");
     let mapRow = 2;
-    reportsData.forEach(r => {
-      wsConfig.getCell(mapRow, 3).value = r.role || "";
-      wsConfig.getCell(mapRow, 4).value = r.empName || "";
+    validEntries.forEach(r => {
+      wsConfig.getCell(mapRow, 3).value = r.role;
+      wsConfig.getCell(mapRow, 4).value = r.empName;
       mapRow++;
     });
+    const lastMapRow = mapRow - 1; // last row with data
 
-    // Column B: People sorted, filtered by chosen Role in Home!B7
-    // IMPORTANT: No self-sheet prefix inside formulas on the _Config sheet itself — use direct range refs.
-    // (Column A formula removed — Role dropdown is now a reliable hardcoded list built from data)
-
+    // Column B: People filtered by chosen Role in Home!B7, with UNIQUE to avoid duplicates
+    // IMPORTANT: No self-sheet prefix — use direct range refs inside _Config sheet
+    // Use exact data range ($D$2:$D$lastMapRow) instead of $D$10000 to avoid empty-cell issues
     wsConfig.getCell("B2").value = {
-      formula: `SORT(FILTER($D$2:$D$10000, ($D$2:$D$10000<>"") * ((Home!$B$7="") + ($C$2:$C$10000=Home!$B$7) > 0), "No People"))`
+      formula: `SORT(UNIQUE(FILTER($D$2:$D$${lastMapRow}, ($C$2:$C$${lastMapRow}=Home!$B$7), "Select Person")))`
     };
 
-    // Role dropdown (B7) - hardcoded list built from actual data (always reliable, no formula dependency)
-    const uniqueRolesSorted = [...new Set(reportsData.map(r => r.role).filter(r => r && r !== "N/A"))].sort();
+    // Role dropdown (B7) - hardcoded list built from actual data
+    const uniqueRolesSorted = [...new Set(validEntries.map(r => r.role))].sort();
     const roleDropListStr = '"' + (uniqueRolesSorted.length > 0 ? uniqueRolesSorted.join(",") : "Leader,Manager,Employee") + '"';
     wsHome.getCell("B7").dataValidation = {
       type: "list",
@@ -1300,12 +1301,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
       error: "Please select a person from the dropdown."
     };
 
-    // Set default values from first participant
-    if (reportsData.length > 0) {
-      const defReport = reportsData[0];
-      roleCell.value = defReport.role;
-      personCell.value = defReport.empName;
-    }
+    // Set initial placeholder values (user must select from dropdowns)
+    roleCell.value = uniqueRolesSorted.length > 0 ? uniqueRolesSorted[0] : "";
+    personCell.value = "Select Person";
 
     // ────────────────────────────────────────────────────────────────────────
     // SHEET 3: RAW DATA (Hidden database dump)
