@@ -309,9 +309,9 @@ export const exportIndividualReportExcel = async (req, res) => {
 
     // Metadata block  cols 6-9, rows 1-4
     const metaRows = [
-      ["Employee Name", empName],
+      ["Name", empName],
       ["Department", empDept],
-      ["Role / Assessment", `${empRole}  |  ${assessmentName}`],
+      ["Role", `${empRole}`],
       ["Completion Date", completedDate],
     ];
     metaRows.forEach(([label, val], i) => {
@@ -358,11 +358,11 @@ export const exportIndividualReportExcel = async (req, res) => {
     }
     const overallAvg = overallAvgVal > 0 ? overallAvgVal.toFixed(2) : "0.00";
 
-    const scoreDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    ratingResponses.forEach(r => {
-      const v = Math.round(r.value);
-      if (v >= 1 && v <= 5) scoreDistribution[v]++;
-    });
+    // const scoreDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    // ratingResponses.forEach(r => {
+    //   const v = Math.round(r.value);
+    //   if (v >= 1 && v <= 5) scoreDistribution[v]++;
+    // });
     const totalRated = ratingResponses.length || 1;
 
     // Card header
@@ -379,8 +379,8 @@ export const exportIndividualReportExcel = async (req, res) => {
     const cards = [
       { cols: [1, 2], label: "Overall Avg Score", val: `${overallAvg} / 5.00` },
       { cols: [3, 4], label: "Total Questions", val: `${responses.length}` },
-      { cols: [5, 6], label: "Self-Rating Questions", val: `${selfCount}` },
-      { cols: [7, 9], label: "Behavioural Questions", val: `${behavCount}` },
+      // { cols: [5, 6], label: "Self-Rating Questions", val: `${selfCount}` },
+      // { cols: [7, 9], label: "Behavioural Questions", val: `${behavCount}` },
     ];
     cards.forEach(({ cols, label, val }) => {
       mergeCells(7, cols[0], 7, cols[1]);
@@ -400,19 +400,19 @@ export const exportIndividualReportExcel = async (req, res) => {
         border: thinBorder,
       });
     });
-    setHeight(7, 18);
-    setHeight(8, 30);
+    // setHeight(7, 18);
+    // setHeight(8, 30);
 
     // Score distribution bar (row 9)
-    mergeCells(9, 1, 9, 9);
-    applyCell(ws.getCell(9, 1), {
-      value: `Score Distribution:   1: ${scoreDistribution[1]}   |   2: ${scoreDistribution[2]}   |   3: ${scoreDistribution[3]}   |   4: ${scoreDistribution[4]}   |   5: ${scoreDistribution[5]}   (out of ${totalRated} rated questions)`,
-      fill: C.lightGrey,
-      font: mkFont(C.mutedText, 8, false),
-      align: mkAlign("center", "middle"),
-      border: thinBorder,
-    });
-    setHeight(9, 16);
+    // mergeCells(9, 1, 9, 9);
+    // applyCell(ws.getCell(9, 1), {
+    //   value: `Score Distribution:   1: ${scoreDistribution[1]}   |   2: ${scoreDistribution[2]}   |   3: ${scoreDistribution[3]}   |   4: ${scoreDistribution[4]}   |   5: ${scoreDistribution[5]}   (out of ${totalRated} rated questions)`,
+    //   fill: C.lightGrey,
+    //   font: mkFont(C.mutedText, 8, false),
+    //   align: mkAlign("center", "middle"),
+    //   border: thinBorder,
+    // });
+    // setHeight(9, 16);
 
     // ════════════════════════════════════════════════════════════════════════
     // SECTION 4 - SPACER ROW 10
@@ -515,7 +515,7 @@ export const exportIndividualReportExcel = async (req, res) => {
 
       // Col F - Your Score
       applyCell(ws.getCell(currentRow, 6), {
-        value: isFc ? `${r.selectedOption || "—"} (2.5)` : (score !== null ? score : "—"),
+        value: isFc ? `${r.selectedOption || "—"}` : (score !== null ? score : "—"),
         fill: sc ? sc.bg : C.offWhite,
         font: sc
           ? { name: "Segoe UI", size: 11, bold: true, color: { argb: sc.fg } }
@@ -534,29 +534,43 @@ export const exportIndividualReportExcel = async (req, res) => {
       });
 
       // Col H - % Score
-      const pctVal = isFc
-        ? 0.5
-        : (score !== null ? score : null);
+
+      let pctVal = "—";
+
+      if (isFc) {
+
+        // Forced Choice always 50
+        pctVal = 50;
+
+      } else if (score !== null && score !== undefined) {
+
+        const percentageMap = {
+          1: 20,
+          2: 40,
+          3: 60,
+          4: 80,
+          5: 100
+        };
+
+        pctVal = percentageMap[Math.round(score)] || "—";
+      }
 
       applyCell(ws.getCell(currentRow, 8), {
         value: pctVal,
-        numFmt: '0%',
         fill: sc ? sc.bg : C.offWhite,
         font: sc
-          ? { name: "Segoe UI", size: 9, bold: true, color: { argb: sc.fg } }
+          ? {
+            name: "Segoe UI",
+            size: 9,
+            bold: true,
+            color: { argb: sc.fg }
+          }
           : mkFont(C.mutedText, 9),
+
         align: mkAlign("center", "middle"),
         border: thinBorder,
       });
 
-      // Col I - Comments
-      applyCell(ws.getCell(currentRow, 9), {
-        value: r.comment || "—",
-        fill: isOdd ? C.altRow : C.white,
-        font: mkFont(C.mutedText, 8, false),
-        align: mkAlign("left", "middle", true),
-        border: thinBorder,
-      });
 
       // Auto-height: estimate ~15pt per 60 chars of question stem
       const stemLen = (r.questionStem || "").length;
@@ -707,15 +721,15 @@ export const exportIndividualReportExcel = async (req, res) => {
     });
 
     // ── Footer row ───────────────────────────────────────────────────────────
-    const footerRow = Math.max(dRow, gRow) + 1;
-    mergeCells(footerRow, 1, footerRow, 9);
-    applyCell(ws.getCell(footerRow, 1), {
-      value: `Generated by TBD Platform  •  ${completedDate}`,
-      fill: C.navy,
-      font: mkFont(C.white, 8, false),
-      align: mkAlign("center", "middle"),
-    });
-    setHeight(footerRow, 18);
+    // const footerRow = Math.max(dRow, gRow) + 1;
+    // mergeCells(footerRow, 1, footerRow, 9);
+    // applyCell(ws.getCell(footerRow, 1), {
+    //   value: `Generated by TBD Platform  •  ${completedDate}`,
+    //   fill: C.navy,
+    //   font: mkFont(C.white, 8, false),
+    //   align: mkAlign("center", "middle"),
+    // });
+    // setHeight(footerRow, 18);
 
     // ── Send file ────────────────────────────────────────────────────────────
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
