@@ -1080,6 +1080,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
     // ────────────────────────────────────────────────────────────────────────
     // SHEET 1: HOME (Interactive Selection Hub)
     // ────────────────────────────────────────────────────────────────────────
+
     const wsHome = workbook.addWorksheet("Home", {
       views: [{ showGridLines: true, zoomScale: 100 }]
     });
@@ -1253,46 +1254,12 @@ export const exportOrganizationReportExcel = async (req, res) => {
       right: { style: "medium", color: { argb: "FFD4AF37" } }
     };
     if (reportsData.length > 0) {
-    if (reportsData.length > 0) {
       const defReport = reportsData[0];
       roleCell.value = defReport.role;
       deptCell.value = defReport.dept;
       personCell.value = defReport.empName;
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    // SHEET 2: CONFIG (Dependent Dynamic lists driven by Excel formulas)
-    // ────────────────────────────────────────────────────────────────────────
-    const wsConfig = workbook.addWorksheet("Config", {
-      views: [{ showGridLines: true }]
-    });
-
-    wsConfig.columns = [
-      { header: "Unique Roles", key: "uRoles", width: 20 },
-      { header: "Filtered Departments", key: "fDepts", width: 22 },
-      { header: "Filtered People", key: "fPeople", width: 25 }
-    ];
-
-    wsConfig.getCell("A2").value = { formula: "UNIQUE(FILTER(Raw_Data!D2:D100000, Raw_Data!D2:D100000<>\"\"))" };
-    wsConfig.getCell("B2").value = { formula: "UNIQUE(FILTER(Raw_Data!E2:E100000, (Raw_Data!D2:D100000=Home!$B$7)*(Raw_Data!E2:E100000<>\"\"), \"\"))" };
-    wsConfig.getCell("C2").value = { formula: "UNIQUE(FILTER(Raw_Data!B2:B100000, (Raw_Data!D2:D100000=Home!$B$7)*(Raw_Data!E2:E100000=Home!$F$7)*(Raw_Data!B2:B100000<>\"\"), \"\"))" };
-
-    // Register Dynamic dropdown lists referencing spill outputs (# operator)
-    wsHome.getCell("B7").dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: ["Config!$A$2#"]
-    };
-    wsHome.getCell("F7").dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: ["Config!$B$2#"]
-    };
-    wsHome.getCell("J7").dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: ["Config!$C$2#"]
-    };
 
     // ────────────────────────────────────────────────────────────────────────
     // SHEET 3: RAW DATA (Hidden database dump)
