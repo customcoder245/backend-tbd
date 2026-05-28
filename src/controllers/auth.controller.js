@@ -845,9 +845,23 @@ export const getOrganizationFilters = async (req, res) => {
       }
     });
 
+    // 5. Gather unique departments and roles from all sources for fallback completeness
+    const allDepts = new Set(organization?.departments || []);
+    const allRoles = new Set();
+
+    Array.from(membersMap.values()).forEach(m => {
+      if (m.department && m.department !== "-" && m.department.trim() !== "") {
+        allDepts.add(m.department);
+      }
+      if (m.role && m.role !== "-" && m.role.trim() !== "") {
+        allRoles.add(m.role);
+      }
+    });
+
     res.status(200).json({
       members: Array.from(membersMap.values()),
-      departments: organization?.departments || []
+      departments: Array.from(allDepts).sort(),
+      roles: Array.from(allRoles).sort()
     });
   } catch (error) {
     console.error("getOrganizationFilters error:", error);

@@ -861,47 +861,27 @@ export const exportOrganizationReportExcel = async (req, res) => {
       return res.status(400).json({ message: "Organization name is required." });
     }
 
-    // 1. Fetch all users belonging to the organization
+    const escapedName = orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, 'i');
+
+    // 1. Fetch all data in parallel to build a complete view of the organization
     const User = (await import("../models/user.model.js")).default;
-    const users = await User.find({ orgName: { $regex: new RegExp("^" + orgName + "$", "i") } }).lean();
-
-    // 2. Fetch completed assessments for these users or matching this orgName
-    const userIds = users.map(u => u._id);
-    const userEmails = users.map(u => u.email).filter(Boolean);
-
+    const Invitation = (await import("../models/invitation.model.js")).default;
     const Assessment = (await import("../models/assessment.model.js")).default;
-    const assessments = await Assessment.find({
-      $or: [
-        { orgName: { $regex: new RegExp("^" + orgName + "$", "i") } },
-        { userId: { $in: userIds } },
-        { employeeEmail: { $in: userEmails } }
-      ],
-      isCompleted: true,
-      isDeleted: { $ne: true }
-    }).lean();
+    const SubmittedAssessment = (await import("../models/submittedAssessment.model.js")).default;
 
-    if (!users.length && !assessments.length) {
+    const [users, invitations, submittedDocs, liveAssessments] = await Promise.all([
+      User.find({ orgName: orgRegex }).lean(),
+      Invitation.find({ orgName: orgRegex, used: false }).lean(),
+      SubmittedAssessment.find({ "userDetails.orgName": orgRegex, isDeleted: { $ne: true } }).lean(),
+      Assessment.find({ orgName: orgRegex, isDeleted: { $ne: true } }).lean()
+    ]);
+
+    if (!users.length && !invitations.length && !submittedDocs.length && !liveAssessments.length) {
       return res.status(404).json({ message: "No data found for this organization." });
     }
 
-    // 3. Fetch submitted assessments to use snapshots where available
-    const SubmittedAssessment = (await import("../models/submittedAssessment.model.js")).default;
-    const assessmentIds = assessments.map(a => a._id);
-    const submittedDocs = await SubmittedAssessment.find({
-      assessmentId: { $in: assessmentIds }
-    }).lean();
-
-    const submittedMap = {};
-    submittedDocs.forEach(s => {
-      submittedMap[s.assessmentId.toString()] = s;
-    });
-
-    const userMap = {};
-    users.forEach(u => {
-      userMap[u._id.toString()] = u;
-    });
-
-    // 4. Fetch all active questions to form the complete report structure
+    // 2. Fetch all active questions to form the complete report structure
     const Question = (await import("../models/question.model.js")).default;
     const allQuestions = await Question.find({
       isDeleted: { $ne: true },
@@ -909,7 +889,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
         { orgName: null },
         { orgName: "" },
         { orgName: { $exists: false } },
-        { orgName: { $regex: new RegExp("^" + orgName + "$", "i") } }
+        { orgName: orgRegex }
       ]
     }).lean();
 
@@ -925,30 +905,53 @@ export const exportOrganizationReportExcel = async (req, res) => {
       });
     });
 
-    // 5. Build Participant Map containing ALL users in the organization
+    // 3. Build Participant Map containing ALL users in the organization
     const participantMap = new Map();
+    const getFullName = (first, last) => `${first || ""} ${last || ""}`.trim();
 
-    // First add all users
-    users.forEach(user => {
-      const name = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Participant";
-      const email = user.email ? user.email.toLowerCase().trim() : "";
-      const key = email || user._id.toString();
-
+    // First add all registered users
+    users.forEach(u => {
+      const email = (u.email || "").toLowerCase().trim();
+      const key = email || u._id.toString();
       participantMap.set(key, {
-        userId: user._id.toString(),
-        name,
-        email: user.email || "",
-        role: user.role || "N/A",
-        dept: user.department || "N/A",
-        assessment: null
+        assessmentId: "",
+        empName: getFullName(u.firstName, u.lastName) || "Participant",
+        email: u.email || "",
+        role: u.role || "N/A",
+        dept: u.department || "N/A",
+        isCompleted: false,
+        submittedAt: null,
+        responses: [],
+        scores: null,
+        stakeholder: null
       });
     });
 
-    // Link/add assessments
-    assessments.forEach(assessment => {
-      const userDetails = assessment.userDetails || {};
-      const email = (userDetails.email || assessment.employeeEmail || "").toLowerCase().trim();
-      const userId = assessment.userId ? assessment.userId.toString() : "";
+    // Add pending/expired invitations
+    invitations.forEach(inv => {
+      const email = (inv.email || "").toLowerCase().trim();
+      if (!email) return;
+      if (!participantMap.has(email)) {
+        participantMap.set(email, {
+          assessmentId: "",
+          empName: inv.name || inv.email,
+          email: inv.email,
+          role: inv.role || "N/A",
+          dept: inv.department || "N/A",
+          isCompleted: false,
+          submittedAt: null,
+          responses: [],
+          scores: null,
+          stakeholder: null
+        });
+      }
+    });
+
+    // Link/add live assessments
+    liveAssessments.forEach(ass => {
+      const userDetails = ass.userDetails || {};
+      const email = (userDetails.email || ass.employeeEmail || "").toLowerCase().trim();
+      const userId = ass.userId ? ass.userId.toString() : "";
 
       let existing = null;
       if (email && participantMap.has(email)) {
@@ -958,56 +961,85 @@ export const exportOrganizationReportExcel = async (req, res) => {
       }
 
       if (existing) {
-        existing.assessment = assessment;
         if (userDetails.firstName) {
-          existing.name = `${userDetails.firstName} ${userDetails.lastName || ""}`.trim();
+          existing.empName = getFullName(userDetails.firstName, userDetails.lastName);
         }
         if (userDetails.role) existing.role = userDetails.role;
         if (userDetails.department) existing.dept = userDetails.department;
+        
+        if (ass.isCompleted && !existing.isCompleted) {
+          existing.assessmentId = ass._id.toString();
+          existing.isCompleted = true;
+          existing.submittedAt = ass.submittedAt || ass.createdAt;
+          existing.responses = ass.responses || [];
+          existing.scores = ass.scores || null;
+          existing.stakeholder = ass.stakeholder || null;
+        }
       } else {
-        const key = email || userId || assessment._id.toString();
-        const user = users.find(u => u._id.toString() === userId);
-        const name = userDetails.firstName
-          ? `${userDetails.firstName} ${userDetails.lastName || ""}`.trim()
-          : (user ? `${user.firstName} ${user.lastName || ""}`.trim() : "Participant");
-
+        const key = email || userId || ass._id.toString();
         participantMap.set(key, {
-          userId,
-          name,
-          email: email || assessment.employeeEmail || "",
-          role: userDetails.role || user?.role || "N/A",
-          dept: userDetails.department || user?.department || "N/A",
-          assessment
+          assessmentId: ass.isCompleted ? ass._id.toString() : "",
+          empName: getFullName(userDetails.firstName, userDetails.lastName) || "Participant",
+          email: email || ass.employeeEmail || "",
+          role: userDetails.role || "N/A",
+          dept: userDetails.department || "N/A",
+          isCompleted: ass.isCompleted || false,
+          submittedAt: ass.isCompleted ? (ass.submittedAt || ass.createdAt) : null,
+          responses: ass.responses || [],
+          scores: ass.scores || null,
+          stakeholder: ass.stakeholder || null
         });
       }
     });
 
-    const reportsData = [];
+    // Link/add submitted assessments (highest priority for scores)
+    submittedDocs.forEach(sub => {
+      const userDetails = sub.userDetails || {};
+      const email = (userDetails.email || "").toLowerCase().trim();
+      const userId = sub.userId ? sub.userId.toString() : "";
 
-    for (const [key, part] of participantMap.entries()) {
-      if (part.assessment) {
-        const assessment = part.assessment;
-        const sub = submittedMap[assessment._id.toString()];
-        const responses = sub ? sub.responses : assessment.responses;
-        const scores = sub ? sub.scores : assessment.scores;
-        const submittedAt = sub ? sub.submittedAt : (assessment.submittedAt || assessment.createdAt);
-        const stakeholder = sub ? sub.stakeholder : assessment.stakeholder;
+      let existing = null;
+      if (email && participantMap.has(email)) {
+        existing = participantMap.get(email);
+      } else if (userId && participantMap.has(userId)) {
+        existing = participantMap.get(userId);
+      }
 
-        reportsData.push({
+      if (existing) {
+        existing.assessmentId = sub.assessmentId ? sub.assessmentId.toString() : (sub._id ? sub._id.toString() : "");
+        existing.isCompleted = true;
+        existing.submittedAt = sub.submittedAt || sub.createdAt;
+        existing.responses = sub.responses || [];
+        existing.scores = sub.scores || null;
+        existing.stakeholder = sub.stakeholder || null;
+        if (userDetails.firstName) {
+          existing.empName = getFullName(userDetails.firstName, userDetails.lastName);
+        }
+        if (userDetails.role) existing.role = userDetails.role;
+        if (userDetails.department) existing.dept = userDetails.department;
+      } else {
+        const key = email || userId || sub._id.toString();
+        participantMap.set(key, {
+          assessmentId: sub.assessmentId ? sub.assessmentId.toString() : (sub._id ? sub._id.toString() : ""),
+          empName: getFullName(userDetails.firstName, userDetails.lastName) || "Participant",
+          email: email || "",
+          role: userDetails.role || "N/A",
+          dept: userDetails.department || "N/A",
           isCompleted: true,
-          assessmentId: assessment._id.toString(),
-          empName: part.name,
-          email: part.email,
-          dept: part.dept,
-          role: part.role,
-          submittedAt,
-          responses,
-          scores,
-          stakeholder
+          submittedAt: sub.submittedAt || sub.createdAt,
+          responses: sub.responses || [],
+          scores: sub.scores || null,
+          stakeholder: sub.stakeholder || null
         });
+      }
+    });
 
-        // Collect any additional questions not in allQuestions
-        for (const resp of responses) {
+    const reportsData = Array.from(participantMap.values());
+
+    // Collect any additional questions found in responses that might not be in allQuestions
+    reportsData.forEach(report => {
+      if (report.isCompleted && report.responses) {
+        report.responses.forEach(resp => {
           if (!questionMap.has(resp.questionCode)) {
             questionMap.set(resp.questionCode, {
               domain: resp.domain,
@@ -1018,22 +1050,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
               scale: resp.scale
             });
           }
-        }
-      } else {
-        reportsData.push({
-          isCompleted: false,
-          assessmentId: "",
-          empName: part.name,
-          email: part.email,
-          dept: part.dept,
-          role: part.role,
-          submittedAt: null,
-          responses: [],
-          scores: null,
-          stakeholder: null
         });
       }
-    }
+    });
 
     // Sort questions logically
     const domainOrder = {
@@ -1239,9 +1258,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
       { header: "Filtered People", key: "fPeople", width: 25 }
     ];
 
-    wsConfig.getCell("A2").value = { formula: "UNIQUE(FILTER(Raw_Data!D2:D10000, Raw_Data!D2:D10000<>\"\"))" };
-    wsConfig.getCell("B2").value = { formula: "UNIQUE(FILTER(Raw_Data!E2:E10000, (Raw_Data!D2:D10000=Home!$B$7)*(Raw_Data!E2:E10000<>\"\"), \"\"))" };
-    wsConfig.getCell("C2").value = { formula: "UNIQUE(FILTER(Raw_Data!B2:B10000, (Raw_Data!D2:D10000=Home!$B$7)*(Raw_Data!E2:E10000=Home!$F$7)*(Raw_Data!B2:B10000<>\"\"), \"\"))" };
+    wsConfig.getCell("A2").value = { formula: "UNIQUE(FILTER(Raw_Data!D2:D100000, Raw_Data!D2:D100000<>\"\"))" };
+    wsConfig.getCell("B2").value = { formula: "UNIQUE(FILTER(Raw_Data!E2:E100000, (Raw_Data!D2:D100000=Home!$B$7)*(Raw_Data!E2:E100000<>\"\"), \"\"))" };
+    wsConfig.getCell("C2").value = { formula: "UNIQUE(FILTER(Raw_Data!B2:B100000, (Raw_Data!D2:D100000=Home!$B$7)*(Raw_Data!E2:E100000=Home!$F$7)*(Raw_Data!B2:B100000<>\"\"), \"\"))" };
 
     // Register Dynamic dropdown lists referencing spill outputs (# operator)
     wsHome.getCell("B7").dataValidation = {
