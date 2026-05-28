@@ -1032,6 +1032,18 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
     const reportsData = Array.from(participantMap.values());
 
+    const toTitleCase = (str) => {
+      if (!str) return "";
+      const s = String(str).trim();
+      if (!s || s.toLowerCase() === "n/a") return "N/A";
+      return s.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+    };
+
+    reportsData.forEach(r => {
+      r.role = toTitleCase(r.role);
+      r.dept = toTitleCase(r.dept);
+    });
+
     const uniqueRoles = [...new Set(reportsData.map(r => r.role).filter(Boolean))];
     const uniqueDepts = [...new Set(reportsData.map(r => r.dept).filter(Boolean))];
     const completedCount = reportsData.filter(r => r.isCompleted).length;
@@ -1304,9 +1316,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
       formula: `SORT(UNIQUE(FILTER(_Config!$E$2:$E$10000, (_Config!$E$2:$E$10000<>"") * ((Home!$B$7="") + (_Config!$D$2:$D$10000=Home!$B$7) > 0), "No Departments")))`
     };
 
-    // Column C: People sorted, filtered by chosen Role in Home!B7 and Dept in Home!F7
+    // Column C: People sorted, filtered by chosen Role in Home!B7 and Dept in Home!F7 (with smart fallback if F7 department is invalid/stale for selected B7 role)
     wsConfig.getCell("C2").value = {
-      formula: `SORT(FILTER(_Config!$F$2:$F$10000, (_Config!$F$2:$F$10000<>"") * ((Home!$B$7="") + (_Config!$D$2:$D$10000=Home!$B$7) > 0) * ((Home!$F$7="") + (_Config!$E$2:$E$10000=Home!$F$7) > 0), "No People"))`
+      formula: `SORT(FILTER(_Config!$F$2:$F$10000, (_Config!$F$2:$F$10000<>"") * ((Home!$B$7="") + (_Config!$D$2:$D$10000=Home!$B$7) > 0) * (IF(Home!$F$7="", TRUE, IF(COUNTIFS(_Config!$D$2:$D$10000, IF(Home!$B$7="", "*", Home!$B$7), _Config!$E$2:$E$10000, Home!$F$7) > 0, _Config!$E$2:$E$10000=Home!$F$7, TRUE))), "No People"))`
     };
 
     // Role dropdown (B7) - links to the dynamic role list spilled from A2
