@@ -1305,7 +1305,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
       });
     }
 
-    mergeCells(4, 1, 4, 5);
+    mergeCells(4, 1, 4, 3);
     applyCell(wsRep.getCell(4, 1), {
       value: "Dynamic, interactive response analysis driven by Home sheet selection",
       fill: C.navyLight,
@@ -1315,8 +1315,8 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
 
     // Back to Selection button
-    mergeCells(4, 8, 4, 9);
-    applyCell(wsRep.getCell(4, 8), {
+    mergeCells(4, 4, 4, 5);
+    applyCell(wsRep.getCell(4, 4), {
       value: { text: "← BACK TO SELECTION", hyperlink: "#'Home'!A1" },
       fill: "FFE8F0FE",
       font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF0F2547" } },
@@ -1325,7 +1325,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
 
     // Metadata panel background
-    for (let r = 1; r <= 3; r++) {
+    for (let r = 1; r <= 4; r++) {
       for (let c = 6; c <= 9; c++) {
         applyCell(wsRep.getCell(r, c), {
           fill: "FFF8FAFC",
