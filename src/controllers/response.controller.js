@@ -870,12 +870,57 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const Assessment = (await import("../models/assessment.model.js")).default;
     const SubmittedAssessment = (await import("../models/submittedAssessment.model.js")).default;
 
-    const [users, invitations, submittedDocs, liveAssessments] = await Promise.all([
-      User.find({ orgName: orgRegex }).lean(),
-      Invitation.find({ orgName: orgRegex, used: false }).lean(),
-      SubmittedAssessment.find({ "userDetails.orgName": orgRegex, isDeleted: { $ne: true } }).lean(),
-      Assessment.find({ orgName: orgRegex, isDeleted: { $ne: true } }).lean()
+    // Step 1: Get ALL registered users for this organization
+    const users = await User.find({ orgName: orgRegex }).lean();
+
+    const userIds = users.map(u => u._id);
+    const userEmails = users.map(u => (u.email || "").toLowerCase().trim()).filter(Boolean);
+
+    // Find admin users for this org to also query their managed assessments
+    const adminUserIds = users
+      .filter(u => u.role === "admin" || u.role === "superAdmin")
+      .map(u => u._id);
+
+    // Step 2: Fetch ALL invitations and ALL assessments for the org
+    const assessmentOrConditions = [
+      { orgName: orgRegex },
+      { userId: { $in: userIds } },
+      { employeeEmail: { $in: userEmails } }
+    ];
+    if (adminUserIds.length) {
+      assessmentOrConditions.push({ invitedBy: { $in: adminUserIds } });
+    }
+
+    const [invitations, liveAssessments] = await Promise.all([
+      Invitation.find({ orgName: orgRegex }).lean(),
+      Assessment.find({
+        $or: assessmentOrConditions,
+        isDeleted: { $ne: true }
+      }).lean()
     ]);
+
+    // Step 3: Get ALL assessment IDs to find ALL submitted assessments
+    const assessmentIds = liveAssessments.map(a => a._id);
+
+    // Step 4: Fetch ALL submitted assessments using EVERY possible link
+    const submittedOrConditions = [
+      { userId: { $in: userIds } },
+      { "userDetails.email": { $in: userEmails } },
+      { "userDetails.orgName": orgRegex }
+    ];
+    if (assessmentIds.length) {
+      submittedOrConditions.push({ assessmentId: { $in: assessmentIds } });
+    }
+    if (adminUserIds.length) {
+      submittedOrConditions.push({ adminId: { $in: adminUserIds } });
+    }
+
+    const submittedDocs = await SubmittedAssessment.find({
+      $or: submittedOrConditions,
+      isDeleted: { $ne: true }
+    }).lean();
+
+    console.log(`[Excel Export] Org: ${orgName} | Users: ${users.length} | Invitations: ${invitations.length} | Assessments: ${liveAssessments.length} | Submitted: ${submittedDocs.length}`);
 
     if (!users.length && !invitations.length && !submittedDocs.length && !liveAssessments.length) {
       return res.status(404).json({ message: "No data found for this organization." });
@@ -909,12 +954,28 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const participantMap = new Map();
     const getFullName = (first, last) => `${first || ""} ${last || ""}`.trim();
 
+    // Helper: find existing participant by email or userId
+    const findParticipant = (email, userId) => {
+      if (email && participantMap.has(email)) return participantMap.get(email);
+      if (userId) {
+        for (const [, p] of participantMap) {
+          if (p.userId === userId) return p;
+        }
+      }
+      return null;
+    };
+
+    // Build a lookup from assessmentId -> assessment for cross-referencing
+    const assessmentLookup = new Map();
+    liveAssessments.forEach(a => assessmentLookup.set(a._id.toString(), a));
+
     // First add all registered users
     users.forEach(u => {
       const email = (u.email || "").toLowerCase().trim();
       const key = email || u._id.toString();
       participantMap.set(key, {
         assessmentId: "",
+        userId: u._id.toString(),
         empName: getFullName(u.firstName, u.lastName) || "Participant",
         email: u.email || "",
         role: u.role || "N/A",
@@ -953,18 +1014,16 @@ export const exportOrganizationReportExcel = async (req, res) => {
       const email = (userDetails.email || ass.employeeEmail || "").toLowerCase().trim();
       const userId = ass.userId ? ass.userId.toString() : "";
 
-      let existing = null;
-      if (email && participantMap.has(email)) {
-        existing = participantMap.get(email);
-      } else if (userId && participantMap.has(userId)) {
-        existing = participantMap.get(userId);
-      }
+      let existing = findParticipant(email, userId);
 
       if (existing) {
         if (userDetails.firstName) {
           existing.empName = getFullName(userDetails.firstName, userDetails.lastName);
         }
-        if (userDetails.role) existing.role = userDetails.role;
+        // Prefer stakeholder as role (leader/manager/employee)
+        if (ass.stakeholder) existing.role = ass.stakeholder;
+        else if (userDetails.role) existing.role = userDetails.role;
+
         if (userDetails.department) existing.dept = userDetails.department;
         
         if (ass.isCompleted && !existing.isCompleted) {
@@ -979,9 +1038,10 @@ export const exportOrganizationReportExcel = async (req, res) => {
         const key = email || userId || ass._id.toString();
         participantMap.set(key, {
           assessmentId: ass.isCompleted ? ass._id.toString() : "",
+          userId: userId,
           empName: getFullName(userDetails.firstName, userDetails.lastName) || "Participant",
           email: email || ass.employeeEmail || "",
-          role: userDetails.role || "N/A",
+          role: ass.stakeholder || userDetails.role || "N/A",
           dept: userDetails.department || "N/A",
           isCompleted: ass.isCompleted || false,
           submittedAt: ass.isCompleted ? (ass.submittedAt || ass.createdAt) : null,
@@ -995,15 +1055,19 @@ export const exportOrganizationReportExcel = async (req, res) => {
     // Link/add submitted assessments (highest priority for scores)
     submittedDocs.forEach(sub => {
       const userDetails = sub.userDetails || {};
-      const email = (userDetails.email || "").toLowerCase().trim();
-      const userId = sub.userId ? sub.userId.toString() : "";
+      let email = (userDetails.email || "").toLowerCase().trim();
+      let userId = sub.userId ? sub.userId.toString() : "";
 
-      let existing = null;
-      if (email && participantMap.has(email)) {
-        existing = participantMap.get(email);
-      } else if (userId && participantMap.has(userId)) {
-        existing = participantMap.get(userId);
+      // Also try to get email/userId from the linked Assessment record
+      if (!email && sub.assessmentId) {
+        const linkedAss = assessmentLookup.get(sub.assessmentId.toString());
+        if (linkedAss) {
+          if (!email && linkedAss.employeeEmail) email = linkedAss.employeeEmail.toLowerCase().trim();
+          if (!userId && linkedAss.userId) userId = linkedAss.userId.toString();
+        }
       }
+
+      let existing = findParticipant(email, userId);
 
       if (existing) {
         existing.assessmentId = sub.assessmentId ? sub.assessmentId.toString() : (sub._id ? sub._id.toString() : "");
@@ -1015,15 +1079,19 @@ export const exportOrganizationReportExcel = async (req, res) => {
         if (userDetails.firstName) {
           existing.empName = getFullName(userDetails.firstName, userDetails.lastName);
         }
-        if (userDetails.role) existing.role = userDetails.role;
+        // Prefer stakeholder as role (leader/manager/employee)
+        if (sub.stakeholder) existing.role = sub.stakeholder;
+        else if (userDetails.role) existing.role = userDetails.role;
+
         if (userDetails.department) existing.dept = userDetails.department;
       } else {
         const key = email || userId || sub._id.toString();
         participantMap.set(key, {
           assessmentId: sub.assessmentId ? sub.assessmentId.toString() : (sub._id ? sub._id.toString() : ""),
+          userId: userId,
           empName: getFullName(userDetails.firstName, userDetails.lastName) || "Participant",
           email: email || "",
-          role: userDetails.role || "N/A",
+          role: sub.stakeholder || userDetails.role || "N/A",
           dept: userDetails.department || "N/A",
           isCompleted: true,
           submittedAt: sub.submittedAt || sub.createdAt,
@@ -1035,6 +1103,11 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
 
     const reportsData = Array.from(participantMap.values());
+
+    const uniqueRoles = [...new Set(reportsData.map(r => r.role).filter(Boolean))];
+    const uniqueDepts = [...new Set(reportsData.map(r => r.dept).filter(Boolean))];
+    const completedCount = reportsData.filter(r => r.isCompleted).length;
+    console.log(`[Excel Export] Final participants: ${reportsData.length} | Completed: ${completedCount} | Roles: [${uniqueRoles.join(", ")}] | Departments: [${uniqueDepts.join(", ")}]`);
 
     // Collect any additional questions found in responses that might not be in allQuestions
     reportsData.forEach(report => {
