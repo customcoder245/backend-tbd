@@ -1099,17 +1099,17 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
     wsHome.columns = [
       { width: 4 },   // A (spacer)
-      { width: 15 },  // B (Role dropdown card)
-      { width: 15 },  // C
-      { width: 15 },  // D
-      { width: 4 },   // E (spacer)
-      { width: 15 },  // F (Dept dropdown card)
-      { width: 15 },  // G
-      { width: 15 },  // H
-      { width: 4 },   // I (spacer)
-      { width: 15 },  // J (Person dropdown card)
-      { width: 15 },  // K
-      { width: 15 },  // L
+      { width: 16 },  // B (Role dropdown card)
+      { width: 16 },  // C
+      { width: 16 },  // D
+      { width: 16 },  // E
+      { width: 16 },  // F
+      { width: 4 },   // G (spacer)
+      { width: 16 },  // H (Person dropdown card)
+      { width: 16 },  // I
+      { width: 16 },  // J
+      { width: 16 },  // K
+      { width: 16 },  // L
       { width: 4 },   // M (spacer)
     ];
 
@@ -1145,11 +1145,11 @@ export const exportOrganizationReportExcel = async (req, res) => {
     };
 
     // Card 1 Header
-    wsHome.mergeCells("B5:D5");
+    wsHome.mergeCells("B5:F5");
     applyCardHeader(wsHome.getCell("B5"), "1. SELECT ROLE", "FF7C3AED");
 
     // Card 1 Dropdown
-    wsHome.mergeCells("B7:D7");
+    wsHome.mergeCells("B7:F7");
     const roleCell = wsHome.getCell("B7");
     roleCell.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FF1E2A3B" } };
     roleCell.alignment = { horizontal: "center", vertical: "middle" };
@@ -1162,9 +1162,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
     };
 
     // Card 1 Info
-    wsHome.mergeCells("B10:D14");
+    wsHome.mergeCells("B10:F14");
     const roleDescCell = wsHome.getCell("B10");
-    roleDescCell.value = "✔ Roles are the top level in the organization.\n\n✔ Selecting a role filters available departments in card 2.";
+    roleDescCell.value = "✔ Roles are the top level of hierarchy.\n\n✔ Selecting a role filters available people in card 2 dynamically.";
     roleDescCell.font = { name: "Segoe UI", size: 9.5, italic: true, color: { argb: "FF4C1D95" } };
     roleDescCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     roleDescCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F0FF" } };
@@ -1176,43 +1176,12 @@ export const exportOrganizationReportExcel = async (req, res) => {
     };
 
     // Card 2 Header
-    wsHome.mergeCells("F5:H5");
-    applyCardHeader(wsHome.getCell("F5"), "2. SELECT DEPARTMENT", "FF0E9F6E");
+    wsHome.mergeCells("H5:L5");
+    applyCardHeader(wsHome.getCell("H5"), "2. SELECT PERSON", "FFEA580C");
 
     // Card 2 Dropdown
-    wsHome.mergeCells("F7:H7");
-    const deptCell = wsHome.getCell("F7");
-    deptCell.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FF1E2A3B" } };
-    deptCell.alignment = { horizontal: "center", vertical: "middle" };
-    deptCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
-    deptCell.border = {
-      top: { style: "thin", color: { argb: "FFAAB8CC" } },
-      bottom: { style: "thin", color: { argb: "FFAAB8CC" } },
-      left: { style: "thin", color: { argb: "FFAAB8CC" } },
-      right: { style: "thin", color: { argb: "FFAAB8CC" } }
-    };
-
-    // Card 2 Info
-    wsHome.mergeCells("F10:H14");
-    const deptDescCell = wsHome.getCell("F10");
-    deptDescCell.value = "✔ Departments filter dynamically by selected role.\n\n✔ Selecting a department filters participant list in card 3.";
-    deptDescCell.font = { name: "Segoe UI", size: 9.5, italic: true, color: { argb: "FF065F46" } };
-    deptDescCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
-    deptDescCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE6F9EE" } };
-    deptDescCell.border = {
-      top: { style: "thin", color: { argb: "FFD0D8E4" } },
-      bottom: { style: "thin", color: { argb: "FFD0D8E4" } },
-      left: { style: "thin", color: { argb: "FFD0D8E4" } },
-      right: { style: "thin", color: { argb: "FFD0D8E4" } }
-    };
-
-    // Card 3 Header
-    wsHome.mergeCells("J5:L5");
-    applyCardHeader(wsHome.getCell("J5"), "3. SELECT PERSON", "FFEA580C");
-
-    // Card 3 Dropdown
-    wsHome.mergeCells("J7:L7");
-    const personCell = wsHome.getCell("J7");
+    wsHome.mergeCells("H7:L7");
+    const personCell = wsHome.getCell("H7");
     personCell.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FF1E2A3B" } };
     personCell.alignment = { horizontal: "center", vertical: "middle" };
     personCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
@@ -1223,10 +1192,10 @@ export const exportOrganizationReportExcel = async (req, res) => {
       right: { style: "thin", color: { argb: "FFAAB8CC" } }
     };
 
-    // Card 3 Info
-    wsHome.mergeCells("J10:L14");
-    const personDescCell = wsHome.getCell("J10");
-    personDescCell.value = "✔ People lists are fully dependent on selected role and department.\n\n✔ Choose a person and click below to view details!";
+    // Card 2 Info
+    wsHome.mergeCells("H10:L14");
+    const personDescCell = wsHome.getCell("H10");
+    personDescCell.value = "✔ People lists are fully dependent on the selected role.\n\n✔ Choose a person and click below to view details!";
     personDescCell.font = { name: "Segoe UI", size: 9.5, italic: true, color: { argb: "FF7C2D12" } };
     personDescCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     personDescCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF2F8" } };
@@ -1237,9 +1206,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
       right: { style: "thin", color: { argb: "FFD0D8E4" } }
     };
 
-    // Go to Report Button
-    wsHome.mergeCells("J16:L17");
-    const btnCell = wsHome.getCell("J16");
+    // Go to Report Button (H16:L17)
+    wsHome.mergeCells("H16:L17");
+    const btnCell = wsHome.getCell("H16");
     btnCell.value = { text: "VIEW DYNAMIC REPORT →", hyperlink: "#'Report'!A1" };
     btnCell.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
     btnCell.alignment = { horizontal: "center", vertical: "middle" };
@@ -1251,10 +1220,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
       right: { style: "medium", color: { argb: "FFD4AF37" } }
     };
 
-    // Set Defaults based on first available participant
-    // All Data Button
-    wsHome.mergeCells("J18:L19");
-    const allDataBtn = wsHome.getCell("J18");
+    // All Data Button (H18:L19)
+    wsHome.mergeCells("H18:L19");
+    const allDataBtn = wsHome.getCell("H18");
     allDataBtn.value = { text: "VIEW ALL DATA →", hyperlink: "#'All Data'!A1" };
     allDataBtn.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
     allDataBtn.alignment = { horizontal: "center", vertical: "middle" };
@@ -1266,9 +1234,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
       right: { style: "medium", color: { argb: "FFD4AF37" } }
     };
 
-    // Summary Button
-    wsHome.mergeCells("J20:L21");
-    const summaryBtn = wsHome.getCell("J20");
+    // Summary Button (H20:L21)
+    wsHome.mergeCells("H20:L21");
+    const summaryBtn = wsHome.getCell("H20");
     summaryBtn.value = { text: "VIEW SUMMARY →", hyperlink: "#'Summary'!A1" };
     summaryBtn.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
     summaryBtn.alignment = { horizontal: "center", vertical: "middle" };
@@ -1290,35 +1258,27 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
     // Write headers to Config sheet columns
     wsConfig.getCell("A1").value = "Roles (Filtered)";
-    wsConfig.getCell("B1").value = "Departments (Filtered)";
-    wsConfig.getCell("C1").value = "People (Filtered)";
-    wsConfig.getCell("D1").value = "Raw_Role";
-    wsConfig.getCell("E1").value = "Raw_Dept";
-    wsConfig.getCell("F1").value = "Raw_Person";
+    wsConfig.getCell("B1").value = "People (Filtered)";
+    wsConfig.getCell("C1").value = "Raw_Role";
+    wsConfig.getCell("D1").value = "Raw_Person";
 
-    // Write full mapping table (role → dept → person) starting at row 2 for cascading filters
+    // Write full mapping table (role → person) starting at row 2 for dynamic filters
     let mapRow = 2;
     reportsData.forEach(r => {
-      wsConfig.getCell(mapRow, 4).value = r.role || "";
-      wsConfig.getCell(mapRow, 5).value = r.dept || "";
-      wsConfig.getCell(mapRow, 6).value = r.empName || "";
+      wsConfig.getCell(mapRow, 3).value = r.role || "";
+      wsConfig.getCell(mapRow, 4).value = r.empName || "";
       mapRow++;
     });
 
-    // Write dynamic array formulas to _Config columns A, B, C
+    // Write dynamic array formulas to _Config columns A, B
     // Column A: Unique roles sorted
     wsConfig.getCell("A2").value = {
-      formula: `SORT(UNIQUE(FILTER(_Config!$D$2:$D$10000, _Config!$D$2:$D$10000<>"","No Roles")))`
+      formula: `SORT(UNIQUE(FILTER(_Config!$C$2:$C$10000, _Config!$C$2:$C$10000<>"","No Roles")))`
     };
 
-    // Column B: Unique departments sorted, filtered by chosen Role in Home!B7
+    // Column B: People sorted, filtered by chosen Role in Home!B7
     wsConfig.getCell("B2").value = {
-      formula: `SORT(UNIQUE(FILTER(_Config!$E$2:$E$10000, (_Config!$E$2:$E$10000<>"") * ((Home!$B$7="") + (_Config!$D$2:$D$10000=Home!$B$7) > 0), "No Departments")))`
-    };
-
-    // Column C: People sorted, filtered by chosen Role in Home!B7 and Dept in Home!F7 (with smart fallback if F7 department is invalid/stale for selected B7 role)
-    wsConfig.getCell("C2").value = {
-      formula: `SORT(FILTER(_Config!$F$2:$F$10000, (_Config!$F$2:$F$10000<>"") * ((Home!$B$7="") + (_Config!$D$2:$D$10000=Home!$B$7) > 0) * (IF(Home!$F$7="", TRUE, IF(COUNTIFS(_Config!$D$2:$D$10000, IF(Home!$B$7="", "*", Home!$B$7), _Config!$E$2:$E$10000, Home!$F$7) > 0, _Config!$E$2:$E$10000=Home!$F$7, TRUE))), "No People"))`
+      formula: `SORT(FILTER(_Config!$D$2:$D$10000, (_Config!$D$2:$D$10000<>"") * ((Home!$B$7="") + (_Config!$C$2:$C$10000=Home!$B$7) > 0), "No People"))`
     };
 
     // Role dropdown (B7) - links to the dynamic role list spilled from A2
@@ -1331,21 +1291,11 @@ export const exportOrganizationReportExcel = async (req, res) => {
       error: "Please select a role from the dropdown."
     };
 
-    // Department dropdown (F7) - links to the dynamic department list spilled from B2
-    wsHome.getCell("F7").dataValidation = {
+    // Person dropdown (H7) - links to the dynamic person list spilled from B2
+    wsHome.getCell("H7").dataValidation = {
       type: "list",
       allowBlank: true,
       formulae: ["_Config!$B$2#"],
-      showErrorMessage: true,
-      errorTitle: "Invalid Department",
-      error: "Please select a department from the dropdown."
-    };
-
-    // Person dropdown (J7) - links to the dynamic person list spilled from C2
-    wsHome.getCell("J7").dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: ["_Config!$C$2#"],
       showErrorMessage: true,
       errorTitle: "Invalid Person",
       error: "Please select a person from the dropdown."
@@ -1355,7 +1305,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
     if (reportsData.length > 0) {
       const defReport = reportsData[0];
       roleCell.value = defReport.role;
-      deptCell.value = defReport.dept;
       personCell.value = defReport.empName;
     }
 
@@ -1554,10 +1503,10 @@ export const exportOrganizationReportExcel = async (req, res) => {
     }
 
     const metaRows = [
-      ["NAME", { formula: "Home!$J$7" }],
-      ["DEPARTMENT", { formula: "XLOOKUP(Home!$J$7, Raw_Data!B:B, Raw_Data!E:E, \"N/A\")" }],
-      ["ROLE", { formula: "XLOOKUP(Home!$J$7, Raw_Data!B:B, Raw_Data!D:D, \"N/A\")" }],
-      ["COMPLETED", { formula: "TEXT(XLOOKUP(Home!$J$7, Raw_Data!B:B, Raw_Data!F:F, \"\"), \"DD-MMM-YYYY\")" }],
+      ["NAME", { formula: "Home!$H$7" }],
+      ["DEPARTMENT", { formula: "XLOOKUP(Home!$H$7, Raw_Data!B:B, Raw_Data!E:E, \"N/A\")" }],
+      ["ROLE", { formula: "XLOOKUP(Home!$H$7, Raw_Data!B:B, Raw_Data!D:D, \"N/A\")" }],
+      ["COMPLETED", { formula: "TEXT(XLOOKUP(Home!$H$7, Raw_Data!B:B, Raw_Data!F:F, \"\"), \"DD-MMM-YYYY\")" }],
     ];
 
     metaRows.forEach(([label, val], i) => {
@@ -1608,7 +1557,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
     mergeCells(8, 1, 8, 2);
     applyCell(wsRep.getCell(8, 1), {
-      value: { formula: "IFERROR(TEXT(AVERAGEIF(Raw_Data!$B$2:$B$10000, Home!$J$7, Raw_Data!$H$2:$H$10000), \"0.00\") & \" / 5.00\", \"— / 5.00\")" },
+      value: { formula: "IFERROR(TEXT(AVERAGEIF(Raw_Data!$B$2:$B$10000, Home!$H$7, Raw_Data!$H$2:$H$10000), \"0.00\") & \" / 5.00\", \"— / 5.00\")" },
       fill: C.white,
       font: mkFont(C.navy, 14, true),
       align: mkAlign("center", "middle"),
@@ -1625,7 +1574,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
     mergeCells(8, 3, 8, 4);
     applyCell(wsRep.getCell(8, 3), {
-      value: { formula: "COUNTIFS(Raw_Data!$B$2:$B$10000, Home!$J$7, Raw_Data!$G$2:$G$10000, \"<>\")" },
+      value: { formula: "COUNTIFS(Raw_Data!$B$2:$B$10000, Home!$H$7, Raw_Data!$G$2:$G$10000, \"<>\")" },
       fill: C.white,
       font: mkFont(C.navy, 14, true),
       align: mkAlign("center", "middle"),
@@ -1753,7 +1702,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
       // Col F - Your Score (FORMULA!)
       applyCell(wsRep.getCell(currentRow, 6), {
-        value: { formula: `XLOOKUP(Home!$J$7 & "_" & C${currentRow}, Raw_Data!$A$2:$A$10000, Raw_Data!$H$2:$H$10000, "—")` },
+        value: { formula: `XLOOKUP(Home!$H$7 & "_" & C${currentRow}, Raw_Data!$A$2:$A$10000, Raw_Data!$H$2:$H$10000, "—")` },
         fill: C.offWhite,
         font: mkFont(C.darkText, 10, true),
         align: mkAlign("center", "middle"),
@@ -1780,7 +1729,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
       // Col I - Comments (FORMULA!)
       applyCell(wsRep.getCell(currentRow, 9), {
-        value: { formula: `XLOOKUP(Home!$J$7 & "_" & C${currentRow}, Raw_Data!$A$2:$A$10000, Raw_Data!$I$2:$I$10000, "—")` },
+        value: { formula: `XLOOKUP(Home!$H$7 & "_" & C${currentRow}, Raw_Data!$A$2:$A$10000, Raw_Data!$I$2:$I$10000, "—")` },
         fill: isOdd ? C.altRow : C.white,
         font: mkFont(C.mutedText, 8, false),
         align: mkAlign("left", "middle", true),
