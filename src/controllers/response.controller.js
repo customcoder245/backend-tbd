@@ -1270,22 +1270,21 @@ export const exportOrganizationReportExcel = async (req, res) => {
       mapRow++;
     });
 
-    // Write dynamic array formulas to _Config columns A, B
-    // Column A: Unique roles sorted
-    wsConfig.getCell("A2").value = {
-      formula: `SORT(UNIQUE(FILTER(_Config!$C$2:$C$10000, _Config!$C$2:$C$10000<>"","No Roles")))`
-    };
-
     // Column B: People sorted, filtered by chosen Role in Home!B7
+    // IMPORTANT: No self-sheet prefix inside formulas on the _Config sheet itself — use direct range refs.
+    // (Column A formula removed — Role dropdown is now a reliable hardcoded list built from data)
+
     wsConfig.getCell("B2").value = {
-      formula: `SORT(FILTER(_Config!$D$2:$D$10000, (_Config!$D$2:$D$10000<>"") * ((Home!$B$7="") + (_Config!$C$2:$C$10000=Home!$B$7) > 0), "No People"))`
+      formula: `SORT(FILTER($D$2:$D$10000, ($D$2:$D$10000<>"") * ((Home!$B$7="") + ($C$2:$C$10000=Home!$B$7) > 0), "No People"))`
     };
 
-    // Role dropdown (B7) - links to the dynamic role list spilled from A2
+    // Role dropdown (B7) - hardcoded list built from actual data (always reliable, no formula dependency)
+    const uniqueRolesSorted = [...new Set(reportsData.map(r => r.role).filter(r => r && r !== "N/A"))].sort();
+    const roleDropListStr = '"' + (uniqueRolesSorted.length > 0 ? uniqueRolesSorted.join(",") : "Leader,Manager,Employee") + '"';
     wsHome.getCell("B7").dataValidation = {
       type: "list",
       allowBlank: true,
-      formulae: ["_Config!$A$2#"],
+      formulae: [roleDropListStr],
       showErrorMessage: true,
       errorTitle: "Invalid Role",
       error: "Please select a role from the dropdown."
