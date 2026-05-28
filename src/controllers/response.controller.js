@@ -1239,6 +1239,20 @@ export const exportOrganizationReportExcel = async (req, res) => {
     };
 
     // Set Defaults based on first available participant
+    // All Data Button
+    wsHome.mergeCells("J18:L19");
+    const allDataBtn = wsHome.getCell("J18");
+    allDataBtn.value = { text: "VIEW ALL DATA →", hyperlink: "#'All Data'!A1" };
+    allDataBtn.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+    allDataBtn.alignment = { horizontal: "center", vertical: "middle" };
+    allDataBtn.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F2547" } };
+    allDataBtn.border = {
+      top: { style: "medium", color: { argb: "FFD4AF37" } },
+      bottom: { style: "medium", color: { argb: "FFD4AF37" } },
+      left: { style: "medium", color: { argb: "FFD4AF37" } },
+      right: { style: "medium", color: { argb: "FFD4AF37" } }
+    };
+    if (reportsData.length > 0) {
     if (reportsData.length > 0) {
       const defReport = reportsData[0];
       roleCell.value = defReport.role;
@@ -1747,6 +1761,556 @@ export const exportOrganizationReportExcel = async (req, res) => {
           mergeCells(subStart, 2, rowNum, 2);
         }
       });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // SHEET 5: ALL DATA (Master Filterable Table — ALL people, ALL responses)
+    // ────────────────────────────────────────────────────────────────────────
+    const wsAll = workbook.addWorksheet("All Data", {
+      views: [{ showGridLines: true, zoomScale: 85 }],
+      pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+    });
+
+    // Column definitions
+    wsAll.columns = [
+      { key: "sno",            width: 6  },  // A  S.No
+      { key: "personName",     width: 24 },  // B  Person Name
+      { key: "email",          width: 28 },  // C  Email
+      { key: "role",           width: 14 },  // D  Role
+      { key: "department",     width: 18 },  // E  Department
+      { key: "status",         width: 14 },  // F  Status
+      { key: "completedDate",  width: 16 },  // G  Completed Date
+      { key: "domain",         width: 24 },  // H  Domain
+      { key: "subdomain",      width: 24 },  // I  Sub-Domain
+      { key: "questionCode",   width: 14 },  // J  Question Code
+      { key: "questionStem",   width: 55 },  // K  Question
+      { key: "questionType",   width: 16 },  // L  Question Type
+      { key: "yourScore",      width: 12 },  // M  Score
+      { key: "maxScore",       width: 10 },  // N  Max Score
+      { key: "pctScore",       width: 10 },  // O  % Score
+      { key: "comment",        width: 35 },  // P  Comments
+    ];
+
+    // ─── Title Banner ───
+    wsAll.mergeCells("A1:P1");
+    wsAll.getRow(1).height = 36;
+    const allTitleCell = wsAll.getCell("A1");
+    allTitleCell.value = `ALL DATA — ${orgName.toUpperCase()} — COMPLETE ORGANIZATION RESPONSES`;
+    allTitleCell.fill = mkFill("FF0F2547");
+    allTitleCell.font = { name: "Segoe UI", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
+    allTitleCell.alignment = { horizontal: "center", vertical: "middle" };
+
+    // ─── Sub-title bar ───
+    wsAll.mergeCells("A2:L2");
+    wsAll.getRow(2).height = 22;
+    const allSubCell = wsAll.getCell("A2");
+    allSubCell.value = `Total Participants: ${reportsData.length}  |  Completed: ${completedCount}  |  Pending: ${reportsData.length - completedCount}`;
+    allSubCell.fill = mkFill("FF1A3A6B");
+    allSubCell.font = mkFont("FFFFFFFF", 9, true);
+    allSubCell.alignment = mkAlign("left", "middle");
+
+    // ─── Navigation buttons in sub-title ───
+    wsAll.mergeCells("M2:N2");
+    const allNavHome = wsAll.getCell("M2");
+    allNavHome.value = { text: "← HOME", hyperlink: "#'Home'!A1" };
+    allNavHome.fill = mkFill("FFE8F0FE");
+    allNavHome.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF0F2547" } };
+    allNavHome.alignment = mkAlign("center", "middle");
+    allNavHome.border = mkBorder("FFAAB8CC", "thin");
+
+    wsAll.mergeCells("O2:P2");
+    const allNavSummary = wsAll.getCell("O2");
+    allNavSummary.value = { text: "SUMMARY →", hyperlink: "#'Summary'!A1" };
+    allNavSummary.fill = mkFill("FFE6F9EE");
+    allNavSummary.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF065F46" } };
+    allNavSummary.alignment = mkAlign("center", "middle");
+    allNavSummary.border = mkBorder("FFAAB8CC", "thin");
+
+    // ─── Spacer ───
+    wsAll.getRow(3).height = 6;
+
+    // ─── Table Header (Row 4) ───
+    const allHeaders = [
+      "S.No", "Person Name", "Email", "Role", "Department", "Status",
+      "Completed Date", "Domain", "Sub-Domain", "Question Code",
+      "Question", "Question Type", "Score", "Max Score", "% Score", "Comments"
+    ];
+    allHeaders.forEach((h, i) => {
+      const cell = wsAll.getCell(4, i + 1);
+      cell.value = h;
+      cell.fill = mkFill("FF0F2547");
+      cell.font = mkFont("FFFFFFFF", 10, true);
+      cell.alignment = mkAlign(
+        [4, 10, 11, 15].includes(i) ? "left" : "center",
+        "middle"
+      );
+      cell.border = mkBorder("FFAAB8CC", "medium");
+    });
+    wsAll.getRow(4).height = 32;
+
+    // ─── Data Rows ───
+    const percentageMap = { 1: 20, 2: 40, 3: 60, 4: 80, 5: 100 };
+    let allDataRow = 5;
+    let sno = 1;
+
+    // Color coding for roles
+    const roleColors = {
+      leader:   { bg: "FFF5F0FF", text: "FF7C3AED" },
+      manager:  { bg: "FFE6F9EE", text: "FF0E9F6E" },
+      employee: { bg: "FFE8F0FE", text: "FF1A56DB" },
+    };
+
+    // Status colors
+    const statusColors = {
+      completed: { bg: "FFD1FAE5", text: "FF047857" },
+      pending:   { bg: "FFFEF3C7", text: "FFD97706" },
+    };
+
+    const getScoreColor = (score) => {
+      if (score === null || score === undefined || score === "" || score === "—") return null;
+      const n = typeof score === "number" ? score : Number(score);
+      if (isNaN(n)) return null;
+      if (n >= 4) return { bg: "FFD1FAE5", fg: "FF047857" };
+      if (n >= 3) return { bg: "FFFEF3C7", fg: "FFD97706" };
+      return { bg: "FFFEE2E2", fg: "FFDC2626" };
+    };
+
+    reportsData.forEach(report => {
+      if (report.isCompleted && report.responses && report.responses.length > 0) {
+        const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", {
+          day: "2-digit", month: "short", year: "numeric"
+        });
+
+        report.responses.forEach(resp => {
+          const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
+          const rawScore = isFc
+            ? (resp.selectedOption || "—")
+            : ((resp.value !== null && resp.value !== undefined) ? Number(resp.value) : "—");
+          const numericScore = (typeof rawScore === "number") ? rawScore : null;
+          const pctVal = isFc
+            ? 50
+            : (numericScore !== null ? (percentageMap[Math.round(numericScore)] || "—") : "—");
+
+          const isOdd = (allDataRow % 2) !== 0;
+          const roleLower = (report.role || "").toLowerCase();
+          const roleClr = roleColors[roleLower] || { bg: "FFF8FAFC", text: "FF6B7A90" };
+          const scClr = getScoreColor(rawScore);
+
+          const rowValues = [
+            sno, report.empName, report.email, report.role, report.dept,
+            "Completed", completedDateStr, resp.domain, resp.subdomain,
+            resp.questionCode, resp.questionStem || "—", resp.questionType || "—",
+            rawScore, 5, pctVal, resp.comment || "—"
+          ];
+
+          rowValues.forEach((val, ci) => {
+            const cell = wsAll.getCell(allDataRow, ci + 1);
+            cell.value = val;
+            cell.border = mkBorder();
+
+            // Defaults
+            cell.font = mkFont("FF1E2A3B", 9);
+            cell.fill = mkFill(isOdd ? "FFF4F6FA" : "FFFFFFFF");
+            cell.alignment = mkAlign("center", "middle", ci >= 10);
+
+            // Column-specific styling
+            if (ci === 1 || ci === 2) { // Name, Email
+              cell.alignment = mkAlign("left", "middle");
+              cell.font = mkFont("FF1E2A3B", 9, ci === 1);
+            }
+            if (ci === 3) { // Role
+              cell.fill = mkFill(roleClr.bg);
+              cell.font = mkFont(roleClr.text, 9, true);
+            }
+            if (ci === 5) { // Status
+              cell.fill = mkFill(statusColors.completed.bg);
+              cell.font = mkFont(statusColors.completed.text, 9, true);
+            }
+            if (ci === 7 || ci === 8) { // Domain, Subdomain
+              cell.alignment = mkAlign("left", "middle", true);
+              cell.font = mkFont("FF1E2A3B", 9);
+            }
+            if (ci === 10) { // Question Stem
+              cell.alignment = mkAlign("left", "middle", true);
+            }
+            if (ci === 12 && scClr) { // Score
+              cell.fill = mkFill(scClr.bg);
+              cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: scClr.fg } };
+            }
+            if (ci === 14 && scClr) { // % Score
+              cell.fill = mkFill(scClr.bg);
+              cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: scClr.fg } };
+            }
+          });
+
+          // Auto height
+          const stemLen = (resp.questionStem || "").length;
+          const neededLines = Math.max(Math.ceil(stemLen / 60), 1);
+          wsAll.getRow(allDataRow).height = Math.max(22, neededLines * 14);
+
+          allDataRow++;
+          sno++;
+        });
+      } else {
+        // Not completed — single row per person
+        const isOdd = (allDataRow % 2) !== 0;
+        const roleLower = (report.role || "").toLowerCase();
+        const roleClr = roleColors[roleLower] || { bg: "FFF8FAFC", text: "FF6B7A90" };
+
+        const rowValues = [
+          sno, report.empName, report.email, report.role, report.dept,
+          "Pending", "—", "—", "—", "—", "—", "—", "—", "—", "—", "Assessment not submitted"
+        ];
+
+        rowValues.forEach((val, ci) => {
+          const cell = wsAll.getCell(allDataRow, ci + 1);
+          cell.value = val;
+          cell.border = mkBorder();
+          cell.font = mkFont("FF6B7A90", 9);
+          cell.fill = mkFill(isOdd ? "FFF4F6FA" : "FFFFFFFF");
+          cell.alignment = mkAlign("center", "middle");
+
+          if (ci === 1 || ci === 2) cell.alignment = mkAlign("left", "middle");
+          if (ci === 1) cell.font = mkFont("FF6B7A90", 9, true);
+          if (ci === 3) {
+            cell.fill = mkFill(roleClr.bg);
+            cell.font = mkFont(roleClr.text, 9, true);
+          }
+          if (ci === 5) {
+            cell.fill = mkFill(statusColors.pending.bg);
+            cell.font = mkFont(statusColors.pending.text, 9, true);
+          }
+        });
+
+        wsAll.getRow(allDataRow).height = 22;
+        allDataRow++;
+        sno++;
+      }
+    });
+
+    // ─── Auto-Filter on All Data table ───
+    if (allDataRow > 5) {
+      wsAll.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: allDataRow - 1, column: 16 }
+      };
+    }
+
+    // ─── Freeze panes: freeze header row + first 2 columns ───
+    wsAll.views = [{
+      state: "frozen",
+      xSplit: 2,
+      ySplit: 4,
+      showGridLines: true,
+      zoomScale: 85
+    }];
+
+    // ────────────────────────────────────────────────────────────────────────
+    // SHEET 6: SUMMARY (Pivot-Table-Like Per-Person Aggregation)
+    // ────────────────────────────────────────────────────────────────────────
+    const wsSummary = workbook.addWorksheet("Summary", {
+      views: [{ showGridLines: true, zoomScale: 90 }],
+      pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+    });
+
+    // Collect all unique domains for dynamic domain columns
+    const allDomains = [...new Set(
+      sortedQuestions.map(q => q.domain).filter(Boolean)
+    )];
+
+    // Column definitions: fixed cols + dynamic domain cols
+    const summaryFixedHeaders = [
+      "S.No", "Person Name", "Email", "Role", "Department",
+      "Status", "Completed Date", "Total Questions", "Avg Score", "% Avg", "Classification"
+    ];
+    const summaryHeaders = [...summaryFixedHeaders, ...allDomains.map(d => `${d} Avg`)];
+
+    const summaryColWidths = [
+      6, 24, 28, 14, 18, 14, 16, 14, 12, 10, 14,
+      ...allDomains.map(() => 18)
+    ];
+
+    wsSummary.columns = summaryHeaders.map((_, i) => ({ width: summaryColWidths[i] || 16 }));
+
+    // ─── Title Banner ───
+    const sumLastCol = summaryHeaders.length;
+    wsSummary.mergeCells(1, 1, 1, sumLastCol);
+    wsSummary.getRow(1).height = 36;
+    const sumTitleCell = wsSummary.getCell("A1");
+    sumTitleCell.value = `ORGANIZATION SUMMARY — ${orgName.toUpperCase()}`;
+    sumTitleCell.fill = mkFill("FF0F2547");
+    sumTitleCell.font = { name: "Segoe UI", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
+    sumTitleCell.alignment = mkAlign("center", "middle");
+
+    // ─── Sub-title ───
+    const subLastCol = Math.max(sumLastCol - 4, 1);
+    wsSummary.mergeCells(2, 1, 2, subLastCol);
+    wsSummary.getRow(2).height = 22;
+    const sumSubCell = wsSummary.getCell("A2");
+    sumSubCell.value = `Per-Person Aggregation  |  Participants: ${reportsData.length}  |  Completed: ${completedCount}  |  Domains: ${allDomains.length}`;
+    sumSubCell.fill = mkFill("FF1A3A6B");
+    sumSubCell.font = mkFont("FFFFFFFF", 9, true);
+    sumSubCell.alignment = mkAlign("left", "middle");
+
+    // ─── Navigation buttons ───
+    const navStart = subLastCol + 1;
+    const navMid = Math.min(navStart + 1, sumLastCol);
+    const navEnd = Math.min(navMid + 1, sumLastCol);
+    if (navStart <= sumLastCol) {
+      wsSummary.mergeCells(2, navStart, 2, navMid);
+      const sumNavHome = wsSummary.getCell(2, navStart);
+      sumNavHome.value = { text: "← HOME", hyperlink: "#'Home'!A1" };
+      sumNavHome.fill = mkFill("FFE8F0FE");
+      sumNavHome.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF0F2547" } };
+      sumNavHome.alignment = mkAlign("center", "middle");
+      sumNavHome.border = mkBorder("FFAAB8CC", "thin");
+    }
+    if (navEnd <= sumLastCol) {
+      wsSummary.mergeCells(2, navEnd, 2, sumLastCol);
+      const sumNavAll = wsSummary.getCell(2, navEnd);
+      sumNavAll.value = { text: "ALL DATA →", hyperlink: "#'All Data'!A1" };
+      sumNavAll.fill = mkFill("FFF5F0FF");
+      sumNavAll.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF7C3AED" } };
+      sumNavAll.alignment = mkAlign("center", "middle");
+      sumNavAll.border = mkBorder("FFAAB8CC", "thin");
+    }
+
+    // ─── Spacer ───
+    wsSummary.getRow(3).height = 6;
+
+    // ─── Table Header (Row 4) ───
+    summaryHeaders.forEach((h, i) => {
+      const cell = wsSummary.getCell(4, i + 1);
+      cell.value = h;
+      cell.fill = mkFill("FF0F2547");
+      cell.font = mkFont("FFFFFFFF", 10, true);
+      cell.alignment = mkAlign("center", "middle", true);
+      cell.border = mkBorder("FFAAB8CC", "medium");
+    });
+    wsSummary.getRow(4).height = 36;
+
+    // ─── Data Rows ───
+    let sumRow = 5;
+    let sumSno = 1;
+
+    reportsData.forEach(report => {
+      const isOdd = (sumRow % 2) !== 0;
+      const roleLower = (report.role || "").toLowerCase();
+      const roleClr = roleColors[roleLower] || { bg: "FFF8FAFC", text: "FF6B7A90" };
+
+      // Calculate per-domain averages
+      const domainScores = {};
+      allDomains.forEach(d => { domainScores[d] = { sum: 0, count: 0 }; });
+
+      let totalScore = 0;
+      let totalRated = 0;
+
+      if (report.isCompleted && report.responses) {
+        report.responses.forEach(resp => {
+          const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
+          let score = null;
+          if (isFc) {
+            score = 2.5;
+          } else if (resp.value !== null && resp.value !== undefined) {
+            score = Number(resp.value);
+          }
+
+          if (score !== null && !isNaN(score)) {
+            totalScore += score;
+            totalRated++;
+            if (resp.domain && domainScores[resp.domain]) {
+              domainScores[resp.domain].sum += score;
+              domainScores[resp.domain].count++;
+            }
+          }
+        });
+      }
+
+      const avgScore = totalRated > 0 ? (totalScore / totalRated) : null;
+      const pctAvg = avgScore !== null ? Math.round((avgScore / 5) * 100) : null;
+      const classification = avgScore !== null
+        ? (avgScore >= 4 ? "High" : avgScore >= 2.5 ? "Medium" : "Low")
+        : "—";
+
+      const completedDateStr = report.isCompleted && report.submittedAt
+        ? new Date(report.submittedAt).toLocaleDateString("en-US", {
+            day: "2-digit", month: "short", year: "numeric"
+          })
+        : "—";
+
+      const status = report.isCompleted ? "Completed" : "Pending";
+      const totalQ = report.isCompleted ? (report.responses || []).length : 0;
+
+      // Fixed column values
+      const fixedValues = [
+        sumSno,
+        report.empName,
+        report.email,
+        report.role,
+        report.dept,
+        status,
+        completedDateStr,
+        totalQ,
+        avgScore !== null ? Math.round(avgScore * 100) / 100 : "—",
+        pctAvg !== null ? pctAvg : "—",
+        classification
+      ];
+
+      // Domain avg values
+      const domainValues = allDomains.map(d => {
+        const ds = domainScores[d];
+        if (ds.count > 0) return Math.round((ds.sum / ds.count) * 100) / 100;
+        return "—";
+      });
+
+      const allValues = [...fixedValues, ...domainValues];
+
+      allValues.forEach((val, ci) => {
+        const cell = wsSummary.getCell(sumRow, ci + 1);
+        cell.value = val;
+        cell.border = mkBorder();
+        cell.font = mkFont("FF1E2A3B", 9);
+        cell.fill = mkFill(isOdd ? "FFF4F6FA" : "FFFFFFFF");
+        cell.alignment = mkAlign("center", "middle", ci >= summaryFixedHeaders.length);
+
+        // Column-specific styling
+        if (ci === 1 || ci === 2) { // Name, Email
+          cell.alignment = mkAlign("left", "middle");
+          cell.font = mkFont("FF1E2A3B", 9, ci === 1);
+        }
+        if (ci === 3) { // Role
+          cell.fill = mkFill(roleClr.bg);
+          cell.font = mkFont(roleClr.text, 9, true);
+        }
+        if (ci === 5) { // Status
+          const sc = status === "Completed" ? statusColors.completed : statusColors.pending;
+          cell.fill = mkFill(sc.bg);
+          cell.font = mkFont(sc.text, 9, true);
+        }
+        if (ci === 8 || ci === 9) { // Avg Score, % Avg
+          const scoreClr = getScoreColor(val);
+          if (scoreClr) {
+            cell.fill = mkFill(scoreClr.bg);
+            cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: scoreClr.fg } };
+          }
+        }
+        if (ci === 10) { // Classification
+          const classClr = classification === "High"
+            ? { bg: "FFD1FAE5", text: "FF047857" }
+            : classification === "Medium"
+              ? { bg: "FFFEF3C7", text: "FFD97706" }
+              : classification === "Low"
+                ? { bg: "FFFEE2E2", text: "FFDC2626" }
+                : null;
+          if (classClr) {
+            cell.fill = mkFill(classClr.bg);
+            cell.font = mkFont(classClr.text, 9, true);
+          }
+        }
+        // Domain columns
+        if (ci >= summaryFixedHeaders.length) {
+          const scoreClr = getScoreColor(val);
+          if (scoreClr) {
+            cell.fill = mkFill(scoreClr.bg);
+            cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: scoreClr.fg } };
+          }
+        }
+      });
+
+      wsSummary.getRow(sumRow).height = 24;
+      sumRow++;
+      sumSno++;
+    });
+
+    // ─── Totals / Grand Summary Row ───
+    if (sumRow > 5) {
+      const grandRow = sumRow + 1;
+      wsSummary.mergeCells(grandRow, 1, grandRow, 2);
+      const grandCell = wsSummary.getCell(grandRow, 1);
+      grandCell.value = "GRAND TOTALS";
+      grandCell.fill = mkFill("FF0F2547");
+      grandCell.font = mkFont("FFFFFFFF", 10, true);
+      grandCell.alignment = mkAlign("center", "middle");
+      grandCell.border = mkBorder("FFAAB8CC", "medium");
+
+      // Blank styled cells for cols 3-7
+      for (let c = 3; c <= 7; c++) {
+        const cell = wsSummary.getCell(grandRow, c);
+        cell.fill = mkFill("FF1A3A6B");
+        cell.border = mkBorder("FFAAB8CC", "medium");
+      }
+
+      // Total Questions (col 8)
+      const tqCell = wsSummary.getCell(grandRow, 8);
+      tqCell.value = { formula: `SUM(H5:H${sumRow - 1})` };
+      tqCell.fill = mkFill("FF1A3A6B");
+      tqCell.font = mkFont("FFFFFFFF", 10, true);
+      tqCell.alignment = mkAlign("center", "middle");
+      tqCell.border = mkBorder("FFAAB8CC", "medium");
+
+      // Avg Score (col 9)
+      const avgCell = wsSummary.getCell(grandRow, 9);
+      avgCell.value = { formula: `IFERROR(AVERAGE(I5:I${sumRow - 1}), "—")` };
+      avgCell.fill = mkFill("FF1A3A6B");
+      avgCell.font = mkFont("FFFFFFFF", 10, true);
+      avgCell.alignment = mkAlign("center", "middle");
+      avgCell.border = mkBorder("FFAAB8CC", "medium");
+
+      // % Avg (col 10)
+      const pctCell = wsSummary.getCell(grandRow, 10);
+      pctCell.value = { formula: `IFERROR(AVERAGE(J5:J${sumRow - 1}), "—")` };
+      pctCell.fill = mkFill("FF1A3A6B");
+      pctCell.font = mkFont("FFFFFFFF", 10, true);
+      pctCell.alignment = mkAlign("center", "middle");
+      pctCell.border = mkBorder("FFAAB8CC", "medium");
+
+      // Classification blank
+      const clsCell = wsSummary.getCell(grandRow, 11);
+      clsCell.fill = mkFill("FF1A3A6B");
+      clsCell.border = mkBorder("FFAAB8CC", "medium");
+
+      // Domain averages
+      allDomains.forEach((_, di) => {
+        const colIdx = summaryFixedHeaders.length + di + 1;
+        const colLetter = wsAll.getColumn(colIdx).letter || String.fromCharCode(64 + colIdx);
+        const dCell = wsSummary.getCell(grandRow, colIdx);
+        // Use column number reference directly
+        dCell.value = { formula: `IFERROR(AVERAGE(INDIRECT("R5C${colIdx}:R${sumRow - 1}C${colIdx}", FALSE)), "—")` };
+        dCell.fill = mkFill("FF1A3A6B");
+        dCell.font = mkFont("FFFFFFFF", 9, true);
+        dCell.alignment = mkAlign("center", "middle");
+        dCell.border = mkBorder("FFAAB8CC", "medium");
+      });
+
+      wsSummary.getRow(grandRow).height = 28;
+    }
+
+    // ─── Auto-Filter on Summary ───
+    if (sumRow > 5) {
+      wsSummary.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: sumRow - 1, column: summaryHeaders.length }
+      };
+    }
+
+    // ─── Freeze panes on Summary ───
+    wsSummary.views = [{
+      state: "frozen",
+      xSplit: 2,
+      ySplit: 4,
+      showGridLines: true,
+      zoomScale: 90
+    }];
+
+    // ────────────────────────────────────────────────────────────────────────
+    // AUTO-FILTER on Raw_Data sheet
+    // ────────────────────────────────────────────────────────────────────────
+    const rawLastRow = wsRaw.lastRow ? wsRaw.lastRow.number : 1;
+    if (rawLastRow > 1) {
+      wsRaw.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: rawLastRow, column: 14 }
+      };
     }
 
     // Set Response Headers
