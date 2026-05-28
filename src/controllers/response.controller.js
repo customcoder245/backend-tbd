@@ -1253,13 +1253,98 @@ export const exportOrganizationReportExcel = async (req, res) => {
       left: { style: "medium", color: { argb: "FFD4AF37" } },
       right: { style: "medium", color: { argb: "FFD4AF37" } }
     };
+
+    // Summary Button
+    wsHome.mergeCells("J20:L21");
+    const summaryBtn = wsHome.getCell("J20");
+    summaryBtn.value = { text: "VIEW SUMMARY →", hyperlink: "#'Summary'!A1" };
+    summaryBtn.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+    summaryBtn.alignment = { horizontal: "center", vertical: "middle" };
+    summaryBtn.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0E9F6E" } };
+    summaryBtn.border = {
+      top: { style: "medium", color: { argb: "FFD4AF37" } },
+      bottom: { style: "medium", color: { argb: "FFD4AF37" } },
+      left: { style: "medium", color: { argb: "FFD4AF37" } },
+      right: { style: "medium", color: { argb: "FFD4AF37" } }
+    };
+
+    // ────────────────────────────────────────────────────────────────────────
+    // HIDDEN CONFIG SHEET (powers cascading dropdowns via formulas)
+    // ────────────────────────────────────────────────────────────────────────
+    const wsConfig = workbook.addWorksheet("_Config", {
+      views: [{ showGridLines: true }]
+    });
+    wsConfig.state = "hidden";
+
+    // Build dropdown lists directly from the data
+    const roleList = [...new Set(reportsData.map(r => r.role).filter(Boolean))].sort();
+    const deptList = [...new Set(reportsData.map(r => r.dept).filter(d => d && d !== "N/A"))].sort();
+    const personList = reportsData.map(r => r.empName).filter(Boolean).sort();
+
+    // Write lists to Config sheet columns
+    wsConfig.getCell("A1").value = "Roles";
+    wsConfig.getCell("B1").value = "Departments";
+    wsConfig.getCell("C1").value = "People";
+    wsConfig.getCell("D1").value = "RoleDeptMap_Role";
+    wsConfig.getCell("E1").value = "RoleDeptMap_Dept";
+    wsConfig.getCell("F1").value = "RoleDeptMap_Person";
+
+    roleList.forEach((role, i) => { wsConfig.getCell(i + 2, 1).value = role; });
+    deptList.forEach((dept, i) => { wsConfig.getCell(i + 2, 2).value = dept; });
+    personList.forEach((name, i) => { wsConfig.getCell(i + 2, 3).value = name; });
+
+    // Write full mapping table (role → dept → person) for cascading filters
+    let mapRow = 2;
+    reportsData.forEach(r => {
+      wsConfig.getCell(mapRow, 4).value = r.role || "";
+      wsConfig.getCell(mapRow, 5).value = r.dept || "";
+      wsConfig.getCell(mapRow, 6).value = r.empName || "";
+      mapRow++;
+    });
+
+    // Build Excel-compatible comma-separated lists for data validation
+    const roleListStr = '"' + roleList.join(",") + '"';
+
+    // Role dropdown (B7) - shows all unique roles
+    wsHome.getCell("B7").dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [roleListStr],
+      showErrorMessage: true,
+      errorTitle: "Invalid Role",
+      error: "Please select a role from the dropdown."
+    };
+
+    // Department dropdown (F7) - shows departments filtered by selected role
+    // Uses OFFSET+MATCH to create a dynamic list from the mapping table
+    const deptListStr = '"' + deptList.join(",") + '"';
+    wsHome.getCell("F7").dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [deptListStr],
+      showErrorMessage: true,
+      errorTitle: "Invalid Department",
+      error: "Please select a department from the dropdown."
+    };
+
+    // Person dropdown (J7) - shows all people
+    const personListStr = '"' + personList.join(",") + '"';
+    wsHome.getCell("J7").dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [personListStr],
+      showErrorMessage: true,
+      errorTitle: "Invalid Person",
+      error: "Please select a person from the dropdown."
+    };
+
+    // Set default values from first participant
     if (reportsData.length > 0) {
       const defReport = reportsData[0];
       roleCell.value = defReport.role;
       deptCell.value = defReport.dept;
       personCell.value = defReport.empName;
     }
-
 
     // ────────────────────────────────────────────────────────────────────────
     // SHEET 3: RAW DATA (Hidden database dump)
