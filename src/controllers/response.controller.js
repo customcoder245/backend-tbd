@@ -289,52 +289,150 @@ export const exportIndividualReportExcel = async (req, res) => {
     // ════════════════════════════════════════════════════════════════════════
     // SECTION 1 - TITLE BANNER  (rows 1-3)
     // ════════════════════════════════════════════════════════════════════════
+
+    // ════════════════════════════════════════════════════════════════
+    // PREMIUM HEADER SECTION
+    // ════════════════════════════════════════════════════════════════
+
+    // ===== TOP HEADER CONTAINER =====
+
+    // Main left title card
     mergeCells(1, 1, 3, 5);
+
     applyCell(ws.getCell(1, 1), {
       value: "INDIVIDUAL RESPONSE REPORT",
       fill: C.navy,
-      font: mkFont(C.white, 18, true),
-      align: mkAlign("left", "middle"),
-      border: medBorder,
+      font: {
+        name: "Segoe UI",
+        size: 20,
+        bold: true,
+        color: { argb: C.white }
+      },
+      align: {
+        horizontal: "left",
+        vertical: "middle",
+        indent: 1
+      },
+      border: {
+        top: { style: "medium", color: { argb: "FFD4AF37" } },
+        left: { style: "medium", color: { argb: "FFD4AF37" } },
+        bottom: { style: "medium", color: { argb: "FFD4AF37" } },
+        right: { style: "medium", color: { argb: "FFD4AF37" } },
+      }
     });
 
-    // Subtitle band  cols 1-5, row 4
+    // Premium golden top line
+    for (let c = 1; c <= 5; c++) {
+      applyCell(ws.getCell(1, c), {
+        border: {
+          top: { style: "thick", color: { argb: "FFD4AF37" } }
+        }
+      });
+    }
+
+    // Subtitle strip
     mergeCells(4, 1, 4, 5);
+
     applyCell(ws.getCell(4, 1), {
-      value: "Detailed view of responses by domain, subdomain and question",
+      value: "Detailed response analysis by domain, sub-domain and question performance",
       fill: C.navyLight,
-      font: mkFont(C.white, 9, false),
-      align: mkAlign("left", "middle"),
+      font: {
+        name: "Segoe UI",
+        size: 9,
+        bold: false,
+        color: { argb: C.white }
+      },
+      align: {
+        horizontal: "left",
+        vertical: "middle",
+        indent: 1
+      },
+      border: thinBorder
     });
 
-    // Metadata block  cols 6-9, rows 1-4
+
+
+    // ===== RIGHT METADATA PANEL =====
+
+    // Background panel
+    for (let r = 1; r <= 4; r++) {
+      for (let c = 6; c <= 9; c++) {
+
+        applyCell(ws.getCell(r, c), {
+          fill: "FFF8FAFC",
+          border: {
+            top: { style: "thin", color: { argb: "FFE2E8F0" } },
+            left: { style: "thin", color: { argb: "FFE2E8F0" } },
+            bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+            right: { style: "thin", color: { argb: "FFE2E8F0" } },
+          }
+        });
+
+      }
+    }
+
     const metaRows = [
-      ["Name", empName],
-      ["Department", empDept],
-      ["Role", `${empRole}`],
-      ["Completion Date", completedDate],
+      ["NAME", empName],
+      ["DEPARTMENT", empDept],
+      ["ROLE", empRole],
+      ["COMPLETED", completedDate],
     ];
+
     metaRows.forEach(([label, val], i) => {
+
       const row = i + 1;
+
+      // Label
       mergeCells(row, 6, row, 7);
+
       applyCell(ws.getCell(row, 6), {
         value: label,
-        fill: i % 2 === 0 ? C.offWhite : C.lightGrey,
-        font: mkFont(C.mutedText, 8, true),
-        align: mkAlign("right", "middle"),
-        border: thinBorder,
+        fill: "FFF1F5F9",
+        font: {
+          name: "Segoe UI",
+          size: 8,
+          bold: true,
+          color: { argb: C.mutedText }
+        },
+        align: {
+          horizontal: "right",
+          vertical: "middle"
+        },
+        border: thinBorder
       });
 
+      // Value
       mergeCells(row, 8, row, 9);
+
       applyCell(ws.getCell(row, 8), {
         value: val,
-        fill: i % 2 === 0 ? C.offWhite : C.lightGrey,
-        font: mkFont(C.darkText, 9, true),
-        align: mkAlign("left", "middle"),
-        border: thinBorder,
+        fill: C.white,
+        font: {
+          name: "Segoe UI",
+          size: 9,
+          bold: true,
+          color: { argb: C.darkText }
+        },
+        align: {
+          horizontal: "left",
+          vertical: "middle",
+          indent: 1
+        },
+        border: thinBorder
       });
+
     });
-    [1, 2, 3, 4].forEach(r => setHeight(r, 20));
+
+    // Row Heights
+    setHeight(1, 24);
+    setHeight(2, 24);
+    setHeight(3, 24);
+    setHeight(4, 18);
+
+    // Spacer row
+    setHeight(5, 8);
+
+
 
     // ════════════════════════════════════════════════════════════════════════
     // SECTION 2 - SPACER ROW 5
@@ -379,6 +477,12 @@ export const exportIndividualReportExcel = async (req, res) => {
     const cards = [
       { cols: [1, 2], label: "Overall Avg Score", val: `${overallAvg} / 5.00` },
       { cols: [3, 4], label: "Total Questions", val: `${responses.length}` },
+      {
+        cols: [5, 9],
+        label: "Performance Scale",
+        val: "LOW | NEUTRAL | HIGH"
+      },
+
       // { cols: [5, 6], label: "Self-Rating Questions", val: `${selfCount}` },
       // { cols: [7, 9], label: "Behavioural Questions", val: `${behavCount}` },
     ];
@@ -393,10 +497,69 @@ export const exportIndividualReportExcel = async (req, res) => {
       });
       mergeCells(8, cols[0], 8, cols[1]);
       applyCell(ws.getCell(8, cols[0]), {
-        value: val,
+
+        value:
+          label === "Performance Scale"
+            ? {
+              richText: [
+                {
+                  text: "1-2 LOW",
+                  font: {
+                    name: "Segoe UI",
+                    size: 11,
+                    bold: true,
+                    color: { argb: C.s1fg }
+                  }
+                },
+                {
+                  text: "   |   ",
+                  font: {
+                    name: "Segoe UI",
+                    size: 11,
+                    bold: true,
+                    color: { argb: C.darkText }
+                  }
+                },
+                {
+                  text: "3 NEUTRAL",
+                  font: {
+                    name: "Segoe UI",
+                    size: 11,
+                    bold: true,
+                    color: { argb: C.s3fg }
+                  }
+                },
+                {
+                  text: "   |   ",
+                  font: {
+                    name: "Segoe UI",
+                    size: 11,
+                    bold: true,
+                    color: { argb: C.darkText }
+                  }
+                },
+                {
+                  text: "4-5 HIGH",
+                  font: {
+                    name: "Segoe UI",
+                    size: 11,
+                    bold: true,
+                    color: { argb: C.s5fg }
+                  }
+                }
+              ]
+            }
+            : val,
+
         fill: C.white,
-        font: mkFont(C.navy, 14, true),
+
+        font:
+          label === "Performance Scale"
+            ? undefined
+            : mkFont(C.navy, 14, true),
+
         align: mkAlign("center", "middle"),
+
         border: thinBorder,
       });
     });
@@ -535,11 +698,13 @@ export const exportIndividualReportExcel = async (req, res) => {
 
       // Col H - % Score
 
+
+      // Col H - % Score
+
       let pctVal = "—";
 
       if (isFc) {
 
-        // Forced Choice always 50
         pctVal = 50;
 
       } else if (score !== null && score !== undefined) {
@@ -554,6 +719,7 @@ export const exportIndividualReportExcel = async (req, res) => {
 
         pctVal = percentageMap[Math.round(score)] || "—";
       }
+
 
       applyCell(ws.getCell(currentRow, 8), {
         value: pctVal,
@@ -570,6 +736,18 @@ export const exportIndividualReportExcel = async (req, res) => {
         align: mkAlign("center", "middle"),
         border: thinBorder,
       });
+
+      // Col I - Comments
+      applyCell(ws.getCell(currentRow, 9), {
+        value: r.comment || "—",
+        fill: isOdd ? C.altRow : C.white,
+        font: mkFont(C.mutedText, 8, false),
+        align: mkAlign("left", "middle", true),
+        border: thinBorder,
+      });
+
+
+
 
 
       // Auto-height: estimate ~15pt per 60 chars of question stem
@@ -625,100 +803,12 @@ export const exportIndividualReportExcel = async (req, res) => {
     // ════════════════════════════════════════════════════════════════════════
     // SECTION 8 - FOOTER TABLES  (below data)
     // ════════════════════════════════════════════════════════════════════════
-    const summaryStartRow = currentRow + 2;
 
-    // ── Domain wise averages (cols A-C) ──────────────────────────────────────
-    mergeCells(summaryStartRow, 1, summaryStartRow, 3);
-    applyCell(ws.getCell(summaryStartRow, 1), {
-      value: "DOMAIN WISE AVERAGE SCORE",
-      fill: C.navy,
-      font: mkFont(C.white, 9, true),
-      align: mkAlign("center", "middle"),
-      border: medBorder,
-    });
-    setHeight(summaryStartRow, 22);
+    // ════════════════════════════════════════════════════════════════════════
+    // PREMIUM ANALYTICS SECTION
+    // ════════════════════════════════════════════════════════════════════════
 
-    const domAvg = {};
-    if (scores.domains && Object.keys(scores.domains).length > 0) {
-      Object.entries(scores.domains).forEach(([domName, domData]) => {
-        domAvg[domName] = { avg: (domData.score / 20).toFixed(2) };
-      });
-    } else {
-      // Fallback if precomputed domain scores are not available
-      responses.forEach(r => {
-        const isFc = r.questionType === "Forced-Choice" || r.scale === "FORCED_CHOICE";
-        const val = isFc ? 2.5 : r.value;
-        if (val !== null && val !== undefined) {
-          if (!domAvg[r.domain]) domAvg[r.domain] = { sum: 0, count: 0 };
-          domAvg[r.domain].sum += val;
-          domAvg[r.domain].count += 1;
-        }
-      });
-    }
-
-    let dRow = summaryStartRow + 1;
-    Object.entries(domAvg).forEach(([domName, data]) => {
-      const avg = data.avg !== undefined ? data.avg : (data.count > 0 ? (data.sum / data.count).toFixed(2) : "0.00");
-      const theme = getDomainTheme(domName);
-      const sc = getScorePalette(parseFloat(avg));
-
-      mergeCells(dRow, 1, dRow, 2);
-      applyCell(ws.getCell(dRow, 1), {
-        value: domName,
-        fill: theme.bg,
-        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: theme.text } },
-        align: mkAlign("left", "middle"),
-        border: thinBorder,
-      });
-      applyCell(ws.getCell(dRow, 3), {
-        value: `${avg} / 5`,
-        fill: sc.bg,
-        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: sc.fg } },
-        align: mkAlign("center", "middle"),
-        border: thinBorder,
-      });
-      setHeight(dRow, 20);
-      dRow++;
-    });
-
-    // ── Score Guide (cols E-G) ───────────────────────────────────────────────
-    mergeCells(summaryStartRow, 5, summaryStartRow, 7);
-    applyCell(ws.getCell(summaryStartRow, 5), {
-      value: "SCORE GUIDE",
-      fill: C.navy,
-      font: mkFont(C.white, 9, true),
-      align: mkAlign("center", "middle"),
-      border: medBorder,
-    });
-
-    const guide = [
-      [5, "5 - Very High", "Consistently exceeds expectations"],
-      [4, "4 - High", "Frequently meets and often exceeds"],
-      [3, "3 - Medium", "Meets expectations adequately"],
-      [2, "2 - Low", "Below expectations; needs improvement"],
-      [1, "1 - Very Low", "Significantly below expectations"],
-    ];
-    let gRow = summaryStartRow + 1;
-    guide.forEach(([val, lbl, desc]) => {
-      const sc = getScorePalette(val);
-      applyCell(ws.getCell(gRow, 5), {
-        value: lbl,
-        fill: sc.bg,
-        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: sc.fg } },
-        align: mkAlign("center", "middle"),
-        border: thinBorder,
-      });
-      mergeCells(gRow, 6, gRow, 7);
-      applyCell(ws.getCell(gRow, 6), {
-        value: desc,
-        fill: C.white,
-        font: mkFont(C.darkText, 8),
-        align: mkAlign("left", "middle", true),
-        border: thinBorder,
-      });
-      setHeight(gRow, 20);
-      gRow++;
-    });
+    const summaryStartRow = currentRow + 3;
 
     // ── Footer row ───────────────────────────────────────────────────────────
     // const footerRow = Math.max(dRow, gRow) + 1;
