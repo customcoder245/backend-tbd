@@ -486,8 +486,15 @@ export const exportIndividualReportExcel = async (req, res) => {
       // { cols: [5, 6], label: "Self-Rating Questions", val: `${selfCount}` },
       // { cols: [7, 9], label: "Behavioural Questions", val: `${behavCount}` },
     ];
+
     cards.forEach(({ cols, label, val }) => {
+
+      // ======================================================
+      // TOP LABEL ROW
+      // ======================================================
+
       mergeCells(7, cols[0], 7, cols[1]);
+
       applyCell(ws.getCell(7, cols[0]), {
         value: label,
         fill: C.offWhite,
@@ -495,76 +502,86 @@ export const exportIndividualReportExcel = async (req, res) => {
         align: mkAlign("center", "middle"),
         border: thinBorder,
       });
-      mergeCells(8, cols[0], 8, cols[1]);
-      applyCell(ws.getCell(8, cols[0]), {
 
-        value:
-          label === "Performance Scale"
-            ? {
-              richText: [
-                {
-                  text: "1-2 LOW",
-                  font: {
-                    name: "Segoe UI",
-                    size: 11,
-                    bold: true,
-                    color: { argb: C.s1fg }
-                  }
-                },
-                {
-                  text: "   |   ",
-                  font: {
-                    name: "Segoe UI",
-                    size: 11,
-                    bold: true,
-                    color: { argb: C.darkText }
-                  }
-                },
-                {
-                  text: "3 NEUTRAL",
-                  font: {
-                    name: "Segoe UI",
-                    size: 11,
-                    bold: true,
-                    color: { argb: C.s3fg }
-                  }
-                },
-                {
-                  text: "   |   ",
-                  font: {
-                    name: "Segoe UI",
-                    size: 11,
-                    bold: true,
-                    color: { argb: C.darkText }
-                  }
-                },
-                {
-                  text: "4-5 HIGH",
-                  font: {
-                    name: "Segoe UI",
-                    size: 11,
-                    bold: true,
-                    color: { argb: C.s5fg }
-                  }
-                }
-              ]
-            }
-            : val,
+      // ======================================================
+      // PERFORMANCE SCALE SPECIAL DESIGN
+      // ======================================================
 
-        fill: C.white,
+      if (label === "Performance Scale") {
 
-        font:
-          label === "Performance Scale"
-            ? undefined
-            : mkFont(C.navy, 14, true),
+        // LOW
+        mergeCells(8, 5, 8, 6);
 
-        align: mkAlign("center", "middle"),
+        applyCell(ws.getCell(8, 5), {
+          value: "1-2 LOW",
+          fill: "FFFEE2E2",
+          font: {
+            name: "Segoe UI",
+            size: 9,
+            bold: true,
+            color: { argb: "FFDC2626" }
+          },
+          align: mkAlign("center", "middle"),
+          border: thinBorder,
+        });
 
-        border: thinBorder,
-      });
+        // NEUTRAL
+        mergeCells(8, 7, 8, 7);
+
+        applyCell(ws.getCell(8, 7), {
+          value: "3 NEUTRAL",
+          fill: "FFFEF3C7",
+          font: {
+            name: "Segoe UI",
+            size: 9,
+            bold: true,
+            color: { argb: "FFD97706" }
+          },
+          align: mkAlign("center", "middle"),
+          border: thinBorder,
+        });
+
+        // HIGH
+        mergeCells(8, 8, 8, 9);
+
+        applyCell(ws.getCell(8, 8), {
+          value: "4-5 HIGH",
+          fill: "FFD1FAE5",
+          font: {
+            name: "Segoe UI",
+            size: 9,
+            bold: true,
+            color: { argb: "FF047857" }
+          },
+          align: mkAlign("center", "middle"),
+          border: thinBorder,
+        });
+
+      }
+
+      // ======================================================
+      // NORMAL SUMMARY CARDS
+      // ======================================================
+
+      else {
+
+        mergeCells(8, cols[0], 8, cols[1]);
+
+        applyCell(ws.getCell(8, cols[0]), {
+          value: val,
+          fill: C.white,
+          font: mkFont(C.navy, 14, true),
+          align: mkAlign("center", "middle"),
+          border: thinBorder,
+        });
+
+      }
+
     });
-    // setHeight(7, 18);
-    // setHeight(8, 30);
+
+    // Row heights
+    setHeight(7, 18);
+    setHeight(8, 24);
 
     // Score distribution bar (row 9)
     // mergeCells(9, 1, 9, 9);
