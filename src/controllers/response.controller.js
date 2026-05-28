@@ -864,17 +864,24 @@ export const exportOrganizationReportExcel = async (req, res) => {
     // 1. Fetch all users belonging to the organization
     const User = (await import("../models/user.model.js")).default;
     const users = await User.find({ orgName: { $regex: new RegExp("^" + orgName + "$", "i") } }).lean();
-    
-    // 2. Fetch completed assessments for these users
+
+    // 2. Fetch completed assessments for these users or matching this orgName
+    const userIds = users.map(u => u._id);
+    const userEmails = users.map(u => u.email).filter(Boolean);
+
     const Assessment = (await import("../models/assessment.model.js")).default;
     const assessments = await Assessment.find({
-      orgName: { $regex: new RegExp("^" + orgName + "$", "i") },
+      $or: [
+        { orgName: { $regex: new RegExp("^" + orgName + "$", "i") } },
+        { userId: { $in: userIds } },
+        { employeeEmail: { $in: userEmails } }
+      ],
       isCompleted: true,
       isDeleted: { $ne: true }
     }).lean();
 
-    if (!assessments.length) {
-      return res.status(404).json({ message: "No completed assessments found for this organization." });
+    if (!users.length && !assessments.length) {
+      return res.status(404).json({ message: "No data found for this organization." });
     }
 
     // 3. Fetch submitted assessments to use snapshots where available
@@ -894,53 +901,141 @@ export const exportOrganizationReportExcel = async (req, res) => {
       userMap[u._id.toString()] = u;
     });
 
-    const reportsData = [];
+    // 4. Fetch all active questions to form the complete report structure
+    const Question = (await import("../models/question.model.js")).default;
+    const allQuestions = await Question.find({
+      isDeleted: { $ne: true },
+      $or: [
+        { orgName: null },
+        { orgName: "" },
+        { orgName: { $exists: false } },
+        { orgName: { $regex: new RegExp("^" + orgName + "$", "i") } }
+      ]
+    }).lean();
+
     const questionMap = new Map();
-
-    for (const assessment of assessments) {
-      const sub = submittedMap[assessment._id.toString()];
-      const responses = sub ? sub.responses : assessment.responses;
-      const userDetails = sub ? sub.userDetails : (assessment.userDetails || {});
-      const scores = sub ? sub.scores : assessment.scores;
-      const submittedAt = sub ? sub.submittedAt : (assessment.submittedAt || assessment.createdAt);
-      const stakeholder = sub ? sub.stakeholder : assessment.stakeholder;
-
-      const user = userMap[assessment.userId?.toString()];
-      const empName = userDetails.firstName
-        ? `${userDetails.firstName} ${userDetails.lastName || ""}`.trim()
-        : (user ? `${user.firstName} ${user.lastName || ""}`.trim() : "Participant");
-      const email = userDetails.email || user?.email || assessment.employeeEmail || "";
-      const dept = userDetails.department || user?.department || "N/A";
-      const role = userDetails.role || user?.role || "N/A";
-
-      reportsData.push({
-        assessmentId: assessment._id.toString(),
-        empName,
-        email,
-        dept,
-        role,
-        submittedAt,
-        responses,
-        scores,
-        stakeholder
+    allQuestions.forEach(q => {
+      questionMap.set(q.questionCode, {
+        domain: q.domain,
+        subdomain: q.subdomain,
+        questionCode: q.questionCode,
+        questionStem: q.questionStem,
+        questionType: q.questionType,
+        scale: q.scale
       });
+    });
 
-      // Collect unique questions answered
-      for (const resp of responses) {
-        if (!questionMap.has(resp.questionCode)) {
-          questionMap.set(resp.questionCode, {
-            domain: resp.domain,
-            subdomain: resp.subdomain,
-            questionCode: resp.questionCode,
-            questionStem: resp.questionStem,
-            questionType: resp.questionType,
-            scale: resp.scale
-          });
+    // 5. Build Participant Map containing ALL users in the organization
+    const participantMap = new Map();
+
+    // First add all users
+    users.forEach(user => {
+      const name = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Participant";
+      const email = user.email ? user.email.toLowerCase().trim() : "";
+      const key = email || user._id.toString();
+
+      participantMap.set(key, {
+        userId: user._id.toString(),
+        name,
+        email: user.email || "",
+        role: user.role || "N/A",
+        dept: user.department || "N/A",
+        assessment: null
+      });
+    });
+
+    // Link/add assessments
+    assessments.forEach(assessment => {
+      const userDetails = assessment.userDetails || {};
+      const email = (userDetails.email || assessment.employeeEmail || "").toLowerCase().trim();
+      const userId = assessment.userId ? assessment.userId.toString() : "";
+
+      let existing = null;
+      if (email && participantMap.has(email)) {
+        existing = participantMap.get(email);
+      } else if (userId && participantMap.has(userId)) {
+        existing = participantMap.get(userId);
+      }
+
+      if (existing) {
+        existing.assessment = assessment;
+        if (userDetails.firstName) {
+          existing.name = `${userDetails.firstName} ${userDetails.lastName || ""}`.trim();
         }
+        if (userDetails.role) existing.role = userDetails.role;
+        if (userDetails.department) existing.dept = userDetails.department;
+      } else {
+        const key = email || userId || assessment._id.toString();
+        const user = users.find(u => u._id.toString() === userId);
+        const name = userDetails.firstName
+          ? `${userDetails.firstName} ${userDetails.lastName || ""}`.trim()
+          : (user ? `${user.firstName} ${user.lastName || ""}`.trim() : "Participant");
+
+        participantMap.set(key, {
+          userId,
+          name,
+          email: email || assessment.employeeEmail || "",
+          role: userDetails.role || user?.role || "N/A",
+          dept: userDetails.department || user?.department || "N/A",
+          assessment
+        });
+      }
+    });
+
+    const reportsData = [];
+
+    for (const [key, part] of participantMap.entries()) {
+      if (part.assessment) {
+        const assessment = part.assessment;
+        const sub = submittedMap[assessment._id.toString()];
+        const responses = sub ? sub.responses : assessment.responses;
+        const scores = sub ? sub.scores : assessment.scores;
+        const submittedAt = sub ? sub.submittedAt : (assessment.submittedAt || assessment.createdAt);
+        const stakeholder = sub ? sub.stakeholder : assessment.stakeholder;
+
+        reportsData.push({
+          isCompleted: true,
+          assessmentId: assessment._id.toString(),
+          empName: part.name,
+          email: part.email,
+          dept: part.dept,
+          role: part.role,
+          submittedAt,
+          responses,
+          scores,
+          stakeholder
+        });
+
+        // Collect any additional questions not in allQuestions
+        for (const resp of responses) {
+          if (!questionMap.has(resp.questionCode)) {
+            questionMap.set(resp.questionCode, {
+              domain: resp.domain,
+              subdomain: resp.subdomain,
+              questionCode: resp.questionCode,
+              questionStem: resp.questionStem,
+              questionType: resp.questionType,
+              scale: resp.scale
+            });
+          }
+        }
+      } else {
+        reportsData.push({
+          isCompleted: false,
+          assessmentId: "",
+          empName: part.name,
+          email: part.email,
+          dept: part.dept,
+          role: part.role,
+          submittedAt: null,
+          responses: [],
+          scores: null,
+          stakeholder: null
+        });
       }
     }
 
-    // 4. Sort questions
+    // Sort questions logically
     const domainOrder = {
       "People Potential": 1,
       "Operational Steadiness": 2,
@@ -957,7 +1052,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
       return (a.questionCode || "").localeCompare(b.questionCode || "");
     });
 
-    // 5. Setup Workbook
+    // Setup Workbook
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "TBD Platform";
     workbook.created = new Date();
@@ -1123,7 +1218,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
       right: { style: "medium", color: { argb: "FFD4AF37" } }
     };
 
-    // Set Defaults based on first available assessment
+    // Set Defaults based on first available participant
     if (reportsData.length > 0) {
       const defReport = reportsData[0];
       roleCell.value = defReport.role;
@@ -1191,32 +1286,52 @@ export const exportOrganizationReportExcel = async (req, res) => {
     ];
 
     reportsData.forEach(report => {
-      const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", {
-        day: "2-digit", month: "short", year: "numeric"
-      });
+      if (report.isCompleted) {
+        const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", {
+          day: "2-digit", month: "short", year: "numeric"
+        });
 
-      report.responses.forEach(resp => {
-        const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
-        const score = isFc ? resp.selectedOption : ((resp.value !== null && resp.value !== undefined) ? Number(resp.value) : "");
-        const comment = resp.comment || "";
+        report.responses.forEach(resp => {
+          const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
+          const score = isFc ? resp.selectedOption : ((resp.value !== null && resp.value !== undefined) ? Number(resp.value) : "");
+          const comment = resp.comment || "";
 
+          wsRaw.addRow({
+            lookupKey: `${report.empName}_${resp.questionCode}`,
+            personName: report.empName,
+            email: report.email,
+            role: report.role,
+            department: report.dept,
+            completedDate: completedDateStr,
+            questionCode: resp.questionCode,
+            yourScore: score,
+            comment: comment,
+            questionStem: resp.questionStem || "",
+            domain: resp.domain,
+            subdomain: resp.subdomain,
+            questionType: resp.questionType || "",
+            maxScore: 5
+          });
+        });
+      } else {
+        // Register user in Raw_Data even with no responses, so dropdowns work!
         wsRaw.addRow({
-          lookupKey: `${report.empName}_${resp.questionCode}`,
+          lookupKey: `${report.empName}_NO_CODE`,
           personName: report.empName,
           email: report.email,
           role: report.role,
           department: report.dept,
-          completedDate: completedDateStr,
-          questionCode: resp.questionCode,
-          yourScore: score,
-          comment: comment,
-          questionStem: resp.questionStem || "",
-          domain: resp.domain,
-          subdomain: resp.subdomain,
-          questionType: resp.questionType || "",
-          maxScore: 5
+          completedDate: "Not Completed",
+          questionCode: "",
+          yourScore: "",
+          comment: "No assessment submitted",
+          questionStem: "",
+          domain: "",
+          subdomain: "",
+          questionType: "",
+          maxScore: ""
         });
-      });
+      }
     });
 
     // ────────────────────────────────────────────────────────────────────────
@@ -1394,7 +1509,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
     mergeCells(8, 1, 8, 2);
     applyCell(wsRep.getCell(8, 1), {
-      value: { formula: "TEXT(AVERAGEIF(Raw_Data!$B$2:$B$10000, Home!$J$7, Raw_Data!$H$2:$H$10000), \"0.00\") & \" / 5.00\"" },
+      value: { formula: "IFERROR(TEXT(AVERAGEIF(Raw_Data!$B$2:$B$10000, Home!$J$7, Raw_Data!$H$2:$H$10000), \"0.00\") & \" / 5.00\", \"— / 5.00\")" },
       fill: C.white,
       font: mkFont(C.navy, 14, true),
       align: mkAlign("center", "middle"),
@@ -1411,7 +1526,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
     mergeCells(8, 3, 8, 4);
     applyCell(wsRep.getCell(8, 3), {
-      value: { formula: "COUNTIF(Raw_Data!$B$2:$B$10000, Home!$J$7)" },
+      value: { formula: "COUNTIFS(Raw_Data!$B$2:$B$10000, Home!$J$7, Raw_Data!$G$2:$G$10000, \"<>\")" },
       fill: C.white,
       font: mkFont(C.navy, 14, true),
       align: mkAlign("center", "middle"),
