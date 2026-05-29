@@ -1408,6 +1408,26 @@ export const exportOrganizationReportExcel = async (req, res) => {
       ]
     });
 
+
+    // ────────────────────────────────────────────────────────────────────────
+    // SHEET 2: REPORT (Interactive single-person view driven by Home dropdowns)
+    // ────────────────────────────────────────────────────────────────────────
+    const wsRepReal = workbook.addWorksheet("Report", {
+      views: [{ state: "frozen", xSplit: 0, ySplit: 11, showGridLines: true, zoomScale: 90 }],
+      pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+    });
+    wsRepReal.columns = [
+      { key: "col1", width: 26 },
+      { key: "col2", width: 28 },
+      { key: "col3", width: 16 },
+      { key: "col4", width: 62 },
+      { key: "col5", width: 18 },
+      { key: "col6", width: 13 },
+      { key: "col7", width: 13 },
+      { key: "col8", width: 13 },
+      { key: "col9", width: 42 },
+    ];
+
     // ────────────────────────────────────────────────────────────────────────
     // SHEET 3: RAW DATA (Hidden database dump)
     // ────────────────────────────────────────────────────────────────────────
@@ -1538,26 +1558,8 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
 
     // ────────────────────────────────────────────────────────────────────────
-    // SHEET 4: REPORT (High-Fidelity Dashboard with live formulas)
+    // SHARED COLOUR PALETTE & HELPERS (used by all per-person sheets)
     // ────────────────────────────────────────────────────────────────────────
-    const wsRep = workbook.addWorksheet("Report", {
-      views: [{ showGridLines: true, zoomScale: 90 }],
-      pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
-    });
-
-    wsRep.columns = [
-      { key: "col1", width: 26 },   // A  Domain
-      { key: "col2", width: 28 },   // B  Subdomain
-      { key: "col3", width: 16 },   // C  Question Code
-      { key: "col4", width: 62 },   // D  Question
-      { key: "col5", width: 18 },   // E  Question Type
-      { key: "col6", width: 13 },   // F  Your Score
-      { key: "col7", width: 13 },   // G  Max Score
-      { key: "col8", width: 13 },   // H  % Score
-      { key: "col9", width: 42 },   // I  Comments
-    ];
-
-    // Colors
     const C = {
       navy: "FF0F2547",
       navyLight: "FF1A3A6B",
@@ -1568,12 +1570,18 @@ export const exportOrganizationReportExcel = async (req, res) => {
       darkText: "FF1E2A3B",
       mutedText: "FF6B7A90",
       altRow: "FFF4F6FA",
-
-      // Themes
       blue1: "FFE8F0FE", blue2: "FF1A56DB", blue3: "FF1E3A8A",
       green1: "FFE6F9EE", green2: "FF0E9F6E", green3: "FF065F46",
       purple1: "FFF5F0FF", purple2: "FF7C3AED", purple3: "FF4C1D95",
+      s1bg: "FFFEE2E2", s1fg: "FFDC2626",
+      s2bg: "FFFEF0E0", s2fg: "FFEA580C",
+      s3bg: "FFFEF9C3", s3fg: "FFB45309",
+      s4bg: "FFE6F9EE", s4fg: "FF059669",
+      s5bg: "FFD1FAE5", s5fg: "FF047857",
     };
+
+    // ── wsRep points to the real Report worksheet created above ──
+    const wsRep = wsRepReal;
 
     const mkFill = (argb) => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
     const mkFont = (argb, sz, bold = false) => ({ name: "Segoe UI", size: sz, bold, color: { argb } });
@@ -1887,13 +1895,24 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
     setHeight(11, 32);
 
-    const getDomainTheme = (name = "") => {
+    const getDomainThemeRep = (name = "") => {
       const n = name.toLowerCase();
       if (n.includes("people") || n.includes("potential"))
-        return { bg: C.purple1, accent: "FF7C3AED", text: "FF4C1D95" };
+        return { bg: C.blue1, accent: C.blue2, text: C.blue3 };
       if (n.includes("operation") || n.includes("leader") || n.includes("steady") || n.includes("effect"))
-        return { bg: "FFE6F9EE", accent: "FF0E9F6E", text: "FF065F46" };
-      return { bg: "FFE8F0FE", accent: "FF1A56DB", text: "FF1E3A8A" };
+        return { bg: C.green1, accent: C.green2, text: C.green3 };
+      return { bg: C.purple1, accent: C.purple2, text: C.purple3 };
+    };
+
+    const getScorePaletteRep = (val) => {
+      const map = {
+        1: { bg: C.s1bg, fg: C.s1fg },
+        2: { bg: C.s2bg, fg: C.s2fg },
+        3: { bg: C.s3bg, fg: C.s3fg },
+        4: { bg: C.s4bg, fg: C.s4fg },
+        5: { bg: C.s5bg, fg: C.s5fg },
+      };
+      return map[Math.round(val)] || { bg: C.offWhite, fg: C.darkText };
     };
 
     const DATA_START = 12;
@@ -1915,11 +1934,17 @@ export const exportOrganizationReportExcel = async (req, res) => {
       // Hide condition: no person selected OR this row has no data (person answered fewer questions)
       const hideRow = `OR(${noPersonSelected},${rdXL(seqN, "G")}="")`;
 
+      // ── Domain theme via formula-driven conditional formatting is not possible
+      // for dynamic XLOOKUP rows, so we apply a neutral theme bg and let the
+      // font colours carry the domain identity. Static bg per seqN cannot know
+      // the domain at write-time. We use blue1 as the neutral domain bg and
+      // rely on the font color (navy bold) matching the individual report style.
+
       // Col A - Domain
       applyCell(wsRep.getCell(currentRow, 1), {
         value: { formula: `IF(${hideRow},"",${rdXL(seqN, "K")})` },
         fill: C.blue1,
-        font: mkFont(C.navy, 9, true),
+        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.blue3 } },
         align: mkAlign("center", "middle", true),
         border: thinBorder,
       });
@@ -1928,7 +1953,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
       applyCell(wsRep.getCell(currentRow, 2), {
         value: { formula: `IF(${hideRow},"",${rdXL(seqN, "L")})` },
         fill: C.blue1,
-        font: mkFont(C.blue3, 9, false),
+        font: { name: "Segoe UI", size: 9, bold: false, color: { argb: C.blue3 } },
         align: mkAlign("center", "middle", true),
         border: thinBorder,
       });
@@ -1960,13 +1985,36 @@ export const exportOrganizationReportExcel = async (req, res) => {
         border: thinBorder,
       });
 
-      // Col F - Your Score  (LookupKey = PersonName_QuestionCode in col A)
+      // Col F - Your Score — score-coloured via conditional formatting
+      // Static score palette cannot be applied at write-time for formula cells,
+      // so we apply conditional formats for each score value (1-5).
       applyCell(wsRep.getCell(currentRow, 6), {
         value: { formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN,"G")},Raw_Data!$A:$A,Raw_Data!$H:$H,"—"),"—"))` },
         fill: C.offWhite,
-        font: mkFont(C.darkText, 10, true),
+        font: { name: "Segoe UI", size: 11, bold: true, color: { argb: C.darkText } },
         align: mkAlign("center", "middle"),
         border: thinBorder,
+      });
+
+      // Score conditional formats for col F (Your Score)
+      const fCell = `F${currentRow}`;
+      [
+        { val: 1, bg: C.s1bg, fg: C.s1fg },
+        { val: 2, bg: C.s2bg, fg: C.s2fg },
+        { val: 3, bg: C.s3bg, fg: C.s3fg },
+        { val: 4, bg: C.s4bg, fg: C.s4fg },
+        { val: 5, bg: C.s5bg, fg: C.s5fg },
+      ].forEach(({ val, bg, fg }) => {
+        wsRep.addConditionalFormatting({
+          ref: fCell,
+          rules: [{
+            type: "cellIs", operator: "equal", formulae: [val],
+            style: {
+              fill: { type: "pattern", pattern: "solid", bgColor: { argb: bg }, fgColor: { argb: bg } },
+              font: { name: "Segoe UI", bold: true, size: 11, color: { argb: fg } }
+            }
+          }]
+        });
       });
 
       // Col G - Max Score
@@ -1978,13 +2026,35 @@ export const exportOrganizationReportExcel = async (req, res) => {
         border: thinBorder,
       });
 
-      // Col H - % Score
+      // Col H - % Score — score-coloured via conditional formatting
       applyCell(wsRep.getCell(currentRow, 8), {
         value: { formula: `IF(${hideRow},"",IF(F${currentRow}="—","—",IF(OR(F${currentRow}="A",F${currentRow}="B"),50,IFERROR(F${currentRow}*20,"—"))))` },
         fill: C.offWhite,
-        font: mkFont(C.darkText, 9, true),
+        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.darkText } },
         align: mkAlign("center", "middle"),
         border: thinBorder,
+      });
+
+      // Score conditional formats for col H (% Score) — mirrors col F palette
+      const hCell = `H${currentRow}`;
+      [
+        { val: 20,  bg: C.s1bg, fg: C.s1fg },
+        { val: 40,  bg: C.s2bg, fg: C.s2fg },
+        { val: 60,  bg: C.s3bg, fg: C.s3fg },
+        { val: 80,  bg: C.s4bg, fg: C.s4fg },
+        { val: 100, bg: C.s5bg, fg: C.s5fg },
+        { val: 50,  bg: C.s3bg, fg: C.s3fg },  // Forced-Choice 50%
+      ].forEach(({ val, bg, fg }) => {
+        wsRep.addConditionalFormatting({
+          ref: hCell,
+          rules: [{
+            type: "cellIs", operator: "equal", formulae: [val],
+            style: {
+              fill: { type: "pattern", pattern: "solid", bgColor: { argb: bg }, fgColor: { argb: bg } },
+              font: { name: "Segoe UI", bold: true, size: 9, color: { argb: fg } }
+            }
+          }]
+        });
       });
 
       // Col I - Comments
@@ -1999,7 +2069,41 @@ export const exportOrganizationReportExcel = async (req, res) => {
       setHeight(currentRow, 36);
       currentRow++;
     }
-    // No static domain/subdomain merges — domain values are fully formula-driven
+
+    // ── Visual domain/subdomain grouping via conditional formatting ───────────
+    // Since cells contain XLOOKUP formulas, true merging is impossible.
+    // Instead: when a cell's value equals the cell above it, hide the text
+    // by setting font colour = background colour — giving the merged look.
+    // Applied as a single range rule covering all data rows at once.
+    const lastDataRow = currentRow - 1;
+    if (lastDataRow >= DATA_START + 1) {
+      const domRange  = `A${DATA_START + 1}:A${lastDataRow}`;
+      const subRange  = `B${DATA_START + 1}:B${lastDataRow}`;
+
+      // Domain column — hide repeated value (font = bg colour)
+      wsRep.addConditionalFormatting({
+        ref: domRange,
+        rules: [{
+          type: "expression",
+          formulae: [`A${DATA_START + 1}=A${DATA_START}`],
+          style: {
+            font: { color: { argb: C.blue1 } }   // same as domain bg → invisible
+          }
+        }]
+      });
+
+      // Subdomain column — hide when same subdomain AND same domain as row above
+      wsRep.addConditionalFormatting({
+        ref: subRange,
+        rules: [{
+          type: "expression",
+          formulae: [`AND(B${DATA_START + 1}=B${DATA_START},A${DATA_START + 1}=A${DATA_START})`],
+          style: {
+            font: { color: { argb: C.blue1 } }   // same as subdomain bg → invisible
+          }
+        }]
+      });
+    }
 
     // ────────────────────────────────────────────────────────────────────────
     // SHEET 5: ALL DATA (Master Filterable Table — ALL people, ALL responses)
