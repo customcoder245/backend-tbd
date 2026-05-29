@@ -872,72 +872,50 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, 'i');
 
     // ════════════════════════════════════════════════════════════════════════
-    // 1. PRIMARY DATA SOURCE: SubmittedAssessment (the actual completed data)
+    // 1. PRIMARY DATA SOURCE: SubmittedAssessment
     // ════════════════════════════════════════════════════════════════════════
     const User = (await import("../models/user.model.js")).default;
     const SubmittedAssessment = (await import("../models/submittedAssessment.model.js")).default;
 
-    // Roles we want in the report (exclude admin/superAdmin)
     const ALLOWED_ROLES = ["leader", "manager", "employee"];
     const isAllowedRole = (role) => {
-      if (!role || role.trim() === "") return true; // keep unknown/empty roles, they'll appear in report
+      if (!role || role.trim() === "") return true;
       return ALLOWED_ROLES.includes(role.toLowerCase());
     };
 
-    // Step 1: Get all registered users for this org (leader, manager, employee only)
     const allOrgUsers = await User.find({ orgName: orgRegex }).lean();
     const orgUsers = allOrgUsers.filter(u => ALLOWED_ROLES.includes((u.role || "").toLowerCase()));
 
     const userIds = orgUsers.map(u => u._id);
     const userEmails = orgUsers.map(u => (u.email || "").toLowerCase().trim()).filter(Boolean);
-
-    // Also get admin user IDs so we can find assessments they manage
     const adminUserIds = allOrgUsers
       .filter(u => u.role === "admin" || u.role === "superAdmin")
       .map(u => u._id);
 
-    // Step 2: Fetch ALL submitted assessments for this organization
     const submittedOrConditions = [
       { "userDetails.orgName": orgRegex }
     ];
-    if (userIds.length) {
-      submittedOrConditions.push({ userId: { $in: userIds } });
-    }
-    if (userEmails.length) {
-      submittedOrConditions.push({ "userDetails.email": { $in: userEmails } });
-    }
-    if (adminUserIds.length) {
-      submittedOrConditions.push({ adminId: { $in: adminUserIds } });
-    }
+    if (userIds.length) submittedOrConditions.push({ userId: { $in: userIds } });
+    if (userEmails.length) submittedOrConditions.push({ "userDetails.email": { $in: userEmails } });
+    if (adminUserIds.length) submittedOrConditions.push({ adminId: { $in: adminUserIds } });
 
     const submittedDocs = await SubmittedAssessment.find({
       $or: submittedOrConditions,
       isDeleted: { $ne: true }
     }).lean();
 
-    console.log(`[Excel Export] Org: ${orgName} | Org Users (leader/manager/employee): ${orgUsers.length} | SubmittedAssessments found: ${submittedDocs.length}`);
+    console.log(`[Excel Export] Org: ${orgName} | Org Users: ${orgUsers.length} | SubmittedAssessments: ${submittedDocs.length}`);
 
     if (!orgUsers.length && !submittedDocs.length) {
       return res.status(404).json({ message: "No data found for this organization." });
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // 2. Question map — built ONLY from actual answered responses.
-    //    The template question bank (orgName: null/empty) is NOT loaded here
-    //    because it contains questions for ALL roles, which causes empty-score
-    //    rows for roles the selected person never answered. The map is built
-    //    below purely from real submitted responses.
-    // ════════════════════════════════════════════════════════════════════════
-    const questionMap = new Map();
-
-    // ════════════════════════════════════════════════════════════════════════
-    // 3. Build Participant Map — SubmittedAssessment is the PRIMARY source
-    //    Then backfill with registered users who haven't submitted yet
+    // 2. Build Participant Map
     // ════════════════════════════════════════════════════════════════════════
     const participantMap = new Map();
     const getFullName = (first, last) => `${first || ""} ${last || ""}`.trim();
 
-    // Helper: find existing participant by email or userId
     const findParticipant = (email, userId) => {
       if (email && participantMap.has(email)) return participantMap.get(email);
       if (userId) {
@@ -948,21 +926,15 @@ export const exportOrganizationReportExcel = async (req, res) => {
       return null;
     };
 
-    // PRIMARY: Add all submitted assessments first (these have the real response data)
     submittedDocs.forEach(sub => {
       const userDetails = sub.userDetails || {};
       const email = (userDetails.email || "").toLowerCase().trim();
       const userId = sub.userId ? sub.userId.toString() : "";
-      // FIX: default to empty string, not "N/A" — N/A is a department fallback, not a role
       const role = sub.stakeholder || userDetails.role || "";
-
-      // Skip admin/superAdmin submissions
       if (!isAllowedRole(role)) return;
 
       let existing = findParticipant(email, userId);
-
       if (existing) {
-        // Update with latest submission (prefer newer submittedAt)
         const existingTime = existing.submittedAt ? new Date(existing.submittedAt).getTime() : 0;
         const newTime = sub.submittedAt ? new Date(sub.submittedAt).getTime() : 0;
         if (newTime >= existingTime) {
@@ -972,17 +944,14 @@ export const exportOrganizationReportExcel = async (req, res) => {
           existing.responses = sub.responses || [];
           existing.scores = sub.scores || null;
           existing.stakeholder = sub.stakeholder || null;
-          if (userDetails.firstName) {
-            existing.empName = getFullName(userDetails.firstName, userDetails.lastName);
-          }
+          if (userDetails.firstName) existing.empName = getFullName(userDetails.firstName, userDetails.lastName);
           if (sub.stakeholder) existing.role = sub.stakeholder;
           else if (userDetails.role) existing.role = userDetails.role;
           if (userDetails.department) existing.dept = userDetails.department;
         }
       } else {
-        // FIX: never use empty string as map key — causes all no-email users to collide on ""
         const key = email || userId || sub._id.toString();
-        if (!key) return; // truly no identity, skip
+        if (!key) return;
         participantMap.set(key, {
           assessmentId: sub.assessmentId ? sub.assessmentId.toString() : (sub._id ? sub._id.toString() : ""),
           userId: userId,
@@ -999,14 +968,11 @@ export const exportOrganizationReportExcel = async (req, res) => {
       }
     });
 
-    // BACKFILL: Add registered users who haven't submitted yet (so they appear in dropdowns)
     orgUsers.forEach(u => {
       const email = (u.email || "").toLowerCase().trim();
       const userId = u._id.toString();
       const existing = findParticipant(email, userId);
-
       if (!existing) {
-        // FIX: never use empty string as map key
         const key = email || userId;
         if (!key) return;
         participantMap.set(key, {
@@ -1014,7 +980,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
           userId: userId,
           empName: getFullName(u.firstName, u.lastName) || "Participant",
           email: u.email || "",
-          // FIX: default to empty string not "N/A" — N/A is a department fallback, not a role
           role: u.role || "",
           dept: u.department || "N/A",
           isCompleted: false,
@@ -1041,14 +1006,12 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
 
     const uniqueRoles = [...new Set(reportsData.map(r => r.role).filter(Boolean))];
-    const uniqueDepts = [...new Set(reportsData.map(r => r.dept).filter(Boolean))];
     const completedCount = reportsData.filter(r => r.isCompleted).length;
-    console.log(`[Excel Export] Final participants: ${reportsData.length} | Completed: ${completedCount} | Roles: [${uniqueRoles.join(", ")}] | Departments: [${uniqueDepts.join(", ")}]`);
 
-    // Build questionMap ONLY from real answered responses.
-    // Also track which question codes each person actually answered,
-    // so the Report sheet never shows rows for questions a person never answered.
-    // personQuestionCodes: Map<personName, Set<questionCode>>
+    // ════════════════════════════════════════════════════════════════════════
+    // 3. Build questionMap and personQuestionCodes from actual responses
+    // ════════════════════════════════════════════════════════════════════════
+    const questionMap = new Map();
     const personQuestionCodes = new Map();
 
     reportsData.forEach(report => {
@@ -1058,8 +1021,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
             (resp.value !== null && resp.value !== undefined) ||
             (resp.selectedOption !== null && resp.selectedOption !== undefined && resp.selectedOption !== "");
           if (hasScore) {
-            // Only add to questionMap if domain/subdomain/questionStem are present
-            // (filters out template/no-org questions that have incomplete metadata)
             if (resp.domain && resp.subdomain && resp.questionStem) {
               questionMap.set(resp.questionCode, {
                 domain: resp.domain,
@@ -1070,25 +1031,19 @@ export const exportOrganizationReportExcel = async (req, res) => {
                 scale: resp.scale
               });
             }
-
-            // Track which codes this person answered
             const nameKey = report.empName.trim();
-            if (!personQuestionCodes.has(nameKey)) {
-              personQuestionCodes.set(nameKey, new Set());
-            }
+            if (!personQuestionCodes.has(nameKey)) personQuestionCodes.set(nameKey, new Set());
             personQuestionCodes.get(nameKey).add(resp.questionCode);
           }
         });
       }
     });
 
-    // Sort questions logically
     const domainOrder = {
-      "People Potential": 1,
-      "Operational Steadiness": 2,
-      "Leadership Effectiveness": 2,
-      "Digital Fluency": 3,
-      "Execution Excellence": 3,
+      "Mindset & Adaptability": 1,
+      "Psychological Health & Safety": 2,
+      "People Potential": 3,
+      "Relational & Emotional Intelligence": 4
     };
     const sortedQuestions = Array.from(questionMap.values()).sort((a, b) => {
       const dA = domainOrder[a.domain] || 99;
@@ -1099,36 +1054,20 @@ export const exportOrganizationReportExcel = async (req, res) => {
       return (a.questionCode || "").localeCompare(b.questionCode || "");
     });
 
-    // Setup Workbook
+    // ════════════════════════════════════════════════════════════════════════
+    // 4. Setup Workbook and Sheets
+    // ════════════════════════════════════════════════════════════════════════
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "TBD Platform";
     workbook.created = new Date();
 
-    // ────────────────────────────────────────────────────────────────────────
-    // SHEET 1: HOME (Interactive Selection Hub)
-    // ────────────────────────────────────────────────────────────────────────
-
-    const wsHome = workbook.addWorksheet("Home", {
-      views: [{ showGridLines: true, zoomScale: 100 }]
-    });
-
+    // ------------------------- HOME SHEET -------------------------
+    const wsHome = workbook.addWorksheet("Home", { views: [{ showGridLines: true, zoomScale: 100 }] });
     wsHome.columns = [
-      { width: 4 },   // A (spacer)
-      { width: 16 },  // B (Role dropdown card)
-      { width: 16 },  // C
-      { width: 16 },  // D
-      { width: 16 },  // E
-      { width: 16 },  // F
-      { width: 4 },   // G (spacer)
-      { width: 16 },  // H (Person dropdown card)
-      { width: 16 },  // I
-      { width: 16 },  // J
-      { width: 16 },  // K
-      { width: 16 },  // L
-      { width: 4 },   // M (spacer)
+      { width: 4 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 },
+      { width: 4 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 4 }
     ];
 
-    // Banner Header
     wsHome.mergeCells("B2:L2");
     wsHome.getRow(2).height = 42;
     const titleCell = wsHome.getCell("B2");
@@ -1137,7 +1076,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
     titleCell.font = { name: "Segoe UI", size: 16, bold: true, color: { argb: "FFFFFFFF" } };
     titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-    // Sub-title bar
     wsHome.mergeCells("B3:L3");
     wsHome.getRow(3).height = 20;
     const subTitleCell = wsHome.getCell("B3");
@@ -1146,7 +1084,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
     subTitleCell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
     subTitleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-    // Height setups
     wsHome.getRow(5).height = 28;
     wsHome.getRow(7).height = 28;
 
@@ -1157,285 +1094,134 @@ export const exportOrganizationReportExcel = async (req, res) => {
       cell.alignment = { horizontal: "center", vertical: "middle" };
     };
 
-    // Card 1 Header
     wsHome.mergeCells("B5:F5");
     applyCardHeader(wsHome.getCell("B5"), "1. SELECT ROLE", "FF7C3AED");
 
-    // Card 1 Dropdown
     wsHome.mergeCells("B7:F7");
     const roleCell = wsHome.getCell("B7");
     roleCell.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FF1E2A3B" } };
     roleCell.alignment = { horizontal: "center", vertical: "middle" };
     roleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
-    roleCell.border = {
-      top: { style: "thin", color: { argb: "FFAAB8CC" } },
-      bottom: { style: "thin", color: { argb: "FFAAB8CC" } },
-      left: { style: "thin", color: { argb: "FFAAB8CC" } },
-      right: { style: "thin", color: { argb: "FFAAB8CC" } }
-    };
+    roleCell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
 
-    // Card 1 Info — moved to row 9 (directly under warning row 8)
     wsHome.mergeCells("B9:F14");
     const roleDescCell = wsHome.getCell("B9");
     roleDescCell.value = "✔ Roles are the top level of hierarchy.\n\n✔ Selecting a role filters available people in card 2 dynamically.";
     roleDescCell.font = { name: "Segoe UI", size: 9.5, italic: true, color: { argb: "FF4C1D95" } };
     roleDescCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     roleDescCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F0FF" } };
-    roleDescCell.border = {
-      top: { style: "thin", color: { argb: "FFD0D8E4" } },
-      bottom: { style: "thin", color: { argb: "FFD0D8E4" } },
-      left: { style: "thin", color: { argb: "FFD0D8E4" } },
-      right: { style: "thin", color: { argb: "FFD0D8E4" } }
-    };
 
-    // Card 2 Header
     wsHome.mergeCells("H5:L5");
     applyCardHeader(wsHome.getCell("H5"), "2. SELECT PERSON", "FFEA580C");
 
-    // Card 2 Dropdown
     wsHome.mergeCells("H7:L7");
     const personCell = wsHome.getCell("H7");
     personCell.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FF1E2A3B" } };
     personCell.alignment = { horizontal: "center", vertical: "middle" };
     personCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
-    personCell.border = {
-      top: { style: "thin", color: { argb: "FFAAB8CC" } },
-      bottom: { style: "thin", color: { argb: "FFAAB8CC" } },
-      left: { style: "thin", color: { argb: "FFAAB8CC" } },
-      right: { style: "thin", color: { argb: "FFAAB8CC" } }
-    };
+    personCell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
 
-    // Card 2 Info — also row 9, aligned with left card
     wsHome.mergeCells("H9:L14");
     const personDescCell = wsHome.getCell("H9");
     personDescCell.value = "✔ People lists are fully dependent on the selected role.\n\n✔ Choose a person and click below to view details!";
     personDescCell.font = { name: "Segoe UI", size: 9.5, italic: true, color: { argb: "FF7C2D12" } };
     personDescCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     personDescCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF2F8" } };
-    personDescCell.border = {
-      top: { style: "thin", color: { argb: "FFD0D8E4" } },
-      bottom: { style: "thin", color: { argb: "FFD0D8E4" } },
-      left: { style: "thin", color: { argb: "FFD0D8E4" } },
-      right: { style: "thin", color: { argb: "FFD0D8E4" } }
-    };
 
-
-
-    // ────────────────────────────────────────────────────────────────────────
-    // HIDDEN CONFIG SHEET (powers cascading dropdowns via formulas)
-    // ────────────────────────────────────────────────────────────────────────
-    const wsConfig = workbook.addWorksheet("_Config", {
-      views: [{ showGridLines: true }]
-    });
+    // Config sheet for dropdowns
+    const wsConfig = workbook.addWorksheet("_Config", { views: [{ showGridLines: true }] });
     wsConfig.state = "hidden";
 
-    // ── Build role → people map from reportsData ───────────────────────────────
-    // Only skip entries with truly empty name or role (N/A is a department fallback, not a role)
     const validEntries = reportsData.filter(r => r.empName && r.empName.trim() !== "" && r.role && r.role.trim() !== "");
-
-    // Group people by role (case-insensitive key, display value is toTitleCase)
     const roleToPersonMap = {};
     validEntries.forEach(r => {
-      const roleKey = r.role.trim(); // already toTitleCase at this point
+      const roleKey = r.role.trim();
       if (!roleToPersonMap[roleKey]) roleToPersonMap[roleKey] = [];
-      if (!roleToPersonMap[roleKey].includes(r.empName)) {
-        roleToPersonMap[roleKey].push(r.empName);
-      }
+      if (!roleToPersonMap[roleKey].includes(r.empName)) roleToPersonMap[roleKey].push(r.empName);
     });
-
-    // Sort people within each role alphabetically
     Object.keys(roleToPersonMap).forEach(k => roleToPersonMap[k].sort());
-
     const uniqueRolesSorted = Object.keys(roleToPersonMap).sort();
 
-    // ── Write _Config sheet ──────────────────────────────────────────────────
-    // Layout: each role gets its own column starting at col A.
-    // Row 1 = role name (header), Row 2 = always "Select Person" (placeholder),
-    // Row 3+ = real names for that role, sorted alphabetically.
-    // This ensures that whenever the user changes the role dropdown on the Home sheet,
-    // "Select Person" is always the FIRST visible option in the person dropdown.
-
-    // Track which column each role's people list starts in (for dropdown formula)
-    const roleColMap = {}; // roleKey -> { col (1-based), count }
-
+    const roleColMap = {};
     uniqueRolesSorted.forEach((role, idx) => {
-      const col = idx + 1; // 1-based column index in _Config
+      const col = idx + 1;
       const people = roleToPersonMap[role];
-      // "Select Person" is ALWAYS row 2 (the first selectable item) for every role column.
-      // Real names follow from row 3 onwards, sorted alphabetically.
-      // This guarantees that after a role change the person cell shows "Select Person" at top.
       const allPeople = ["Select Person", ...people];
       roleColMap[role] = { col, count: allPeople.length };
-
-      // Row 1 = role name header
-      const headerCell = wsConfig.getCell(1, col);
-      headerCell.value = role;
-
-      // Row 2 = "Select Person" (index 0), Row 3+ = real names
-      allPeople.forEach((name, pi) => {
-        wsConfig.getCell(pi + 2, col).value = name;
-      });
+      wsConfig.getCell(1, col).value = role;
+      allPeople.forEach((name, pi) => { wsConfig.getCell(pi + 2, col).value = name; });
     });
 
-    // Role dropdown (B7 on Home sheet) — hardcoded list from actual data
     const roleDropListStr = '"' + (uniqueRolesSorted.length > 0 ? uniqueRolesSorted.join(",") : "Leader,Manager,Employee") + '"';
     wsHome.getCell("B7").dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: [roleDropListStr],
-      showErrorMessage: true,
-      errorTitle: "Invalid Role",
-      error: "Please select a role from the dropdown."
+      type: "list", allowBlank: true, formulae: [roleDropListStr],
+      showErrorMessage: true, errorTitle: "Invalid Role", error: "Please select a role from the dropdown."
     };
 
-    // Person dropdown (H7) — uses INDIRECT to pick the right column based on role selection.
-    // INDIRECT("_Config!A2:A"&MATCH(Home!B7,_Config!1:1,0)&ROW(INDIRECT...))
-    // Simpler approach: write an INDIRECT formula that maps role → column letter → range.
-    // We build a static CHOOSE/INDEX formula using the actual column letters so it works
-    // in all Excel versions without relying on spill (#) references.
     const colLetter = (n) => {
       let s = "";
-      while (n > 0) {
-        const r = (n - 1) % 26;
-        s = String.fromCharCode(65 + r) + s;
-        n = Math.floor((n - 1) / 26);
-      }
+      while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
       return s;
     };
 
-    // Build INDIRECT formula: =INDIRECT("_Config!"&CHOOSE(MATCH(Home!$B$7,{"Role1","Role2",...},0),"A2:A10","B2:B5",...))
     if (uniqueRolesSorted.length > 0) {
       const roleListLiteral = '{"' + uniqueRolesSorted.join('","') + '"}';
       const rangeParts = uniqueRolesSorted.map(role => {
         const { col, count } = roleColMap[role];
         const letter = colLetter(col);
-        const endRow = count + 1; // row 2 to row (count+1)
+        const endRow = count + 1;
         return `"_Config!$${letter}$2:$${letter}$${endRow}"`;
       });
       const chooseFormula = `INDIRECT(CHOOSE(MATCH(Home!$B$7,${roleListLiteral},0),${rangeParts.join(",")}))`;
       wsHome.getCell("H7").dataValidation = {
-        type: "list",
-        allowBlank: true,
-        formulae: [`=${chooseFormula}`],
-        showErrorMessage: true,
-        errorTitle: "Invalid Person",
-        error: "Please select a person from the dropdown."
+        type: "list", allowBlank: true, formulae: [`=${chooseFormula}`],
+        showErrorMessage: true, errorTitle: "Invalid Person", error: "Please select a person from the dropdown."
       };
     } else {
-      wsHome.getCell("H7").dataValidation = {
-        type: "list",
-        allowBlank: true,
-        formulae: ['"Select Person"'],
-        showErrorMessage: false
-      };
+      wsHome.getCell("H7").dataValidation = { type: "list", allowBlank: true, formulae: ['"Select Person"'], showErrorMessage: false };
     }
 
-    // Pre-select first role on Home sheet so person dropdown is ready immediately on open
     roleCell.value = uniqueRolesSorted.length > 0 ? uniqueRolesSorted[0] : "";
-    // Show "Select Person" as placeholder on first open
     personCell.value = "Select Person";
 
-    // ────────────────────────────────────────────────────────────────────────
-    // WARNING ROW H8: hidden by default (white background, no text).
-    // The formula evaluates to "" when H7 is empty or "Select Person",
-    // and also evaluates to "" when H7 is a valid person for the current role.
-    // It ONLY shows the red warning text when a person from a DIFFERENT role
-    // is still sitting in H7 after the role was changed.
-    // Background and border are WHITE by default so the row is invisible —
-    // the conditional format turns it red only when warning text is present.
-    // ────────────────────────────────────────────────────────────────────────
+    // Warning row
     wsHome.mergeCells("H8:L8");
     wsHome.getRow(8).height = 22;
     const warnCell = wsHome.getCell("H8");
-
-    // Also fill B8:F8 white so left card side matches
     wsHome.mergeCells("B8:F8");
     const leftSpacer8 = wsHome.getCell("B8");
     leftSpacer8.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
-    leftSpacer8.border = {
-      top:    { style: "thin", color: { argb: "FFFFFFFF" } },
-      bottom: { style: "thin", color: { argb: "FFFFFFFF" } },
-      left:   { style: "thin", color: { argb: "FFFFFFFF" } },
-      right:  { style: "thin", color: { argb: "FFFFFFFF" } }
-    };
-
     if (uniqueRolesSorted.length > 0) {
       const roleListLiteralWarn = '{"' + uniqueRolesSorted.join('","') + '"}';
       const warnRangeParts = uniqueRolesSorted.map(role => {
         const { col, count } = roleColMap[role];
         const letter = colLetter(col);
-        // rows 3+ are real names (row 2 = "Select Person" placeholder)
         return `"_Config!$${letter}$3:$${letter}$${count + 1}"`;
       });
       const warnIndirect = `INDIRECT(CHOOSE(IFERROR(MATCH(Home!$B$7,${roleListLiteralWarn},0),1),${warnRangeParts.join(",")}))`;
-      // Formula returns "" (invisible) when: H7 is blank, or "Select Person", or valid for current role.
-      // Returns warning text ONLY when H7 holds a name not in the current role's list.
-      warnCell.value = {
-        formula: `IF(OR(H7="",H7="Select Person"),"",IF(COUNTIF(${warnIndirect},H7)=0,"⚠  Role changed — please re-select person from the dropdown above",""))`
-      };
-    } else {
-      warnCell.value = "";
-    }
-
-    // Default styling: invisible (white bg, white border, red text so it shows when formula fires)
+      warnCell.value = { formula: `IF(OR(H7="",H7="Select Person"),"",IF(COUNTIF(${warnIndirect},H7)=0,"⚠  Role changed — please re-select person from the dropdown above",""))` };
+    } else { warnCell.value = ""; }
     warnCell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFDC2626" } };
     warnCell.alignment = { horizontal: "center", vertical: "middle" };
     warnCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
-    warnCell.border = {
-      top:    { style: "thin", color: { argb: "FFFFFFFF" } },
-      bottom: { style: "thin", color: { argb: "FFFFFFFF" } },
-      left:   { style: "thin", color: { argb: "FFFFFFFF" } },
-      right:  { style: "thin", color: { argb: "FFFFFFFF" } }
-    };
-
-    // Conditional format: when H8 is not empty, apply red background + bold red border
     wsHome.addConditionalFormatting({
       ref: "H8:L8",
-      rules: [
-        {
-          type: "expression",
-          formulae: ['H8<>""'],
-          style: {
-            fill: {
-              type: "pattern",
-              pattern: "solid",
-              bgColor: { argb: "FFFEE2E2" },
-              fgColor: { argb: "FFFEE2E2" }
-            },
-            font: { name: "Segoe UI", bold: true, size: 10, color: { argb: "FFDC2626" } }
-          }
-        }
-      ]
+      rules: [{ type: "expression", formulae: ['H8<>""'], style: { fill: { type: "pattern", pattern: "solid", bgColor: { argb: "FFFEE2E2" } }, font: { bold: true, color: { argb: "FFDC2626" } } } }]
     });
 
-
-    // ────────────────────────────────────────────────────────────────────────
-    // SHEET 2: REPORT (Interactive single-person view driven by Home dropdowns)
-    // ────────────────────────────────────────────────────────────────────────
+    // ------------------------- REPORT SHEET (dynamic) -------------------------
     const wsRepReal = workbook.addWorksheet("Report", {
       views: [{ state: "frozen", xSplit: 0, ySplit: 11, showGridLines: true, zoomScale: 90 }],
       pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
     });
     wsRepReal.columns = [
-      { key: "col1", width: 26 },
-      { key: "col2", width: 28 },
-      { key: "col3", width: 16 },
-      { key: "col4", width: 62 },
-      { key: "col5", width: 18 },
-      { key: "col6", width: 13 },
-      { key: "col7", width: 13 },
-      { key: "col8", width: 13 },
-      { key: "col9", width: 42 },
+      { width: 26 }, { width: 28 }, { width: 16 }, { width: 62 }, { width: 18 },
+      { width: 13 }, { width: 13 }, { width: 13 }, { width: 42 }
     ];
 
-    // ────────────────────────────────────────────────────────────────────────
-    // SHEET 3: RAW DATA (Hidden database dump)
-    // ────────────────────────────────────────────────────────────────────────
-    const wsRaw = workbook.addWorksheet("Raw_Data", {
-      views: [{ showGridLines: true }]
-    });
+    // ------------------------- RAW DATA SHEET (hidden) -------------------------
+    const wsRaw = workbook.addWorksheet("Raw_Data", { views: [{ showGridLines: true }] });
     wsRaw.state = "hidden";
-
     wsRaw.columns = [
       { header: "LookupKey", key: "lookupKey", width: 30 },
       { header: "Person Name", key: "personName", width: 22 },
@@ -1455,20 +1241,11 @@ export const exportOrganizationReportExcel = async (req, res) => {
       { header: "PersonSeqKey", key: "personSeqKey", width: 35 }
     ];
 
-    // personSeqMap: tracks per-person sequence numbers for ordered Report rows
-    const personSeqMap = new Map(); // personName -> current seq counter
-
+    const personSeqMap = new Map();
     reportsData.forEach(report => {
       if (report.isCompleted) {
-        const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", {
-          day: "2-digit", month: "short", year: "numeric"
-        });
-
-        // Sort this person's responses in domain order before writing
-        const domOrder = {
-          "People Potential": 1, "Operational Steadiness": 2,
-          "Leadership Effectiveness": 2, "Digital Fluency": 3, "Execution Excellence": 3,
-        };
+        const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
+        const domOrder = { "Mindset & Adaptability": 1, "Psychological Health & Safety": 2, "People Potential": 3, "Relational & Emotional Intelligence": 4 };
         const sortedResponses = [...report.responses].sort((a, b) => {
           const dA = domOrder[a.domain] || 99, dB = domOrder[b.domain] || 99;
           if (dA !== dB) return dA - dB;
@@ -1476,16 +1253,12 @@ export const exportOrganizationReportExcel = async (req, res) => {
           if (a.subdomain !== b.subdomain) return a.subdomain.localeCompare(b.subdomain);
           return (a.questionCode || "").localeCompare(b.questionCode || "");
         });
-
         let seq = 0;
         const nameKey = report.empName.trim();
         sortedResponses.forEach(resp => {
           const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
           const score = isFc ? resp.selectedOption : ((resp.value !== null && resp.value !== undefined) ? Number(resp.value) : "");
-          const comment = resp.comment || "-";
-          const hasScore = score !== "" && score !== null && score !== undefined;
-          if (!hasScore) return; // skip unanswered questions entirely
-
+          if (score === "" || score === null || score === undefined) return;
           seq++;
           wsRaw.addRow({
             lookupKey: `${nameKey}_${resp.questionCode.trim()}`,
@@ -1496,7 +1269,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
             completedDate: completedDateStr,
             questionCode: resp.questionCode,
             yourScore: score,
-            comment: comment,
+            comment: resp.comment || "-",
             questionStem: resp.questionStem || "",
             domain: resp.domain,
             subdomain: resp.subdomain,
@@ -1506,93 +1279,37 @@ export const exportOrganizationReportExcel = async (req, res) => {
             personSeqKey: `${nameKey}_${seq}`
           });
         });
-        personSeqMap.set(nameKey, seq); // total answered questions for this person
+        personSeqMap.set(nameKey, seq);
       } else {
-        // Register user in Raw_Data even with no responses, so dropdowns work!
         wsRaw.addRow({
-          lookupKey: `${report.empName}_NO_CODE`,
-          personName: report.empName,
-          email: report.email,
-          role: report.role,
-          department: report.dept,
-          completedDate: "Not Completed",
-          questionCode: "",
-          yourScore: "",
-          comment: "No assessment submitted",
-          questionStem: "",
-          domain: "",
-          subdomain: "",
-          questionType: "",
-          maxScore: "",
-          seqNum: "",
-          personSeqKey: ""
+          lookupKey: `${report.empName}_NO_CODE`, personName: report.empName, email: report.email,
+          role: report.role, department: report.dept, completedDate: "Not Completed",
+          questionCode: "", yourScore: "", comment: "No assessment submitted", questionStem: "",
+          domain: "", subdomain: "", questionType: "", maxScore: "", seqNum: "", personSeqKey: ""
         });
       }
     });
 
-    // Calculate max questions any single person answered (for Report sheet row count)
-    const maxQuestionsPerPerson = personSeqMap.size > 0
-      ? Math.max(...Array.from(personSeqMap.values()))
-      : sortedQuestions.length;
+    const maxQuestionsPerPerson = personSeqMap.size > 0 ? Math.max(...Array.from(personSeqMap.values())) : sortedQuestions.length;
 
-    // ────────────────────────────────────────────────────────────────────────
-    // HIDDEN SHEET: _PersonQuestions
-    // Stores one column per person: row 1 = person name, row 2+ = question codes
-    // they actually answered. Used by Report sheet COUNTIFS to skip questions
-    // this person never answered (avoids blank-score rows for other-role questions).
-    // ────────────────────────────────────────────────────────────────────────
-    const wsPQ = workbook.addWorksheet("_PersonQuestions", {
-      views: [{ showGridLines: true }]
-    });
-    wsPQ.state = "hidden";
-
-    // Build one column per person from personQuestionCodes map
-    const pqPersonList = Array.from(personQuestionCodes.keys()).sort();
-    pqPersonList.forEach((personName, colIdx) => {
-      const col = colIdx + 1;
-      const codes = Array.from(personQuestionCodes.get(personName));
-      wsPQ.getCell(1, col).value = personName;
-      codes.forEach((code, rowIdx) => {
-        wsPQ.getCell(rowIdx + 2, col).value = code;
-      });
-    });
-
-    // ────────────────────────────────────────────────────────────────────────
-    // SHARED COLOUR PALETTE & HELPERS (used by all per-person sheets)
-    // ────────────────────────────────────────────────────────────────────────
+    // Colour palette
     const C = {
-      navy: "FF0F2547",
-      navyLight: "FF1A3A6B",
-      white: "FFFFFFFF",
-      offWhite: "FFF8FAFC",
-      lightGrey: "FFE8EDF4",
-      midGrey: "FFD0D8E4",
-      darkText: "FF1E2A3B",
-      mutedText: "FF6B7A90",
+      navy: "FF0F2547", navyLight: "FF1A3A6B", white: "FFFFFFFF", offWhite: "FFF8FAFC",
+      lightGrey: "FFE8EDF4", midGrey: "FFD0D8E4", darkText: "FF1E2A3B", mutedText: "FF6B7A90",
       altRow: "FFF4F6FA",
-      blue1: "FFE8F0FE", blue2: "FF1A56DB", blue3: "FF1E3A8A",
-      green1: "FFE6F9EE", green2: "FF0E9F6E", green3: "FF065F46",
-      purple1: "FFF5F0FF", purple2: "FF7C3AED", purple3: "FF4C1D95",
-      s1bg: "FFFEE2E2", s1fg: "FFDC2626",
-      s2bg: "FFFEF0E0", s2fg: "FFEA580C",
-      s3bg: "FFFEF9C3", s3fg: "FFB45309",
-      s4bg: "FFE6F9EE", s4fg: "FF059669",
-      s5bg: "FFD1FAE5", s5fg: "FF047857",
+      s1bg: "FFFEE2E2", s1fg: "FFDC2626", s2bg: "FFFEF0E0", s2fg: "FFEA580C",
+      s3bg: "FFFEF9C3", s3fg: "FFB45309", s4bg: "FFE6F9EE", s4fg: "FF059669",
+      s5bg: "FFD1FAE5", s5fg: "FF047857"
     };
 
-    // ── wsRep points to the real Report worksheet created above ──
     const wsRep = wsRepReal;
-
     const mkFill = (argb) => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
     const mkFont = (argb, sz, bold = false) => ({ name: "Segoe UI", size: sz, bold, color: { argb } });
     const mkAlign = (h, v = "middle", wrap = false) => ({ horizontal: h, vertical: v, wrapText: wrap });
     const mkBorder = (clr = "FFD0D8E4", style = "thin") => ({
-      top: { style, color: { argb: clr } },
-      left: { style, color: { argb: clr } },
-      bottom: { style, color: { argb: clr } },
-      right: { style, color: { argb: clr } },
+      top: { style, color: { argb: clr } }, left: { style, color: { argb: clr } },
+      bottom: { style, color: { argb: clr } }, right: { style, color: { argb: clr } }
     });
-
     const applyCell = (cell, opts = {}) => {
       if (opts.value !== undefined) cell.value = opts.value;
       if (opts.fill) cell.fill = mkFill(opts.fill);
@@ -1600,625 +1317,156 @@ export const exportOrganizationReportExcel = async (req, res) => {
       if (opts.align) cell.alignment = opts.align;
       if (opts.border) cell.border = opts.border;
     };
-
-    const mergeCells = (r1, c1, r2, c2) => {
-      if (r2 > r1 || c2 > c1) wsRep.mergeCells(r1, c1, r2, c2);
-    };
-
+    const mergeCells = (r1, c1, r2, c2) => { if (r2 > r1 || c2 > c1) wsRep.mergeCells(r1, c1, r2, c2); };
     const setHeight = (rowNum, pts) => { wsRep.getRow(rowNum).height = pts; };
-
     const thinBorder = mkBorder();
     const medBorder = mkBorder("FFAAB8CC", "medium");
 
-    // ════════════════════════════════════════════════════════════════
-    // PREMIUM HEADER SECTION
-    // ════════════════════════════════════════════════════════════════
-
-    // ===== TOP HEADER CONTAINER =====
-
-    // Main left title card
+    // Header
     mergeCells(1, 1, 3, 5);
-
     applyCell(wsRep.getCell(1, 1), {
-      value: "INDIVIDUAL RESPONSE REPORT",
-      fill: C.navy,
-      font: {
-        name: "Segoe UI",
-        size: 20,
-        bold: true,
-        color: { argb: C.white }
-      },
-      align: {
-        horizontal: "left",
-        vertical: "middle",
-        indent: 1
-      },
-      border: {
-        top: { style: "medium", color: { argb: "FFD4AF37" } },
-        left: { style: "medium", color: { argb: "FFD4AF37" } },
-        bottom: { style: "medium", color: { argb: "FFD4AF37" } },
-        right: { style: "medium", color: { argb: "FFD4AF37" } },
-      }
+      value: "INDIVIDUAL RESPONSE REPORT", fill: C.navy,
+      font: { name: "Segoe UI", size: 20, bold: true, color: { argb: C.white } },
+      align: { horizontal: "left", vertical: "middle", indent: 1 },
+      border: { top: { style: "medium", color: { argb: "FFD4AF37" } }, left: { style: "medium", color: { argb: "FFD4AF37" } }, bottom: { style: "medium", color: { argb: "FFD4AF37" } }, right: { style: "medium", color: { argb: "FFD4AF37" } } }
     });
-
-    // Premium golden top line
-    for (let c = 1; c <= 5; c++) {
-      applyCell(wsRep.getCell(1, c), {
-        border: {
-          top: { style: "thick", color: { argb: "FFD4AF37" } }
-        }
-      });
-    }
-
-    // Subtitle strip
+    for (let c = 1; c <= 5; c++) applyCell(wsRep.getCell(1, c), { border: { top: { style: "thick", color: { argb: "FFD4AF37" } } } });
     mergeCells(4, 1, 4, 5);
-
-    applyCell(wsRep.getCell(4, 1), {
-      value: "Detailed response analysis by domain, sub-domain and question performance",
-      fill: C.navyLight,
-      font: {
-        name: "Segoe UI",
-        size: 9,
-        bold: false,
-        color: { argb: C.white }
-      },
-      align: {
-        horizontal: "left",
-        vertical: "middle",
-        indent: 1
-      },
-      border: thinBorder
-    });
-
-
-
-    // ===== RIGHT METADATA PANEL =====
-
-    // Background panel
-    for (let r = 1; r <= 4; r++) {
-      for (let c = 6; c <= 9; c++) {
-
-        applyCell(wsRep.getCell(r, c), {
-          fill: "FFF8FAFC",
-          border: {
-            top: { style: "thin", color: { argb: "FFE2E8F0" } },
-            left: { style: "thin", color: { argb: "FFE2E8F0" } },
-            bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
-            right: { style: "thin", color: { argb: "FFE2E8F0" } },
-          }
-        });
-
-      }
-    }
-
+    applyCell(wsRep.getCell(4, 1), { value: "Detailed response analysis by domain, sub-domain and question performance", fill: C.navyLight, font: mkFont(C.white, 9, false), align: mkAlign("left", "middle", false), border: thinBorder });
+    for (let r = 1; r <= 4; r++) for (let c = 6; c <= 9; c++) applyCell(wsRep.getCell(r, c), { fill: "FFF8FAFC", border: { top: { style: "thin", color: { argb: "FFE2E8F0" } }, left: { style: "thin", color: { argb: "FFE2E8F0" } }, bottom: { style: "thin", color: { argb: "FFE2E8F0" } }, right: { style: "thin", color: { argb: "FFE2E8F0" } } } });
     const metaRows = [
-      ["NAME",       { formula: "Home!$H$7" }],
+      ["NAME", { formula: "Home!$H$7" }],
       ["DEPARTMENT", { formula: 'IFERROR(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$E:$E),"N/A")' }],
-      ["ROLE",       { formula: 'IFERROR(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$D:$D),"N/A")' }],
-      ["COMPLETED",  { formula: 'IFERROR(TEXT(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$F:$F),"DD-MMM-YYYY"),"—")' }],
+      ["ROLE", { formula: 'IFERROR(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$D:$D),"N/A")' }],
+      ["COMPLETED", { formula: 'IFERROR(TEXT(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$F:$F),"DD-MMM-YYYY"),"—")' }]
     ];
-
     metaRows.forEach(([label, val], i) => {
-
       const row = i + 1;
-
-      // Label
       mergeCells(row, 6, row, 7);
-
-      applyCell(wsRep.getCell(row, 6), {
-        value: label,
-        fill: "FFF1F5F9",
-        font: {
-          name: "Segoe UI",
-          size: 8,
-          bold: true,
-          color: { argb: C.mutedText }
-        },
-        align: {
-          horizontal: "right",
-          vertical: "middle"
-        },
-        border: thinBorder
-      });
-
-      // Value
+      applyCell(wsRep.getCell(row, 6), { value: label, fill: "FFF1F5F9", font: mkFont(C.mutedText, 8, true), align: { horizontal: "right", vertical: "middle" }, border: thinBorder });
       mergeCells(row, 8, row, 9);
-
-      applyCell(wsRep.getCell(row, 8), {
-        value: val,
-        fill: C.white,
-        font: {
-          name: "Segoe UI",
-          size: 9,
-          bold: true,
-          color: { argb: C.darkText }
-        },
-        align: {
-          horizontal: "left",
-          vertical: "middle",
-          indent: 1
-        },
-        border: thinBorder
-      });
-
+      applyCell(wsRep.getCell(row, 8), { value: val, fill: C.white, font: mkFont(C.darkText, 9, true), align: { horizontal: "left", vertical: "middle", indent: 1 }, border: thinBorder });
     });
+    setHeight(1, 24); setHeight(2, 24); setHeight(3, 24); setHeight(4, 18); setHeight(5, 8);
 
-    // Row Heights
-    setHeight(1, 24);
-    setHeight(2, 24);
-    setHeight(3, 24);
-    setHeight(4, 18);
-
-    // Spacer row
-    setHeight(5, 8);
-
-
-
-    // ════════════════════════════════════════════════════════════════════════
-    // SECTION 2 - SPACER ROW 5
-    // ════════════════════════════════════════════════════════════════════════
-    setHeight(5, 10);
-
-    // ════════════════════════════════════════════════════════════════════════
-    // SECTION 3 - SUMMARY CARDS  (rows 6-9)
-    // ════════════════════════════════════════════════════════════════════════
-
-    // Card header
+    // Summary cards
     mergeCells(6, 1, 6, 9);
-    applyCell(wsRep.getCell(6, 1), {
-      value: "ASSESSMENT SUMMARY",
-      fill: C.navy,
-      font: mkFont(C.white, 9, true),
-      align: mkAlign("center", "middle"),
-    });
+    applyCell(wsRep.getCell(6, 1), { value: "ASSESSMENT SUMMARY", fill: C.navy, font: mkFont(C.white, 9, true), align: mkAlign("center", "middle") });
     setHeight(6, 18);
-
-    // 4 metric cards (row 7 label, row 8 value)
     const repCards = [
-      { cols: [1, 2], label: "Overall Avg Score", val: { formula: "IFERROR(TEXT(AVERAGEIF(Raw_Data!$B$2:$B$10000, Home!$H$7, Raw_Data!$H$2:$H$10000), \"0.00\") & \" / 5.00\", \"— / 5.00\")" } },
-      { cols: [3, 4], label: "Total Questions",   val: { formula: "COUNTIFS(Raw_Data!$B$2:$B$10000, Home!$H$7, Raw_Data!$G$2:$G$10000, \"<>\")" } },
-      { cols: [5, 9], label: "Performance Scale", val: "LOW | NEUTRAL | HIGH" },
+      { cols: [1, 2], label: "Overall Avg Score", val: { formula: 'IFERROR(TEXT(AVERAGEIF(Raw_Data!$B$2:$B$10000, Home!$H$7, Raw_Data!$H$2:$H$10000), "0.00") & " / 5.00", "— / 5.00")' } },
+      { cols: [3, 4], label: "Total Questions", val: { formula: 'COUNTIFS(Raw_Data!$B$2:$B$10000, Home!$H$7, Raw_Data!$G$2:$G$10000, "<>")' } },
+      { cols: [5, 9], label: "Performance Scale", val: "LOW | NEUTRAL | HIGH" }
     ];
-
     repCards.forEach(({ cols, label, val }) => {
-
-      // ======================================================
-      // TOP LABEL ROW
-      // ======================================================
-
       mergeCells(7, cols[0], 7, cols[1]);
-
-      applyCell(wsRep.getCell(7, cols[0]), {
-        value: label,
-        fill: C.offWhite,
-        font: mkFont(C.mutedText, 8, true),
-        align: mkAlign("center", "middle"),
-        border: thinBorder,
-      });
-
-      // ======================================================
-      // PERFORMANCE SCALE SPECIAL DESIGN
-      // ======================================================
-
+      applyCell(wsRep.getCell(7, cols[0]), { value: label, fill: C.offWhite, font: mkFont(C.mutedText, 8, true), align: mkAlign("center", "middle"), border: thinBorder });
       if (label === "Performance Scale") {
-
-        // LOW
-        mergeCells(8, 5, 8, 6);
-
-        applyCell(wsRep.getCell(8, 5), {
-          value: "1-2 LOW",
-          fill: "FFFEE2E2",
-          font: {
-            name: "Segoe UI",
-            size: 9,
-            bold: true,
-            color: { argb: "FFDC2626" }
-          },
-          align: mkAlign("center", "middle"),
-          border: thinBorder,
-        });
-
-        // NEUTRAL
-        mergeCells(8, 7, 8, 7);
-
-        applyCell(wsRep.getCell(8, 7), {
-          value: "3 NEUTRAL",
-          fill: "FFFEF3C7",
-          font: {
-            name: "Segoe UI",
-            size: 9,
-            bold: true,
-            color: { argb: "FFD97706" }
-          },
-          align: mkAlign("center", "middle"),
-          border: thinBorder,
-        });
-
-        // HIGH
-        mergeCells(8, 8, 8, 9);
-
-        applyCell(wsRep.getCell(8, 8), {
-          value: "4-5 HIGH",
-          fill: "FFD1FAE5",
-          font: {
-            name: "Segoe UI",
-            size: 9,
-            bold: true,
-            color: { argb: "FF047857" }
-          },
-          align: mkAlign("center", "middle"),
-          border: thinBorder,
-        });
-
-      }
-
-      // ======================================================
-      // NORMAL SUMMARY CARDS
-      // ======================================================
-
-      else {
-
+        mergeCells(8, 5, 8, 6); applyCell(wsRep.getCell(8, 5), { value: "1-2 LOW", fill: "FFFEE2E2", font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FFDC2626" } }, align: mkAlign("center", "middle"), border: thinBorder });
+        mergeCells(8, 7, 8, 7); applyCell(wsRep.getCell(8, 7), { value: "3 NEUTRAL", fill: "FFFEF3C7", font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FFD97706" } }, align: mkAlign("center", "middle"), border: thinBorder });
+        mergeCells(8, 8, 8, 9); applyCell(wsRep.getCell(8, 8), { value: "4-5 HIGH", fill: "FFD1FAE5", font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF047857" } }, align: mkAlign("center", "middle"), border: thinBorder });
+      } else {
         mergeCells(8, cols[0], 8, cols[1]);
-
-        applyCell(wsRep.getCell(8, cols[0]), {
-          value: val,
-          fill: C.white,
-          font: mkFont(C.navy, 14, true),
-          align: mkAlign("center", "middle"),
-          border: thinBorder,
-        });
-
+        applyCell(wsRep.getCell(8, cols[0]), { value: val, fill: C.white, font: mkFont(C.navy, 14, true), align: mkAlign("center", "middle"), border: thinBorder });
       }
-
     });
-
-    // Row heights
-    setHeight(7, 18);
-    setHeight(8, 24);
-    setHeight(9, 0);
-    setHeight(10, 0);
+    setHeight(7, 18); setHeight(8, 24); setHeight(9, 0); setHeight(10, 0);
 
     // Table headers
-    const repHeaders = [
-      "Domain", "Sub-Domain", "Question Code", "Question",
-      "Question Type", "Your Score", "Max Score", "% Score", "Comments"
-    ];
+    const repHeaders = ["Domain", "Sub-Domain", "Question Code", "Question", "Question Type", "Your Score", "Max Score", "% Score", "Comments"];
     repHeaders.forEach((h, i) => {
       const cell = wsRep.getCell(11, i + 1);
-      applyCell(cell, {
-        value: h,
-        fill: C.navy,
-        font: mkFont(C.white, 10, true),
-        align: mkAlign(i === 3 || i === 8 ? "left" : "center", "middle"),
-        border: medBorder,
-      });
+      applyCell(cell, { value: h, fill: C.navy, font: mkFont(C.white, 10, true), align: mkAlign(i === 3 || i === 8 ? "left" : "center", "middle"), border: medBorder });
     });
     setHeight(11, 32);
 
-    const getDomainThemeRep = (name = "") => {
-      const n = name.toLowerCase();
-      if (n.includes("people") || n.includes("potential"))
-        return { bg: C.blue1, accent: C.blue2, text: C.blue3 };
-      if (n.includes("operation") || n.includes("leader") || n.includes("steady") || n.includes("effect"))
-        return { bg: C.green1, accent: C.green2, text: C.green3 };
-      return { bg: C.purple1, accent: C.purple2, text: C.purple3 };
-    };
-
-    const getScorePaletteRep = (val) => {
-      const map = {
-        1: { bg: C.s1bg, fg: C.s1fg },
-        2: { bg: C.s2bg, fg: C.s2fg },
-        3: { bg: C.s3bg, fg: C.s3fg },
-        4: { bg: C.s4bg, fg: C.s4fg },
-        5: { bg: C.s5bg, fg: C.s5fg },
-      };
-      return map[Math.round(val)] || { bg: C.offWhite, fg: C.darkText };
-    };
-
     const DATA_START = 12;
-    let currentRow = DATA_START; // data rows start directly at row 12
+    let currentRow = DATA_START;
 
-    // ── Dynamic rows using PersonSeqKey XLOOKUP ──────────────────────────────
-    // Each row N (1-based) looks up PersonName_N from Raw_Data!P (PersonSeqKey).
-    // XLOOKUP is a regular formula (no CSE/array entry needed) so it works reliably.
-    // Rows beyond the person's actual question count return "" → hideRow triggers.
     const noPersonSelected = `OR(Home!$H$7="",Home!$H$7="Select Person")`;
-
-    // Lookup by PersonSeqKey = "PersonName_SeqN" from col P → returns target col value
-    const rdXL = (seqN, resultCol) =>
-      `IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_${seqN}",Raw_Data!$P:$P,Raw_Data!${resultCol}:${resultCol},""),"")`;
+    const rdXL = (seqN, resultCol) => `IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_${seqN}",Raw_Data!$P:$P,Raw_Data!${resultCol}:${resultCol},""),"")`;
 
     for (let seqN = 1; seqN <= maxQuestionsPerPerson; seqN++) {
       const isOdd = (seqN % 2) !== 0;
-
-      // Hide condition: no person selected OR this row has no data (person answered fewer questions)
       const hideRow = `OR(${noPersonSelected},${rdXL(seqN, "G")}="")`;
 
-      // ── Domain theme via formula-driven conditional formatting is not possible
-      // for dynamic XLOOKUP rows, so we apply a neutral theme bg and let the
-      // font colours carry the domain identity. Static bg per seqN cannot know
-      // the domain at write-time. We use blue1 as the neutral domain bg and
-      // rely on the font color (navy bold) matching the individual report style.
-
-      // Col A - Domain
-      // Base fill is offWhite; conditional formatting will override with the correct domain colour
-      applyCell(wsRep.getCell(currentRow, 1), {
-        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "K")})` },
-        fill: C.offWhite,
-        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.navy } },
-        align: mkAlign("center", "middle", true),
-        border: thinBorder,
-      });
-
-      // Col B - Subdomain
-      // Base fill is offWhite; conditional formatting will override with the correct domain colour
-      applyCell(wsRep.getCell(currentRow, 2), {
-        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "L")})` },
-        fill: C.offWhite,
-        font: { name: "Segoe UI", size: 9, bold: false, color: { argb: C.navy } },
-        align: mkAlign("center", "middle", true),
-        border: thinBorder,
-      });
-
-      // Col C - Question Code
-      applyCell(wsRep.getCell(currentRow, 3), {
-        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "G")})` },
-        fill: C.offWhite,
-        font: mkFont(C.navy, 9, true),
-        align: mkAlign("center", "middle"),
-        border: thinBorder,
-      });
-
-      // Col D - Question Stem
-      applyCell(wsRep.getCell(currentRow, 4), {
-        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "J")})` },
-        fill: isOdd ? C.altRow : C.white,
-        font: mkFont(C.darkText, 9),
-        align: mkAlign("left", "middle", true),
-        border: thinBorder,
-      });
-
-      // Col E - Question Type
-      applyCell(wsRep.getCell(currentRow, 5), {
-        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "M")})` },
-        fill: C.offWhite,
-        font: mkFont(C.mutedText, 8, true),
-        align: mkAlign("center", "middle", true),
-        border: thinBorder,
-      });
-
-      // Col F - Your Score — score-coloured via conditional formatting
-      // Static score palette cannot be applied at write-time for formula cells,
-      // so we apply conditional formats for each score value (1-5).
-      applyCell(wsRep.getCell(currentRow, 6), {
-        value: { formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN,"G")},Raw_Data!$A:$A,Raw_Data!$H:$H,"—"),"—"))` },
-        fill: C.offWhite,
-        font: { name: "Segoe UI", size: 11, bold: true, color: { argb: C.darkText } },
-        align: mkAlign("center", "middle"),
-        border: thinBorder,
-      });
-
-      // Score conditional formats for col F (Your Score)
+      applyCell(wsRep.getCell(currentRow, 1), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "K")})` }, fill: C.offWhite, font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.darkText } }, align: mkAlign("center", "middle", true), border: thinBorder });
+      applyCell(wsRep.getCell(currentRow, 2), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "L")})` }, fill: C.offWhite, font: { name: "Segoe UI", size: 9, bold: false, color: { argb: C.darkText } }, align: mkAlign("center", "middle", true), border: thinBorder });
+      applyCell(wsRep.getCell(currentRow, 3), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "G")})` }, fill: C.offWhite, font: mkFont(C.navy, 9, true), align: mkAlign("center", "middle"), border: thinBorder });
+      applyCell(wsRep.getCell(currentRow, 4), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "J")})` }, fill: isOdd ? C.altRow : C.white, font: mkFont(C.darkText, 9), align: mkAlign("left", "middle", true), border: thinBorder });
+      applyCell(wsRep.getCell(currentRow, 5), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "M")})` }, fill: C.offWhite, font: mkFont(C.mutedText, 8, true), align: mkAlign("center", "middle", true), border: thinBorder });
+      applyCell(wsRep.getCell(currentRow, 6), { value: { formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN,"G")},Raw_Data!$A:$A,Raw_Data!$H:$H,"—"),"—"))` }, fill: C.offWhite, font: { name: "Segoe UI", size: 11, bold: true, color: { argb: C.darkText } }, align: mkAlign("center", "middle"), border: thinBorder });
       const fCell = `F${currentRow}`;
-      [
-        { val: 1, bg: C.s1bg, fg: C.s1fg },
-        { val: 2, bg: C.s2bg, fg: C.s2fg },
-        { val: 3, bg: C.s3bg, fg: C.s3fg },
-        { val: 4, bg: C.s4bg, fg: C.s4fg },
-        { val: 5, bg: C.s5bg, fg: C.s5fg },
-      ].forEach(({ val, bg, fg }) => {
-        wsRep.addConditionalFormatting({
-          ref: fCell,
-          rules: [{
-            type: "cellIs", operator: "equal", formulae: [val],
-            style: {
-              fill: { type: "pattern", pattern: "solid", bgColor: { argb: bg }, fgColor: { argb: bg } },
-              font: { name: "Segoe UI", bold: true, size: 11, color: { argb: fg } }
-            }
-          }]
-        });
+      [{ val: 1, bg: C.s1bg, fg: C.s1fg }, { val: 2, bg: C.s2bg, fg: C.s2fg }, { val: 3, bg: C.s3bg, fg: C.s3fg }, { val: 4, bg: C.s4bg, fg: C.s4fg }, { val: 5, bg: C.s5bg, fg: C.s5fg }].forEach(({ val, bg, fg }) => {
+        wsRep.addConditionalFormatting({ ref: fCell, rules: [{ type: "cellIs", operator: "equal", formulae: [val], style: { fill: mkFill(bg), font: { name: "Segoe UI", bold: true, size: 11, color: { argb: fg } } } }] });
       });
-
-      // Col G - Max Score
-      applyCell(wsRep.getCell(currentRow, 7), {
-        value: { formula: `IF(${hideRow},"",5)` },
-        fill: C.offWhite,
-        font: mkFont(C.mutedText, 9),
-        align: mkAlign("center", "middle"),
-        border: thinBorder,
-      });
-
-      // Col H - % Score — score-coloured via conditional formatting
-      applyCell(wsRep.getCell(currentRow, 8), {
-        value: { formula: `IF(${hideRow},"",IF(F${currentRow}="—","—",IF(OR(F${currentRow}="A",F${currentRow}="B"),50,IFERROR(F${currentRow}*20,"—"))))` },
-        fill: C.offWhite,
-        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.darkText } },
-        align: mkAlign("center", "middle"),
-        border: thinBorder,
-      });
-
-      // Score conditional formats for col H (% Score) — mirrors col F palette
+      applyCell(wsRep.getCell(currentRow, 7), { value: { formula: `IF(${hideRow},"",5)` }, fill: C.offWhite, font: mkFont(C.mutedText, 9), align: mkAlign("center", "middle"), border: thinBorder });
+      applyCell(wsRep.getCell(currentRow, 8), { value: { formula: `IF(${hideRow},"",IF(F${currentRow}="—","—",IF(OR(F${currentRow}="A",F${currentRow}="B"),50,IFERROR(F${currentRow}*20,"—"))))` }, fill: C.offWhite, font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.darkText } }, align: mkAlign("center", "middle"), border: thinBorder });
       const hCell = `H${currentRow}`;
-      [
-        { val: 20,  bg: C.s1bg, fg: C.s1fg },
-        { val: 40,  bg: C.s2bg, fg: C.s2fg },
-        { val: 60,  bg: C.s3bg, fg: C.s3fg },
-        { val: 80,  bg: C.s4bg, fg: C.s4fg },
-        { val: 100, bg: C.s5bg, fg: C.s5fg },
-        { val: 50,  bg: C.s3bg, fg: C.s3fg },  // Forced-Choice 50%
-      ].forEach(({ val, bg, fg }) => {
-        wsRep.addConditionalFormatting({
-          ref: hCell,
-          rules: [{
-            type: "cellIs", operator: "equal", formulae: [val],
-            style: {
-              fill: { type: "pattern", pattern: "solid", bgColor: { argb: bg }, fgColor: { argb: bg } },
-              font: { name: "Segoe UI", bold: true, size: 9, color: { argb: fg } }
-            }
-          }]
-        });
+      [{ val: 20, bg: C.s1bg, fg: C.s1fg }, { val: 40, bg: C.s2bg, fg: C.s2fg }, { val: 60, bg: C.s3bg, fg: C.s3fg }, { val: 80, bg: C.s4bg, fg: C.s4fg }, { val: 100, bg: C.s5bg, fg: C.s5fg }, { val: 50, bg: C.s3bg, fg: C.s3fg }].forEach(({ val, bg, fg }) => {
+        wsRep.addConditionalFormatting({ ref: hCell, rules: [{ type: "cellIs", operator: "equal", formulae: [val], style: { fill: mkFill(bg), font: { name: "Segoe UI", bold: true, size: 9, color: { argb: fg } } } }] });
       });
-
-      // Col I - Comments
-      applyCell(wsRep.getCell(currentRow, 9), {
-        value: { formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN,"G")},Raw_Data!$A:$A,Raw_Data!$I:$I,"—"),"—"))` },
-        fill: isOdd ? C.altRow : C.white,
-        font: mkFont(C.mutedText, 8, false),
-        align: mkAlign("left", "middle", true),
-        border: thinBorder,
-      });
-
+      applyCell(wsRep.getCell(currentRow, 9), { value: { formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN,"G")},Raw_Data!$A:$A,Raw_Data!$I:$I,"—"),"—"))` }, fill: isOdd ? C.altRow : C.white, font: mkFont(C.mutedText, 8, false), align: mkAlign("left", "middle", true), border: thinBorder });
       setHeight(currentRow, 36);
       currentRow++;
     }
 
-    // ── Domain & Subdomain: colour theming + hide-repeat via conditional formatting ─
-    // True cell merging is impossible with XLOOKUP formula cells.
-    // Strategy:
-    //   1. Apply domain-specific background + font colours per domain keyword.
-    //   2. Hide repeated values by matching font colour to background colour.
+    // Domain & Subdomain theming and hide-repeat
     const lastDataRow = currentRow - 1;
-    const fullRange = `A${DATA_START}:B${lastDataRow}`;
-
-    // ── 1. Domain-specific colour themes (applied first, lowest priority) ──────
-    // Blue theme: People Potential
-    wsRep.addConditionalFormatting({
-      ref: fullRange,
-      rules: [{
-        type: "expression",
-        formulae: [`ISNUMBER(SEARCH("People",$A${DATA_START}))`],
-        style: {
-          fill: { type: "pattern", pattern: "solid", bgColor: { argb: C.blue1 }, fgColor: { argb: C.blue1 } },
-          font: { name: "Segoe UI", bold: true, size: 9, color: { argb: C.blue3 } }
-        }
-      }]
-    });
-    // Green theme: Operational / Leadership / Steadiness / Effectiveness
-    wsRep.addConditionalFormatting({
-      ref: fullRange,
-      rules: [{
-        type: "expression",
-        formulae: [`OR(ISNUMBER(SEARCH("Operation",$A${DATA_START})),ISNUMBER(SEARCH("Leader",$A${DATA_START})),ISNUMBER(SEARCH("Steady",$A${DATA_START})),ISNUMBER(SEARCH("Effect",$A${DATA_START})))`],
-        style: {
-          fill: { type: "pattern", pattern: "solid", bgColor: { argb: C.green1 }, fgColor: { argb: C.green1 } },
-          font: { name: "Segoe UI", bold: true, size: 9, color: { argb: C.green3 } }
-        }
-      }]
-    });
-    // Purple theme: anything else (Digital Fluency, Execution Excellence, etc.)
-    wsRep.addConditionalFormatting({
-      ref: fullRange,
-      rules: [{
-        type: "expression",
-        formulae: [`AND(NOT(ISNUMBER(SEARCH("People",$A${DATA_START}))),NOT(ISNUMBER(SEARCH("Operation",$A${DATA_START}))),NOT(ISNUMBER(SEARCH("Leader",$A${DATA_START}))))`],
-        style: {
-          fill: { type: "pattern", pattern: "solid", bgColor: { argb: C.purple1 }, fgColor: { argb: C.purple1 } },
-          font: { name: "Segoe UI", bold: true, size: 9, color: { argb: C.purple3 } }
-        }
-      }]
-    });
-
-    if (lastDataRow >= DATA_START + 1) {
-      // ── 2. Hide duplicate Domain values: font = bg when same as row above ──────
-      // Blue domain repeated rows
-      wsRep.addConditionalFormatting({
-        ref: `A${DATA_START + 1}:A${lastDataRow}`,
-        rules: [{
-          type: "expression",
-          formulae: [`AND(A${DATA_START + 1}=A${DATA_START},A${DATA_START + 1}<>"")`],
-          style: {
-            font: { color: { argb: C.blue1 } }
-          }
-        }]
-      });
-      // Green domain repeated rows
-      wsRep.addConditionalFormatting({
-        ref: `A${DATA_START + 1}:A${lastDataRow}`,
-        rules: [{
-          type: "expression",
-          formulae: [`AND(A${DATA_START + 1}=A${DATA_START},A${DATA_START + 1}<>"",OR(ISNUMBER(SEARCH("Operation",A${DATA_START + 1})),ISNUMBER(SEARCH("Leader",A${DATA_START + 1}))))`],
-          style: {
-            font: { color: { argb: C.green1 } }
-          }
-        }]
-      });
-      // Purple domain repeated rows
-      wsRep.addConditionalFormatting({
-        ref: `A${DATA_START + 1}:A${lastDataRow}`,
-        rules: [{
-          type: "expression",
-          formulae: [`AND(A${DATA_START + 1}=A${DATA_START},A${DATA_START + 1}<>"",NOT(ISNUMBER(SEARCH("People",A${DATA_START + 1}))),NOT(ISNUMBER(SEARCH("Operation",A${DATA_START + 1}))),NOT(ISNUMBER(SEARCH("Leader",A${DATA_START + 1}))))`],
-          style: {
-            font: { color: { argb: C.purple1 } }
-          }
-        }]
-      });
-
-      // ── 3. Hide duplicate Subdomain values: font = bg when same subdomain + same domain ──
-      // Blue subdomain repeated rows
-      wsRep.addConditionalFormatting({
-        ref: `B${DATA_START + 1}:B${lastDataRow}`,
-        rules: [{
-          type: "expression",
-          formulae: [`AND(B${DATA_START + 1}=B${DATA_START},A${DATA_START + 1}=A${DATA_START},B${DATA_START + 1}<>"")`],
-          style: {
-            font: { color: { argb: C.blue1 } }
-          }
-        }]
-      });
-      // Green subdomain repeated rows
-      wsRep.addConditionalFormatting({
-        ref: `B${DATA_START + 1}:B${lastDataRow}`,
-        rules: [{
-          type: "expression",
-          formulae: [`AND(B${DATA_START + 1}=B${DATA_START},A${DATA_START + 1}=A${DATA_START},B${DATA_START + 1}<>"",OR(ISNUMBER(SEARCH("Operation",A${DATA_START + 1})),ISNUMBER(SEARCH("Leader",A${DATA_START + 1}))))`],
-          style: {
-            font: { color: { argb: C.green1 } }
-          }
-        }]
-      });
-      // Purple subdomain repeated rows
-      wsRep.addConditionalFormatting({
-        ref: `B${DATA_START + 1}:B${lastDataRow}`,
-        rules: [{
-          type: "expression",
-          formulae: [`AND(B${DATA_START + 1}=B${DATA_START},A${DATA_START + 1}=A${DATA_START},B${DATA_START + 1}<>"",NOT(ISNUMBER(SEARCH("People",A${DATA_START + 1}))),NOT(ISNUMBER(SEARCH("Operation",A${DATA_START + 1}))),NOT(ISNUMBER(SEARCH("Leader",A${DATA_START + 1}))))`],
-          style: {
-            font: { color: { argb: C.purple1 } }
-          }
-        }]
-      });
+    if (lastDataRow >= DATA_START) {
+      const domainRange = `A${DATA_START}:A${lastDataRow}`;
+      const subdomainRange = `B${DATA_START}:B${lastDataRow}`;
+      const domainThemes = {
+        "Mindset & Adaptability": { bg: "FFE8F0FE", text: "FF1E3A8A" },
+        "Psychological Health & Safety": { bg: "FFE6F9EE", text: "FF065F46" },
+        "People Potential": { bg: "FFF5F0FF", text: "FF4C1D95" },
+        "Relational & Emotional Intelligence": { bg: "FFFEF3C7", text: "FFB45309" }
+      };
+      for (const [domain, theme] of Object.entries(domainThemes)) {
+        wsRep.addConditionalFormatting({
+          ref: domainRange,
+          rules: [{ type: "expression", formulae: [`=INDIRECT("A"&ROW())="${domain}"`], style: { fill: mkFill(theme.bg), font: { name: "Segoe UI", bold: true, size: 9, color: { argb: theme.text } } } }]
+        });
+        wsRep.addConditionalFormatting({
+          ref: subdomainRange,
+          rules: [{ type: "expression", formulae: [`=INDIRECT("A"&ROW())="${domain}"`], style: { fill: mkFill(theme.bg), font: { name: "Segoe UI", bold: false, size: 9, color: { argb: theme.text } } } }]
+        });
+      }
+      // Hide duplicate Domain
+      for (const [domain, theme] of Object.entries(domainThemes)) {
+        wsRep.addConditionalFormatting({
+          ref: `A${DATA_START + 1}:A${lastDataRow}`,
+          rules: [{ type: "expression", formulae: [`=AND(INDIRECT("A"&ROW())=INDIRECT("A"&ROW()-1), INDIRECT("A"&ROW())="${domain}")`], style: { font: { color: { argb: theme.bg } } } }]
+        });
+      }
+      // Hide duplicate Subdomain
+      for (const [domain, theme] of Object.entries(domainThemes)) {
+        wsRep.addConditionalFormatting({
+          ref: `B${DATA_START + 1}:B${lastDataRow}`,
+          rules: [{ type: "expression", formulae: [`=AND(INDIRECT("B"&ROW())=INDIRECT("B"&ROW()-1), INDIRECT("A"&ROW())=INDIRECT("A"&ROW()-1), INDIRECT("A"&ROW())="${domain}")`], style: { font: { color: { argb: theme.bg } } } }]
+        });
+      }
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    // SHEET 5: ALL DATA (Master Filterable Table — ALL people, ALL responses)
-    // ────────────────────────────────────────────────────────────────────────
+    // Freeze panes on Report sheet
+    wsRep.views = [{ state: "frozen", xSplit: 0, ySplit: 11, showGridLines: true, zoomScale: 90 }];
+    if (currentRow > DATA_START) {
+      wsRep.autoFilter = { from: { row: 11, column: 1 }, to: { row: currentRow - 1, column: 9 } };
+    }
+
+    // ------------------------- ALL DATA SHEET -------------------------
     const wsAll = workbook.addWorksheet("All Data", {
       views: [{ showGridLines: true, zoomScale: 85 }],
       pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
     });
-
-    // Column definitions
     wsAll.columns = [
-      { key: "sno",            width: 6  },  // A  S.No
-      { key: "personName",     width: 24 },  // B  Person Name
-      { key: "email",          width: 28 },  // C  Email
-      { key: "role",           width: 14 },  // D  Role
-      { key: "department",     width: 18 },  // E  Department
-      { key: "status",         width: 14 },  // F  Status
-      { key: "completedDate",  width: 16 },  // G  Completed Date
-      { key: "domain",         width: 24 },  // H  Domain
-      { key: "subdomain",      width: 24 },  // I  Sub-Domain
-      { key: "questionCode",   width: 14 },  // J  Question Code
-      { key: "questionStem",   width: 55 },  // K  Question
-      { key: "questionType",   width: 16 },  // L  Question Type
-      { key: "yourScore",      width: 12 },  // M  Score
-      { key: "maxScore",       width: 10 },  // N  Max Score
-      { key: "pctScore",       width: 10 },  // O  % Score
-      { key: "comment",        width: 35 },  // P  Comments
+      { key: "sno", width: 6 }, { key: "personName", width: 24 }, { key: "email", width: 28 },
+      { key: "role", width: 14 }, { key: "department", width: 18 }, { key: "status", width: 14 },
+      { key: "completedDate", width: 16 }, { key: "domain", width: 24 }, { key: "subdomain", width: 24 },
+      { key: "questionCode", width: 14 }, { key: "questionStem", width: 55 }, { key: "questionType", width: 16 },
+      { key: "yourScore", width: 12 }, { key: "maxScore", width: 10 }, { key: "pctScore", width: 10 },
+      { key: "comment", width: 35 }
     ];
-
-    // ─── Title Banner ───
     wsAll.mergeCells("A1:P1");
     wsAll.getRow(1).height = 36;
     const allTitleCell = wsAll.getCell("A1");
@@ -2226,8 +1474,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
     allTitleCell.fill = mkFill("FF0F2547");
     allTitleCell.font = { name: "Segoe UI", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
     allTitleCell.alignment = { horizontal: "center", vertical: "middle" };
-
-    // ─── Sub-title bar ───
     wsAll.mergeCells("A2:L2");
     wsAll.getRow(2).height = 22;
     const allSubCell = wsAll.getCell("A2");
@@ -2235,8 +1481,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
     allSubCell.fill = mkFill("FF1A3A6B");
     allSubCell.font = mkFont("FFFFFFFF", 9, true);
     allSubCell.alignment = mkAlign("left", "middle");
-
-    // ─── Navigation buttons in sub-title ───
     wsAll.mergeCells("M2:N2");
     const allNavHome = wsAll.getCell("M2");
     allNavHome.value = { text: "← HOME", hyperlink: "#'Home'!A1" };
@@ -2244,7 +1488,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
     allNavHome.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF0F2547" } };
     allNavHome.alignment = mkAlign("center", "middle");
     allNavHome.border = mkBorder("FFAAB8CC", "thin");
-
     wsAll.mergeCells("O2:P2");
     const allNavSummary = wsAll.getCell("O2");
     allNavSummary.value = { text: "SUMMARY →", hyperlink: "#'Summary'!A1" };
@@ -2252,11 +1495,8 @@ export const exportOrganizationReportExcel = async (req, res) => {
     allNavSummary.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF065F46" } };
     allNavSummary.alignment = mkAlign("center", "middle");
     allNavSummary.border = mkBorder("FFAAB8CC", "thin");
-
-    // ─── Spacer ───
     wsAll.getRow(3).height = 6;
 
-    // ─── Table Header (Row 4) ───
     const allHeaders = [
       "S.No", "Person Name", "Email", "Role", "Department", "Status",
       "Completed Date", "Domain", "Sub-Domain", "Question Code",
@@ -2267,33 +1507,17 @@ export const exportOrganizationReportExcel = async (req, res) => {
       cell.value = h;
       cell.fill = mkFill("FF0F2547");
       cell.font = mkFont("FFFFFFFF", 10, true);
-      cell.alignment = mkAlign(
-        [4, 10, 11, 15].includes(i) ? "left" : "center",
-        "middle"
-      );
+      cell.alignment = mkAlign([4, 10, 11, 15].includes(i) ? "left" : "center", "middle");
       cell.border = mkBorder("FFAAB8CC", "medium");
     });
     wsAll.getRow(4).height = 32;
 
-    // ─── Data Rows ───
     const percentageMap = { 1: 20, 2: 40, 3: 60, 4: 80, 5: 100 };
     let allDataRow = 5;
     let sno = 1;
-
-    // Color coding for roles
-    const roleColors = {
-      leader:   { bg: "FFF5F0FF", text: "FF7C3AED" },
-      manager:  { bg: "FFE6F9EE", text: "FF0E9F6E" },
-      employee: { bg: "FFE8F0FE", text: "FF1A56DB" },
-    };
-
-    // Status colors
-    const statusColors = {
-      completed: { bg: "FFD1FAE5", text: "FF047857" },
-      pending:   { bg: "FFFEF3C7", text: "FFD97706" },
-    };
-
-    const getScoreColor = (score) => {
+    const roleColors = { leader: { bg: "FFF5F0FF", text: "FF7C3AED" }, manager: { bg: "FFE6F9EE", text: "FF0E9F6E" }, employee: { bg: "FFE8F0FE", text: "FF1A56DB" } };
+    const statusColorsAll = { completed: { bg: "FFD1FAE5", text: "FF047857" }, pending: { bg: "FFFEF3C7", text: "FFD97706" } };
+    const getScoreColorAll = (score) => {
       if (score === null || score === undefined || score === "" || score === "—") return null;
       const n = typeof score === "number" ? score : Number(score);
       if (isNaN(n)) return null;
@@ -2304,91 +1528,48 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
     reportsData.forEach(report => {
       if (report.isCompleted && report.responses && report.responses.length > 0) {
-        const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", {
-          day: "2-digit", month: "short", year: "numeric"
-        });
-
+        const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
         report.responses.forEach(resp => {
           const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
-          const rawScore = isFc
-            ? (resp.selectedOption || "—")
-            : ((resp.value !== null && resp.value !== undefined) ? Number(resp.value) : "—");
+          const rawScore = isFc ? (resp.selectedOption || "—") : ((resp.value !== null && resp.value !== undefined) ? Number(resp.value) : "—");
           const numericScore = (typeof rawScore === "number") ? rawScore : null;
-          const pctVal = isFc
-            ? 50
-            : (numericScore !== null ? (percentageMap[Math.round(numericScore)] || "—") : "—");
-
+          const pctVal = isFc ? 50 : (numericScore !== null ? (percentageMap[Math.round(numericScore)] || "—") : "—");
           const isOdd = (allDataRow % 2) !== 0;
           const roleLower = (report.role || "").toLowerCase();
           const roleClr = roleColors[roleLower] || { bg: "FFF8FAFC", text: "FF6B7A90" };
-          const scClr = getScoreColor(rawScore);
-
+          const scClr = getScoreColorAll(rawScore);
           const rowValues = [
-            sno, report.empName, report.email, report.role, report.dept,
-            "Completed", completedDateStr, resp.domain, resp.subdomain,
-            resp.questionCode, resp.questionStem || "—", resp.questionType || "—",
-            rawScore, 5, pctVal, resp.comment || "—"
+            sno, report.empName, report.email, report.role, report.dept, "Completed",
+            completedDateStr, resp.domain, resp.subdomain, resp.questionCode,
+            resp.questionStem || "—", resp.questionType || "—", rawScore, 5, pctVal, resp.comment || "—"
           ];
-
           rowValues.forEach((val, ci) => {
             const cell = wsAll.getCell(allDataRow, ci + 1);
             cell.value = val;
             cell.border = mkBorder();
-
-            // Defaults
             cell.font = mkFont("FF1E2A3B", 9);
             cell.fill = mkFill(isOdd ? "FFF4F6FA" : "FFFFFFFF");
             cell.alignment = mkAlign("center", "middle", ci >= 10);
-
-            // Column-specific styling
-            if (ci === 1 || ci === 2) { // Name, Email
-              cell.alignment = mkAlign("left", "middle");
-              cell.font = mkFont("FF1E2A3B", 9, ci === 1);
-            }
-            if (ci === 3) { // Role
-              cell.fill = mkFill(roleClr.bg);
-              cell.font = mkFont(roleClr.text, 9, true);
-            }
-            if (ci === 5) { // Status
-              cell.fill = mkFill(statusColors.completed.bg);
-              cell.font = mkFont(statusColors.completed.text, 9, true);
-            }
-            if (ci === 7 || ci === 8) { // Domain, Subdomain
-              cell.alignment = mkAlign("left", "middle", true);
-              cell.font = mkFont("FF1E2A3B", 9);
-            }
-            if (ci === 10) { // Question Stem
-              cell.alignment = mkAlign("left", "middle", true);
-            }
-            if (ci === 12 && scClr) { // Score
-              cell.fill = mkFill(scClr.bg);
-              cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: scClr.fg } };
-            }
-            if (ci === 14 && scClr) { // % Score
-              cell.fill = mkFill(scClr.bg);
-              cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: scClr.fg } };
-            }
+            if (ci === 1 || ci === 2) { cell.alignment = mkAlign("left", "middle"); cell.font = mkFont("FF1E2A3B", 9, ci === 1); }
+            if (ci === 3) { cell.fill = mkFill(roleClr.bg); cell.font = mkFont(roleClr.text, 9, true); }
+            if (ci === 5) { cell.fill = mkFill(statusColorsAll.completed.bg); cell.font = mkFont(statusColorsAll.completed.text, 9, true); }
+            if (ci === 7 || ci === 8) cell.alignment = mkAlign("left", "middle", true);
+            if (ci === 10) cell.alignment = mkAlign("left", "middle", true);
+            if (ci === 12 && scClr) { cell.fill = mkFill(scClr.bg); cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: scClr.fg } }; }
+            if (ci === 14 && scClr) { cell.fill = mkFill(scClr.bg); cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: scClr.fg } }; }
           });
-
-          // Auto height
           const stemLen = (resp.questionStem || "").length;
-          const neededLines = Math.max(Math.ceil(stemLen / 60), 1);
-          wsAll.getRow(allDataRow).height = Math.max(22, neededLines * 14);
-
-          allDataRow++;
-          sno++;
+          wsAll.getRow(allDataRow).height = Math.max(22, Math.ceil(stemLen / 60) * 14);
+          allDataRow++; sno++;
         });
       } else {
-        // Not completed — single row per person
         const isOdd = (allDataRow % 2) !== 0;
         const roleLower = (report.role || "").toLowerCase();
         const roleClr = roleColors[roleLower] || { bg: "FFF8FAFC", text: "FF6B7A90" };
-
         const rowValues = [
-          sno, report.empName, report.email, report.role, report.dept,
-          "Pending", "—", "—", "—", "—", "—", "—", "—", "—", "—", "Assessment not submitted"
+          sno, report.empName, report.email, report.role, report.dept, "Pending",
+          "—", "—", "—", "—", "—", "—", "—", "—", "—", "Assessment not submitted"
         ];
-
         rowValues.forEach((val, ci) => {
           const cell = wsAll.getCell(allDataRow, ci + 1);
           cell.value = val;
@@ -2396,70 +1577,28 @@ export const exportOrganizationReportExcel = async (req, res) => {
           cell.font = mkFont("FF6B7A90", 9);
           cell.fill = mkFill(isOdd ? "FFF4F6FA" : "FFFFFFFF");
           cell.alignment = mkAlign("center", "middle");
-
           if (ci === 1 || ci === 2) cell.alignment = mkAlign("left", "middle");
           if (ci === 1) cell.font = mkFont("FF6B7A90", 9, true);
-          if (ci === 3) {
-            cell.fill = mkFill(roleClr.bg);
-            cell.font = mkFont(roleClr.text, 9, true);
-          }
-          if (ci === 5) {
-            cell.fill = mkFill(statusColors.pending.bg);
-            cell.font = mkFont(statusColors.pending.text, 9, true);
-          }
+          if (ci === 3) { cell.fill = mkFill(roleClr.bg); cell.font = mkFont(roleClr.text, 9, true); }
+          if (ci === 5) { cell.fill = mkFill(statusColorsAll.pending.bg); cell.font = mkFont(statusColorsAll.pending.text, 9, true); }
         });
-
         wsAll.getRow(allDataRow).height = 22;
-        allDataRow++;
-        sno++;
+        allDataRow++; sno++;
       }
     });
+    if (allDataRow > 5) wsAll.autoFilter = { from: { row: 4, column: 1 }, to: { row: allDataRow - 1, column: 16 } };
+    wsAll.views = [{ state: "frozen", xSplit: 2, ySplit: 4, showGridLines: true, zoomScale: 85 }];
 
-    // ─── Auto-Filter on All Data table ───
-    if (allDataRow > 5) {
-      wsAll.autoFilter = {
-        from: { row: 4, column: 1 },
-        to: { row: allDataRow - 1, column: 16 }
-      };
-    }
-
-    // ─── Freeze panes: freeze header row + first 2 columns ───
-    wsAll.views = [{
-      state: "frozen",
-      xSplit: 2,
-      ySplit: 4,
-      showGridLines: true,
-      zoomScale: 85
-    }];
-
-    // ────────────────────────────────────────────────────────────────────────
-    // SHEET 6: SUMMARY (Pivot-Table-Like Per-Person Aggregation)
-    // ────────────────────────────────────────────────────────────────────────
+    // ------------------------- SUMMARY SHEET -------------------------
     const wsSummary = workbook.addWorksheet("Summary", {
       views: [{ showGridLines: true, zoomScale: 90 }],
       pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
     });
-
-    // Collect all unique domains for dynamic domain columns
-    const allDomains = [...new Set(
-      sortedQuestions.map(q => q.domain).filter(Boolean)
-    )];
-
-    // Column definitions: fixed cols + dynamic domain cols
-    const summaryFixedHeaders = [
-      "S.No", "Person Name", "Email", "Role", "Department",
-      "Status", "Completed Date", "Total Questions", "Avg Score", "% Avg", "Classification"
-    ];
+    const allDomains = [...new Set(sortedQuestions.map(q => q.domain).filter(Boolean))];
+    const summaryFixedHeaders = ["S.No", "Person Name", "Email", "Role", "Department", "Status", "Completed Date", "Total Questions", "Avg Score", "% Avg", "Classification"];
     const summaryHeaders = [...summaryFixedHeaders, ...allDomains.map(d => `${d} Avg`)];
-
-    const summaryColWidths = [
-      6, 24, 28, 14, 18, 14, 16, 14, 12, 10, 14,
-      ...allDomains.map(() => 18)
-    ];
-
+    const summaryColWidths = [6, 24, 28, 14, 18, 14, 16, 14, 12, 10, 14, ...allDomains.map(() => 18)];
     wsSummary.columns = summaryHeaders.map((_, i) => ({ width: summaryColWidths[i] || 16 }));
-
-    // ─── Title Banner ───
     const sumLastCol = summaryHeaders.length;
     wsSummary.mergeCells(1, 1, 1, sumLastCol);
     wsSummary.getRow(1).height = 36;
@@ -2468,8 +1607,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
     sumTitleCell.fill = mkFill("FF0F2547");
     sumTitleCell.font = { name: "Segoe UI", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
     sumTitleCell.alignment = mkAlign("center", "middle");
-
-    // ─── Sub-title ───
     const subLastCol = Math.max(sumLastCol - 4, 1);
     wsSummary.mergeCells(2, 1, 2, subLastCol);
     wsSummary.getRow(2).height = 22;
@@ -2478,8 +1615,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
     sumSubCell.fill = mkFill("FF1A3A6B");
     sumSubCell.font = mkFont("FFFFFFFF", 9, true);
     sumSubCell.alignment = mkAlign("left", "middle");
-
-    // ─── Navigation buttons ───
     const navStart = subLastCol + 1;
     const navMid = Math.min(navStart + 1, sumLastCol);
     const navEnd = Math.min(navMid + 1, sumLastCol);
@@ -2501,11 +1636,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
       sumNavAll.alignment = mkAlign("center", "middle");
       sumNavAll.border = mkBorder("FFAAB8CC", "thin");
     }
-
-    // ─── Spacer ───
     wsSummary.getRow(3).height = 6;
-
-    // ─── Table Header (Row 4) ───
     summaryHeaders.forEach((h, i) => {
       const cell = wsSummary.getCell(4, i + 1);
       cell.value = h;
@@ -2515,33 +1646,21 @@ export const exportOrganizationReportExcel = async (req, res) => {
       cell.border = mkBorder("FFAAB8CC", "medium");
     });
     wsSummary.getRow(4).height = 36;
-
-    // ─── Data Rows ───
     let sumRow = 5;
     let sumSno = 1;
-
     reportsData.forEach(report => {
       const isOdd = (sumRow % 2) !== 0;
       const roleLower = (report.role || "").toLowerCase();
       const roleClr = roleColors[roleLower] || { bg: "FFF8FAFC", text: "FF6B7A90" };
-
-      // Calculate per-domain averages
       const domainScores = {};
       allDomains.forEach(d => { domainScores[d] = { sum: 0, count: 0 }; });
-
-      let totalScore = 0;
-      let totalRated = 0;
-
+      let totalScore = 0, totalRated = 0;
       if (report.isCompleted && report.responses) {
         report.responses.forEach(resp => {
           const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
           let score = null;
-          if (isFc) {
-            score = 2.5;
-          } else if (resp.value !== null && resp.value !== undefined) {
-            score = Number(resp.value);
-          }
-
+          if (isFc) score = 2.5;
+          else if (resp.value !== null && resp.value !== undefined) score = Number(resp.value);
           if (score !== null && !isNaN(score)) {
             totalScore += score;
             totalRated++;
@@ -2552,46 +1671,15 @@ export const exportOrganizationReportExcel = async (req, res) => {
           }
         });
       }
-
       const avgScore = totalRated > 0 ? (totalScore / totalRated) : null;
       const pctAvg = avgScore !== null ? Math.round((avgScore / 5) * 100) : null;
-      const classification = avgScore !== null
-        ? (avgScore >= 4 ? "High" : avgScore >= 2.5 ? "Medium" : "Low")
-        : "—";
-
-      const completedDateStr = report.isCompleted && report.submittedAt
-        ? new Date(report.submittedAt).toLocaleDateString("en-US", {
-            day: "2-digit", month: "short", year: "numeric"
-          })
-        : "—";
-
+      const classification = avgScore !== null ? (avgScore >= 4 ? "High" : avgScore >= 2.5 ? "Medium" : "Low") : "—";
+      const completedDateStr = report.isCompleted && report.submittedAt ? new Date(report.submittedAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" }) : "—";
       const status = report.isCompleted ? "Completed" : "Pending";
       const totalQ = report.isCompleted ? (report.responses || []).length : 0;
-
-      // Fixed column values
-      const fixedValues = [
-        sumSno,
-        report.empName,
-        report.email,
-        report.role,
-        report.dept,
-        status,
-        completedDateStr,
-        totalQ,
-        avgScore !== null ? Math.round(avgScore * 100) / 100 : "—",
-        pctAvg !== null ? pctAvg : "—",
-        classification
-      ];
-
-      // Domain avg values
-      const domainValues = allDomains.map(d => {
-        const ds = domainScores[d];
-        if (ds.count > 0) return Math.round((ds.sum / ds.count) * 100) / 100;
-        return "—";
-      });
-
+      const fixedValues = [sumSno, report.empName, report.email, report.role, report.dept, status, completedDateStr, totalQ, avgScore !== null ? Math.round(avgScore * 100) / 100 : "—", pctAvg !== null ? pctAvg : "—", classification];
+      const domainValues = allDomains.map(d => { const ds = domainScores[d]; return ds.count > 0 ? Math.round((ds.sum / ds.count) * 100) / 100 : "—"; });
       const allValues = [...fixedValues, ...domainValues];
-
       allValues.forEach((val, ci) => {
         const cell = wsSummary.getCell(sumRow, ci + 1);
         cell.value = val;
@@ -2599,57 +1687,19 @@ export const exportOrganizationReportExcel = async (req, res) => {
         cell.font = mkFont("FF1E2A3B", 9);
         cell.fill = mkFill(isOdd ? "FFF4F6FA" : "FFFFFFFF");
         cell.alignment = mkAlign("center", "middle", ci >= summaryFixedHeaders.length);
-
-        // Column-specific styling
-        if (ci === 1 || ci === 2) { // Name, Email
-          cell.alignment = mkAlign("left", "middle");
-          cell.font = mkFont("FF1E2A3B", 9, ci === 1);
+        if (ci === 1 || ci === 2) { cell.alignment = mkAlign("left", "middle"); cell.font = mkFont("FF1E2A3B", 9, ci === 1); }
+        if (ci === 3) { cell.fill = mkFill(roleClr.bg); cell.font = mkFont(roleClr.text, 9, true); }
+        if (ci === 5) { const sc = status === "Completed" ? statusColorsAll.completed : statusColorsAll.pending; cell.fill = mkFill(sc.bg); cell.font = mkFont(sc.text, 9, true); }
+        if (ci === 8 || ci === 9) { const scoreClr = getScoreColorAll(val); if (scoreClr) { cell.fill = mkFill(scoreClr.bg); cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: scoreClr.fg } }; } }
+        if (ci === 10) {
+          const classClr = classification === "High" ? { bg: "FFD1FAE5", text: "FF047857" } : classification === "Medium" ? { bg: "FFFEF3C7", text: "FFD97706" } : classification === "Low" ? { bg: "FFFEE2E2", text: "FFDC2626" } : null;
+          if (classClr) { cell.fill = mkFill(classClr.bg); cell.font = mkFont(classClr.text, 9, true); }
         }
-        if (ci === 3) { // Role
-          cell.fill = mkFill(roleClr.bg);
-          cell.font = mkFont(roleClr.text, 9, true);
-        }
-        if (ci === 5) { // Status
-          const sc = status === "Completed" ? statusColors.completed : statusColors.pending;
-          cell.fill = mkFill(sc.bg);
-          cell.font = mkFont(sc.text, 9, true);
-        }
-        if (ci === 8 || ci === 9) { // Avg Score, % Avg
-          const scoreClr = getScoreColor(val);
-          if (scoreClr) {
-            cell.fill = mkFill(scoreClr.bg);
-            cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: scoreClr.fg } };
-          }
-        }
-        if (ci === 10) { // Classification
-          const classClr = classification === "High"
-            ? { bg: "FFD1FAE5", text: "FF047857" }
-            : classification === "Medium"
-              ? { bg: "FFFEF3C7", text: "FFD97706" }
-              : classification === "Low"
-                ? { bg: "FFFEE2E2", text: "FFDC2626" }
-                : null;
-          if (classClr) {
-            cell.fill = mkFill(classClr.bg);
-            cell.font = mkFont(classClr.text, 9, true);
-          }
-        }
-        // Domain columns
-        if (ci >= summaryFixedHeaders.length) {
-          const scoreClr = getScoreColor(val);
-          if (scoreClr) {
-            cell.fill = mkFill(scoreClr.bg);
-            cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: scoreClr.fg } };
-          }
-        }
+        if (ci >= summaryFixedHeaders.length) { const scoreClr = getScoreColorAll(val); if (scoreClr) { cell.fill = mkFill(scoreClr.bg); cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: scoreClr.fg } }; } }
       });
-
       wsSummary.getRow(sumRow).height = 24;
-      sumRow++;
-      sumSno++;
+      sumRow++; sumSno++;
     });
-
-    // ─── Totals / Grand Summary Row ───
     if (sumRow > 5) {
       const grandRow = sumRow + 1;
       wsSummary.mergeCells(grandRow, 1, grandRow, 2);
@@ -2659,88 +1709,47 @@ export const exportOrganizationReportExcel = async (req, res) => {
       grandCell.font = mkFont("FFFFFFFF", 10, true);
       grandCell.alignment = mkAlign("center", "middle");
       grandCell.border = mkBorder("FFAAB8CC", "medium");
-
-      // Blank styled cells for cols 3-7
-      for (let c = 3; c <= 7; c++) {
-        const cell = wsSummary.getCell(grandRow, c);
-        cell.fill = mkFill("FF1A3A6B");
-        cell.border = mkBorder("FFAAB8CC", "medium");
-      }
-
-      // Total Questions (col 8)
+      for (let c = 3; c <= 7; c++) { const cell = wsSummary.getCell(grandRow, c); cell.fill = mkFill("FF1A3A6B"); cell.border = mkBorder("FFAAB8CC", "medium"); }
       const tqCell = wsSummary.getCell(grandRow, 8);
       tqCell.value = { formula: `SUM(H5:H${sumRow - 1})` };
       tqCell.fill = mkFill("FF1A3A6B");
       tqCell.font = mkFont("FFFFFFFF", 10, true);
       tqCell.alignment = mkAlign("center", "middle");
       tqCell.border = mkBorder("FFAAB8CC", "medium");
-
-      // Avg Score (col 9)
       const avgCell = wsSummary.getCell(grandRow, 9);
       avgCell.value = { formula: `IFERROR(AVERAGE(I5:I${sumRow - 1}), "—")` };
       avgCell.fill = mkFill("FF1A3A6B");
       avgCell.font = mkFont("FFFFFFFF", 10, true);
       avgCell.alignment = mkAlign("center", "middle");
       avgCell.border = mkBorder("FFAAB8CC", "medium");
-
-      // % Avg (col 10)
       const pctCell = wsSummary.getCell(grandRow, 10);
       pctCell.value = { formula: `IFERROR(AVERAGE(J5:J${sumRow - 1}), "—")` };
       pctCell.fill = mkFill("FF1A3A6B");
       pctCell.font = mkFont("FFFFFFFF", 10, true);
       pctCell.alignment = mkAlign("center", "middle");
       pctCell.border = mkBorder("FFAAB8CC", "medium");
-
-      // Classification blank
       const clsCell = wsSummary.getCell(grandRow, 11);
       clsCell.fill = mkFill("FF1A3A6B");
       clsCell.border = mkBorder("FFAAB8CC", "medium");
-
-      // Domain averages
       allDomains.forEach((_, di) => {
         const colIdx = summaryFixedHeaders.length + di + 1;
-        const colLetter = wsAll.getColumn(colIdx).letter || String.fromCharCode(64 + colIdx);
         const dCell = wsSummary.getCell(grandRow, colIdx);
-        // Use column number reference directly
         dCell.value = { formula: `IFERROR(AVERAGE(INDIRECT("R5C${colIdx}:R${sumRow - 1}C${colIdx}", FALSE)), "—")` };
         dCell.fill = mkFill("FF1A3A6B");
         dCell.font = mkFont("FFFFFFFF", 9, true);
         dCell.alignment = mkAlign("center", "middle");
         dCell.border = mkBorder("FFAAB8CC", "medium");
       });
-
       wsSummary.getRow(grandRow).height = 28;
     }
+    if (sumRow > 5) wsSummary.autoFilter = { from: { row: 4, column: 1 }, to: { row: sumRow - 1, column: summaryHeaders.length } };
+    wsSummary.views = [{ state: "frozen", xSplit: 2, ySplit: 4, showGridLines: true, zoomScale: 90 }];
 
-    // ─── Auto-Filter on Summary ───
-    if (sumRow > 5) {
-      wsSummary.autoFilter = {
-        from: { row: 4, column: 1 },
-        to: { row: sumRow - 1, column: summaryHeaders.length }
-      };
-    }
-
-    // ─── Freeze panes on Summary ───
-    wsSummary.views = [{
-      state: "frozen",
-      xSplit: 2,
-      ySplit: 4,
-      showGridLines: true,
-      zoomScale: 90
-    }];
-
-    // ────────────────────────────────────────────────────────────────────────
-    // AUTO-FILTER on Raw_Data sheet
-    // ────────────────────────────────────────────────────────────────────────
+    // Auto-filter on Raw_Data
     const rawLastRow = wsRaw.lastRow ? wsRaw.lastRow.number : 1;
-    if (rawLastRow > 1) {
-      wsRaw.autoFilter = {
-        from: { row: 1, column: 1 },
-        to: { row: rawLastRow, column: 14 }
-      };
-    }
+    if (rawLastRow > 1) wsRaw.autoFilter = { from: { row: 1, column: 1 }, to: { row: rawLastRow, column: 14 } };
 
-    // Set Response Headers
+    // Send file
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename=Organization_Report_${orgName.replace(/\s+/g, "_")}.xlsx`);
     await workbook.xlsx.write(res);
