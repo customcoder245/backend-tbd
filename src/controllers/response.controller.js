@@ -873,7 +873,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
     // Roles we want in the report (exclude admin/superAdmin)
     const ALLOWED_ROLES = ["leader", "manager", "employee"];
     const isAllowedRole = (role) => {
-      if (!role || role === "N/A") return true; // keep unknown roles, we'll label them
+      if (!role || role.trim() === "") return true; // keep unknown/empty roles, they'll appear in report
       return ALLOWED_ROLES.includes(role.toLowerCase());
     };
 
@@ -963,7 +963,8 @@ export const exportOrganizationReportExcel = async (req, res) => {
       const userDetails = sub.userDetails || {};
       const email = (userDetails.email || "").toLowerCase().trim();
       const userId = sub.userId ? sub.userId.toString() : "";
-      const role = sub.stakeholder || userDetails.role || "N/A";
+      // FIX: default to empty string, not "N/A" — N/A is a department fallback, not a role
+      const role = sub.stakeholder || userDetails.role || "";
 
       // Skip admin/superAdmin submissions
       if (!isAllowedRole(role)) return;
@@ -989,7 +990,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
           if (userDetails.department) existing.dept = userDetails.department;
         }
       } else {
+        // FIX: never use empty string as map key — causes all no-email users to collide on ""
         const key = email || userId || sub._id.toString();
+        if (!key) return; // truly no identity, skip
         participantMap.set(key, {
           assessmentId: sub.assessmentId ? sub.assessmentId.toString() : (sub._id ? sub._id.toString() : ""),
           userId: userId,
@@ -1013,13 +1016,16 @@ export const exportOrganizationReportExcel = async (req, res) => {
       const existing = findParticipant(email, userId);
 
       if (!existing) {
+        // FIX: never use empty string as map key
         const key = email || userId;
+        if (!key) return;
         participantMap.set(key, {
           assessmentId: "",
           userId: userId,
           empName: getFullName(u.firstName, u.lastName) || "Participant",
           email: u.email || "",
-          role: u.role || "N/A",
+          // FIX: default to empty string not "N/A" — N/A is a department fallback, not a role
+          role: u.role || "",
           dept: u.department || "N/A",
           isCompleted: false,
           submittedAt: null,
@@ -1256,31 +1262,50 @@ export const exportOrganizationReportExcel = async (req, res) => {
     });
     wsConfig.state = "hidden";
 
-    // Write headers to Config sheet columns
-    wsConfig.getCell("A1").value = "Roles (Filtered)";
-    wsConfig.getCell("B1").value = "People (Filtered)";
-    wsConfig.getCell("C1").value = "Raw_Role";
-    wsConfig.getCell("D1").value = "Raw_Person";
+    // ── Build role → people map from reportsData ───────────────────────────────
+    // Only skip entries with truly empty name or role (N/A is a department fallback, not a role)
+    const validEntries = reportsData.filter(r => r.empName && r.empName.trim() !== "" && r.role && r.role.trim() !== "");
 
-    // Write mapping table (role → person) starting at row 2 — only valid entries
-    const validEntries = reportsData.filter(r => r.empName && r.role && r.role !== "N/A");
-    let mapRow = 2;
+    // Group people by role (case-insensitive key, display value is toTitleCase)
+    const roleToPersonMap = {};
     validEntries.forEach(r => {
-      wsConfig.getCell(mapRow, 3).value = r.role;
-      wsConfig.getCell(mapRow, 4).value = r.empName;
-      mapRow++;
+      const roleKey = r.role.trim(); // already toTitleCase at this point
+      if (!roleToPersonMap[roleKey]) roleToPersonMap[roleKey] = [];
+      if (!roleToPersonMap[roleKey].includes(r.empName)) {
+        roleToPersonMap[roleKey].push(r.empName);
+      }
     });
-    const lastMapRow = mapRow - 1; // last row with data
 
-    // Column B: People filtered by chosen Role in Home!B7, with UNIQUE to avoid duplicates
-    // IMPORTANT: No self-sheet prefix — use direct range refs inside _Config sheet
-    // Use exact data range ($D$2:$D$lastMapRow) instead of $D$10000 to avoid empty-cell issues
-    wsConfig.getCell("B2").value = {
-      formula: `SORT(UNIQUE(FILTER($D$2:$D$${lastMapRow}, ($C$2:$C$${lastMapRow}=Home!$B$7), "Select Person")))`
-    };
+    // Sort people within each role alphabetically
+    Object.keys(roleToPersonMap).forEach(k => roleToPersonMap[k].sort());
 
-    // Role dropdown (B7) - hardcoded list built from actual data
-    const uniqueRolesSorted = [...new Set(validEntries.map(r => r.role))].sort();
+    const uniqueRolesSorted = Object.keys(roleToPersonMap).sort();
+
+    // ── Write _Config sheet ──────────────────────────────────────────────────
+    // Layout: each role gets its own column starting at col A.
+    // Row 1 = role name (header), Row 2+ = people for that role.
+    // The person dropdown for each role points directly to that column's data range.
+    // This avoids Excel data-validation not supporting dynamic spill references (#).
+
+    // Track which column each role's people list starts in (for dropdown formula)
+    const roleColMap = {}; // roleKey -> { col (1-based), count }
+
+    uniqueRolesSorted.forEach((role, idx) => {
+      const col = idx + 1; // 1-based column index in _Config
+      const people = roleToPersonMap[role];
+      roleColMap[role] = { col, count: people.length };
+
+      // Header row
+      const headerCell = wsConfig.getCell(1, col);
+      headerCell.value = role;
+
+      // People rows starting at row 2
+      people.forEach((name, pi) => {
+        wsConfig.getCell(pi + 2, col).value = name;
+      });
+    });
+
+    // Role dropdown (B7 on Home sheet) — hardcoded list from actual data
     const roleDropListStr = '"' + (uniqueRolesSorted.length > 0 ? uniqueRolesSorted.join(",") : "Leader,Manager,Employee") + '"';
     wsHome.getCell("B7").dataValidation = {
       type: "list",
@@ -1291,19 +1316,53 @@ export const exportOrganizationReportExcel = async (req, res) => {
       error: "Please select a role from the dropdown."
     };
 
-    // Person dropdown (H7) - links to the dynamic person list spilled from B2
-    wsHome.getCell("H7").dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: ["_Config!$B$2#"],
-      showErrorMessage: true,
-      errorTitle: "Invalid Person",
-      error: "Please select a person from the dropdown."
+    // Person dropdown (H7) — uses INDIRECT to pick the right column based on role selection.
+    // INDIRECT("_Config!A2:A"&MATCH(Home!B7,_Config!1:1,0)&ROW(INDIRECT...))
+    // Simpler approach: write an INDIRECT formula that maps role → column letter → range.
+    // We build a static CHOOSE/INDEX formula using the actual column letters so it works
+    // in all Excel versions without relying on spill (#) references.
+    const colLetter = (n) => {
+      let s = "";
+      while (n > 0) {
+        const r = (n - 1) % 26;
+        s = String.fromCharCode(65 + r) + s;
+        n = Math.floor((n - 1) / 26);
+      }
+      return s;
     };
 
-    // Set initial placeholder values (user must select from dropdowns)
+    // Build INDIRECT formula: =INDIRECT("_Config!"&CHOOSE(MATCH(Home!$B$7,{"Role1","Role2",...},0),"A2:A10","B2:B5",...))
+    if (uniqueRolesSorted.length > 0) {
+      const roleListLiteral = '{"' + uniqueRolesSorted.join('","') + '"}';
+      const rangeParts = uniqueRolesSorted.map(role => {
+        const { col, count } = roleColMap[role];
+        const letter = colLetter(col);
+        const endRow = count + 1; // row 2 to row (count+1)
+        return `"_Config!$${letter}$2:$${letter}$${endRow}"`;
+      });
+      const chooseFormula = `INDIRECT(CHOOSE(MATCH(Home!$B$7,${roleListLiteral},0),${rangeParts.join(",")}))`;
+      wsHome.getCell("H7").dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: [chooseFormula],
+        showErrorMessage: true,
+        errorTitle: "Invalid Person",
+        error: "Please select a person from the dropdown."
+      };
+    } else {
+      wsHome.getCell("H7").dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Select Person"'],
+        showErrorMessage: false
+      };
+    }
+
+    // Pre-select first role on Home sheet so person list is visible immediately on open
     roleCell.value = uniqueRolesSorted.length > 0 ? uniqueRolesSorted[0] : "";
-    personCell.value = "Select Person";
+    // Pre-fill person cell with first person of first role
+    const firstRolePeople = uniqueRolesSorted.length > 0 ? roleToPersonMap[uniqueRolesSorted[0]] : [];
+    personCell.value = firstRolePeople.length > 0 ? firstRolePeople[0] : "Select Person";
 
     // ────────────────────────────────────────────────────────────────────────
     // SHEET 3: RAW DATA (Hidden database dump)
