@@ -915,30 +915,13 @@ export const exportOrganizationReportExcel = async (req, res) => {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // 2. Fetch all active questions for the report structure
+    // 2. Question map — built ONLY from actual answered responses.
+    //    The template question bank (orgName: null/empty) is NOT loaded here
+    //    because it contains questions for ALL roles, which causes empty-score
+    //    rows for roles the selected person never answered. The map is built
+    //    below purely from real submitted responses.
     // ════════════════════════════════════════════════════════════════════════
-    const Question = (await import("../models/question.model.js")).default;
-    const allQuestions = await Question.find({
-      isDeleted: { $ne: true },
-      $or: [
-        { orgName: null },
-        { orgName: "" },
-        { orgName: { $exists: false } },
-        { orgName: orgRegex }
-      ]
-    }).lean();
-
     const questionMap = new Map();
-    allQuestions.forEach(q => {
-      questionMap.set(q.questionCode, {
-        domain: q.domain,
-        subdomain: q.subdomain,
-        questionCode: q.questionCode,
-        questionStem: q.questionStem,
-        questionType: q.questionType,
-        scale: q.scale
-      });
-    });
 
     // ════════════════════════════════════════════════════════════════════════
     // 3. Build Participant Map — SubmittedAssessment is the PRIMARY source
@@ -1055,19 +1038,38 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const completedCount = reportsData.filter(r => r.isCompleted).length;
     console.log(`[Excel Export] Final participants: ${reportsData.length} | Completed: ${completedCount} | Roles: [${uniqueRoles.join(", ")}] | Departments: [${uniqueDepts.join(", ")}]`);
 
-    // Collect any additional questions found in responses that might not be in allQuestions
+    // Build questionMap ONLY from real answered responses.
+    // Also track which question codes each person actually answered,
+    // so the Report sheet never shows rows for questions a person never answered.
+    // personQuestionCodes: Map<personName, Set<questionCode>>
+    const personQuestionCodes = new Map();
+
     reportsData.forEach(report => {
       if (report.isCompleted && report.responses) {
         report.responses.forEach(resp => {
-          if (!questionMap.has(resp.questionCode)) {
-            questionMap.set(resp.questionCode, {
-              domain: resp.domain,
-              subdomain: resp.subdomain,
-              questionCode: resp.questionCode,
-              questionStem: resp.questionStem,
-              questionType: resp.questionType,
-              scale: resp.scale
-            });
+          const hasScore =
+            (resp.value !== null && resp.value !== undefined) ||
+            (resp.selectedOption !== null && resp.selectedOption !== undefined && resp.selectedOption !== "");
+          if (hasScore) {
+            // Only add to questionMap if domain/subdomain/questionStem are present
+            // (filters out template/no-org questions that have incomplete metadata)
+            if (resp.domain && resp.subdomain && resp.questionStem) {
+              questionMap.set(resp.questionCode, {
+                domain: resp.domain,
+                subdomain: resp.subdomain,
+                questionCode: resp.questionCode,
+                questionStem: resp.questionStem,
+                questionType: resp.questionType,
+                scale: resp.scale
+              });
+            }
+
+            // Track which codes this person answered
+            const nameKey = report.empName.trim();
+            if (!personQuestionCodes.has(nameKey)) {
+              personQuestionCodes.set(nameKey, new Set());
+            }
+            personQuestionCodes.get(nameKey).add(resp.questionCode);
           }
         });
       }
@@ -1421,8 +1423,13 @@ export const exportOrganizationReportExcel = async (req, res) => {
       { header: "Domain", key: "domain", width: 22 },
       { header: "Subdomain", key: "subdomain", width: 22 },
       { header: "Question Type", key: "questionType", width: 16 },
-      { header: "Max Score", key: "maxScore", width: 10 }
+      { header: "Max Score", key: "maxScore", width: 10 },
+      { header: "SeqNum", key: "seqNum", width: 8 },
+      { header: "PersonSeqKey", key: "personSeqKey", width: 35 }
     ];
+
+    // personSeqMap: tracks per-person sequence numbers for ordered Report rows
+    const personSeqMap = new Map(); // personName -> current seq counter
 
     reportsData.forEach(report => {
       if (report.isCompleted) {
@@ -1430,13 +1437,31 @@ export const exportOrganizationReportExcel = async (req, res) => {
           day: "2-digit", month: "short", year: "numeric"
         });
 
-        report.responses.forEach(resp => {
+        // Sort this person's responses in domain order before writing
+        const domOrder = {
+          "People Potential": 1, "Operational Steadiness": 2,
+          "Leadership Effectiveness": 2, "Digital Fluency": 3, "Execution Excellence": 3,
+        };
+        const sortedResponses = [...report.responses].sort((a, b) => {
+          const dA = domOrder[a.domain] || 99, dB = domOrder[b.domain] || 99;
+          if (dA !== dB) return dA - dB;
+          if (a.domain !== b.domain) return a.domain.localeCompare(b.domain);
+          if (a.subdomain !== b.subdomain) return a.subdomain.localeCompare(b.subdomain);
+          return (a.questionCode || "").localeCompare(b.questionCode || "");
+        });
+
+        let seq = 0;
+        const nameKey = report.empName.trim();
+        sortedResponses.forEach(resp => {
           const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
           const score = isFc ? resp.selectedOption : ((resp.value !== null && resp.value !== undefined) ? Number(resp.value) : "");
           const comment = resp.comment || "";
+          const hasScore = score !== "" && score !== null && score !== undefined;
+          if (!hasScore) return; // skip unanswered questions entirely
 
+          seq++;
           wsRaw.addRow({
-            lookupKey: `${report.empName.trim()}_${resp.questionCode.trim()}`,
+            lookupKey: `${nameKey}_${resp.questionCode.trim()}`,
             personName: report.empName,
             email: report.email,
             role: report.role,
@@ -1449,9 +1474,12 @@ export const exportOrganizationReportExcel = async (req, res) => {
             domain: resp.domain,
             subdomain: resp.subdomain,
             questionType: resp.questionType || "",
-            maxScore: 5
+            maxScore: 5,
+            seqNum: seq,
+            personSeqKey: `${nameKey}_${seq}`
           });
         });
+        personSeqMap.set(nameKey, seq); // total answered questions for this person
       } else {
         // Register user in Raw_Data even with no responses, so dropdowns work!
         wsRaw.addRow({
@@ -1468,9 +1496,38 @@ export const exportOrganizationReportExcel = async (req, res) => {
           domain: "",
           subdomain: "",
           questionType: "",
-          maxScore: ""
+          maxScore: "",
+          seqNum: "",
+          personSeqKey: ""
         });
       }
+    });
+
+    // Calculate max questions any single person answered (for Report sheet row count)
+    const maxQuestionsPerPerson = personSeqMap.size > 0
+      ? Math.max(...Array.from(personSeqMap.values()))
+      : sortedQuestions.length;
+
+    // ────────────────────────────────────────────────────────────────────────
+    // HIDDEN SHEET: _PersonQuestions
+    // Stores one column per person: row 1 = person name, row 2+ = question codes
+    // they actually answered. Used by Report sheet COUNTIFS to skip questions
+    // this person never answered (avoids blank-score rows for other-role questions).
+    // ────────────────────────────────────────────────────────────────────────
+    const wsPQ = workbook.addWorksheet("_PersonQuestions", {
+      views: [{ showGridLines: true }]
+    });
+    wsPQ.state = "hidden";
+
+    // Build one column per person from personQuestionCodes map
+    const pqPersonList = Array.from(personQuestionCodes.keys()).sort();
+    pqPersonList.forEach((personName, colIdx) => {
+      const col = colIdx + 1;
+      const codes = Array.from(personQuestionCodes.get(personName));
+      wsPQ.getCell(1, col).value = personName;
+      codes.forEach((code, rowIdx) => {
+        wsPQ.getCell(rowIdx + 2, col).value = code;
+      });
     });
 
     // ────────────────────────────────────────────────────────────────────────
@@ -1530,7 +1587,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
     };
 
     const mergeCells = (r1, c1, r2, c2) => {
-      if (r2 > r1 || c2 > c1) wsRep.mergeCells(r1, c1, r2, c2);
+      if (r2 > r1) wsRep.mergeCells(r1, c1, r2, c2);
     };
 
     const setHeight = (rowNum, pts) => { wsRep.getRow(rowNum).height = pts; };
@@ -1742,31 +1799,56 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const DATA_START = 12;
     let currentRow = DATA_START;
 
-    sortedQuestions.forEach((q, idx) => {
-      const theme = getDomainTheme(q.domain);
-      const isOdd = idx % 2 !== 0;
+    // ── Placeholder row (row 12) ─────────────────────────────────────────────
+    // Shows a "please select" message when no person is chosen.
+    wsRep.mergeCells(DATA_START, 1, DATA_START, 9);
+    applyCell(wsRep.getCell(DATA_START, 1), {
+      value: { formula: `IF(OR(Home!$H$7="",Home!$H$7="Select Person"),"👆  Go to the Home sheet — select a Role, then choose a Person to view their responses here.","")` },
+      fill: "FFF0F4FF",
+      font: { name: "Segoe UI", size: 11, bold: true, color: { argb: "FF1A3A6B" } },
+      align: { horizontal: "center", vertical: "middle", wrapText: true },
+      border: thinBorder
+    });
+    setHeight(DATA_START, 42);
+    currentRow = DATA_START + 1; // actual data rows start at row 13
+
+    // ── Dynamic rows using PersonSeqKey XLOOKUP ──────────────────────────────
+    // Each row N (1-based) looks up PersonName_N from Raw_Data!P (PersonSeqKey).
+    // XLOOKUP is a regular formula (no CSE/array entry needed) so it works reliably.
+    // Rows beyond the person's actual question count return "" → hideRow triggers.
+    const noPersonSelected = `OR(Home!$H$7="",Home!$H$7="Select Person")`;
+
+    // Lookup by PersonSeqKey = "PersonName_SeqN" from col P → returns target col value
+    const rdXL = (seqN, resultCol) =>
+      `IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_${seqN}",Raw_Data!$P:$P,Raw_Data!${resultCol}:${resultCol},""),"")`;
+
+    for (let seqN = 1; seqN <= maxQuestionsPerPerson; seqN++) {
+      const isOdd = (seqN % 2) !== 0;
+
+      // Hide condition: no person selected OR this row has no data (person answered fewer questions)
+      const hideRow = `OR(${noPersonSelected},${rdXL(seqN, "G")}="")`;
 
       // Col A - Domain
       applyCell(wsRep.getCell(currentRow, 1), {
-        value: q.domain,
-        fill: theme.bg,
-        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: theme.text } },
+        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "K")})` },
+        fill: C.blue1,
+        font: mkFont(C.navy, 9, true),
         align: mkAlign("center", "middle", true),
         border: thinBorder,
       });
 
       // Col B - Subdomain
       applyCell(wsRep.getCell(currentRow, 2), {
-        value: q.subdomain,
-        fill: theme.bg,
-        font: { name: "Segoe UI", size: 9, bold: false, color: { argb: theme.text } },
+        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "L")})` },
+        fill: C.blue1,
+        font: mkFont(C.blue3, 9, false),
         align: mkAlign("center", "middle", true),
         border: thinBorder,
       });
 
       // Col C - Question Code
       applyCell(wsRep.getCell(currentRow, 3), {
-        value: q.questionCode,
+        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "G")})` },
         fill: C.offWhite,
         font: mkFont(C.navy, 9, true),
         align: mkAlign("center", "middle"),
@@ -1775,7 +1857,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
       // Col D - Question Stem
       applyCell(wsRep.getCell(currentRow, 4), {
-        value: q.questionStem || "—",
+        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "J")})` },
         fill: isOdd ? C.altRow : C.white,
         font: mkFont(C.darkText, 9),
         align: mkAlign("left", "middle", true),
@@ -1784,16 +1866,16 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
       // Col E - Question Type
       applyCell(wsRep.getCell(currentRow, 5), {
-        value: q.questionType || "—",
+        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "M")})` },
         fill: C.offWhite,
         font: mkFont(C.mutedText, 8, true),
         align: mkAlign("center", "middle", true),
         border: thinBorder,
       });
 
-      // Col F - Your Score (FORMULA with TRIM to handle whitespace in names)
+      // Col F - Your Score  (LookupKey = PersonName_QuestionCode in col A)
       applyCell(wsRep.getCell(currentRow, 6), {
-        value: { formula: `IFERROR(XLOOKUP(TRIM(Home!$H$7) & "_" & TRIM(C${currentRow}), Raw_Data!$A:$A, Raw_Data!$H:$H, "—"), "—")` },
+        value: { formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN,"G")},Raw_Data!$A:$A,Raw_Data!$H:$H,"—"),"—"))` },
         fill: C.offWhite,
         font: mkFont(C.darkText, 10, true),
         align: mkAlign("center", "middle"),
@@ -1802,71 +1884,35 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
       // Col G - Max Score
       applyCell(wsRep.getCell(currentRow, 7), {
-        value: 5,
+        value: { formula: `IF(${hideRow},"",5)` },
         fill: C.offWhite,
         font: mkFont(C.mutedText, 9),
         align: mkAlign("center", "middle"),
         border: thinBorder,
       });
 
-      // Col H - % Score (FORMULA!)
+      // Col H - % Score
       applyCell(wsRep.getCell(currentRow, 8), {
-        value: { formula: `IF(F${currentRow}="—", "—", IF(OR(F${currentRow}="A", F${currentRow}="B"), 50, IFERROR(F${currentRow}*20, "—")))` },
+        value: { formula: `IF(${hideRow},"",IF(F${currentRow}="—","—",IF(OR(F${currentRow}="A",F${currentRow}="B"),50,IFERROR(F${currentRow}*20,"—"))))` },
         fill: C.offWhite,
         font: mkFont(C.darkText, 9, true),
         align: mkAlign("center", "middle"),
         border: thinBorder,
       });
 
-      // Col I - Comments (FORMULA with TRIM)
+      // Col I - Comments
       applyCell(wsRep.getCell(currentRow, 9), {
-        value: { formula: `IFERROR(XLOOKUP(TRIM(Home!$H$7) & "_" & TRIM(C${currentRow}), Raw_Data!$A:$A, Raw_Data!$I:$I, "—"), "—")` },
+        value: { formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN,"G")},Raw_Data!$A:$A,Raw_Data!$I:$I,"—"),"—"))` },
         fill: isOdd ? C.altRow : C.white,
         font: mkFont(C.mutedText, 8, false),
         align: mkAlign("left", "middle", true),
         border: thinBorder,
       });
 
-      // Height
-      const stemLen = (q.questionStem || "").length;
-      const neededLines = Math.max(Math.ceil(stemLen / 55), 2);
-      setHeight(currentRow, Math.max(36, neededLines * 15));
-
+      setHeight(currentRow, 36);
       currentRow++;
-    });
-
-    // Domain & Subdomain Merges
-    if (sortedQuestions.length > 0) {
-      let lastDom = "", lastSub = "";
-      let domStart = DATA_START, subStart = DATA_START;
-
-      sortedQuestions.forEach((q, i) => {
-        const rowNum = DATA_START + i;
-        const isLastRow = i === sortedQuestions.length - 1;
-
-        if (q.domain !== lastDom) {
-          if (i > 0 && rowNum - 1 > domStart) {
-            mergeCells(domStart, 1, rowNum - 1, 1);
-          }
-          domStart = rowNum;
-          lastDom = q.domain;
-        }
-        if (isLastRow && rowNum > domStart) {
-          mergeCells(domStart, 1, rowNum, 1);
-        }
-
-        if (q.subdomain !== lastSub || q.domain !== lastDom) {
-          if (i > 0 && rowNum - 1 > subStart) {
-            mergeCells(subStart, 2, rowNum - 1, 2);
-          }
-          subStart = rowNum;
-          lastSub = q.subdomain;
-        }
-        if (isLastRow && rowNum > subStart) {
-          mergeCells(subStart, 2, rowNum, 2);
-        }
-      });
     }
+    // No static domain/subdomain merges — domain values are fully formula-driven
 
     // ────────────────────────────────────────────────────────────────────────
     // SHEET 5: ALL DATA (Master Filterable Table — ALL people, ALL responses)
