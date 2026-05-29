@@ -1941,19 +1941,21 @@ export const exportOrganizationReportExcel = async (req, res) => {
       // rely on the font color (navy bold) matching the individual report style.
 
       // Col A - Domain
+      // Base fill is offWhite; conditional formatting will override with the correct domain colour
       applyCell(wsRep.getCell(currentRow, 1), {
         value: { formula: `IF(${hideRow},"",${rdXL(seqN, "K")})` },
-        fill: C.blue1,
-        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.blue3 } },
+        fill: C.offWhite,
+        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.navy } },
         align: mkAlign("center", "middle", true),
         border: thinBorder,
       });
 
       // Col B - Subdomain
+      // Base fill is offWhite; conditional formatting will override with the correct domain colour
       applyCell(wsRep.getCell(currentRow, 2), {
         value: { formula: `IF(${hideRow},"",${rdXL(seqN, "L")})` },
-        fill: C.blue1,
-        font: { name: "Segoe UI", size: 9, bold: false, color: { argb: C.blue3 } },
+        fill: C.offWhite,
+        font: { name: "Segoe UI", size: 9, bold: false, color: { argb: C.navy } },
         align: mkAlign("center", "middle", true),
         border: thinBorder,
       });
@@ -2070,36 +2072,119 @@ export const exportOrganizationReportExcel = async (req, res) => {
       currentRow++;
     }
 
-    // ── Visual domain/subdomain grouping via conditional formatting ───────────
-    // Since cells contain XLOOKUP formulas, true merging is impossible.
-    // Instead: when a cell's value equals the cell above it, hide the text
-    // by setting font colour = background colour — giving the merged look.
-    // Applied as a single range rule covering all data rows at once.
+    // ── Domain & Subdomain: colour theming + hide-repeat via conditional formatting ─
+    // True cell merging is impossible with XLOOKUP formula cells.
+    // Strategy:
+    //   1. Apply domain-specific background + font colours per domain keyword.
+    //   2. Hide repeated values by matching font colour to background colour.
     const lastDataRow = currentRow - 1;
-    if (lastDataRow >= DATA_START + 1) {
-      const domRange  = `A${DATA_START + 1}:A${lastDataRow}`;
-      const subRange  = `B${DATA_START + 1}:B${lastDataRow}`;
+    const fullRange = `A${DATA_START}:B${lastDataRow}`;
 
-      // Domain column — hide repeated value (font = bg colour)
+    // ── 1. Domain-specific colour themes (applied first, lowest priority) ──────
+    // Blue theme: People Potential
+    wsRep.addConditionalFormatting({
+      ref: fullRange,
+      rules: [{
+        type: "expression",
+        formulae: [`ISNUMBER(SEARCH("People",$A${DATA_START}))`],
+        style: {
+          fill: { type: "pattern", pattern: "solid", bgColor: { argb: C.blue1 }, fgColor: { argb: C.blue1 } },
+          font: { name: "Segoe UI", bold: true, size: 9, color: { argb: C.blue3 } }
+        }
+      }]
+    });
+    // Green theme: Operational / Leadership / Steadiness / Effectiveness
+    wsRep.addConditionalFormatting({
+      ref: fullRange,
+      rules: [{
+        type: "expression",
+        formulae: [`OR(ISNUMBER(SEARCH("Operation",$A${DATA_START})),ISNUMBER(SEARCH("Leader",$A${DATA_START})),ISNUMBER(SEARCH("Steady",$A${DATA_START})),ISNUMBER(SEARCH("Effect",$A${DATA_START})))`],
+        style: {
+          fill: { type: "pattern", pattern: "solid", bgColor: { argb: C.green1 }, fgColor: { argb: C.green1 } },
+          font: { name: "Segoe UI", bold: true, size: 9, color: { argb: C.green3 } }
+        }
+      }]
+    });
+    // Purple theme: anything else (Digital Fluency, Execution Excellence, etc.)
+    wsRep.addConditionalFormatting({
+      ref: fullRange,
+      rules: [{
+        type: "expression",
+        formulae: [`AND(NOT(ISNUMBER(SEARCH("People",$A${DATA_START}))),NOT(ISNUMBER(SEARCH("Operation",$A${DATA_START}))),NOT(ISNUMBER(SEARCH("Leader",$A${DATA_START}))))`],
+        style: {
+          fill: { type: "pattern", pattern: "solid", bgColor: { argb: C.purple1 }, fgColor: { argb: C.purple1 } },
+          font: { name: "Segoe UI", bold: true, size: 9, color: { argb: C.purple3 } }
+        }
+      }]
+    });
+
+    if (lastDataRow >= DATA_START + 1) {
+      // ── 2. Hide duplicate Domain values: font = bg when same as row above ──────
+      // Blue domain repeated rows
       wsRep.addConditionalFormatting({
-        ref: domRange,
+        ref: `A${DATA_START + 1}:A${lastDataRow}`,
         rules: [{
           type: "expression",
-          formulae: [`A${DATA_START + 1}=A${DATA_START}`],
+          formulae: [`AND(A${DATA_START + 1}=A${DATA_START},A${DATA_START + 1}<>"")`],
           style: {
-            font: { color: { argb: C.blue1 } }   // same as domain bg → invisible
+            font: { color: { argb: C.blue1 } }
+          }
+        }]
+      });
+      // Green domain repeated rows
+      wsRep.addConditionalFormatting({
+        ref: `A${DATA_START + 1}:A${lastDataRow}`,
+        rules: [{
+          type: "expression",
+          formulae: [`AND(A${DATA_START + 1}=A${DATA_START},A${DATA_START + 1}<>"",OR(ISNUMBER(SEARCH("Operation",A${DATA_START + 1})),ISNUMBER(SEARCH("Leader",A${DATA_START + 1}))))`],
+          style: {
+            font: { color: { argb: C.green1 } }
+          }
+        }]
+      });
+      // Purple domain repeated rows
+      wsRep.addConditionalFormatting({
+        ref: `A${DATA_START + 1}:A${lastDataRow}`,
+        rules: [{
+          type: "expression",
+          formulae: [`AND(A${DATA_START + 1}=A${DATA_START},A${DATA_START + 1}<>"",NOT(ISNUMBER(SEARCH("People",A${DATA_START + 1}))),NOT(ISNUMBER(SEARCH("Operation",A${DATA_START + 1}))),NOT(ISNUMBER(SEARCH("Leader",A${DATA_START + 1}))))`],
+          style: {
+            font: { color: { argb: C.purple1 } }
           }
         }]
       });
 
-      // Subdomain column — hide when same subdomain AND same domain as row above
+      // ── 3. Hide duplicate Subdomain values: font = bg when same subdomain + same domain ──
+      // Blue subdomain repeated rows
       wsRep.addConditionalFormatting({
-        ref: subRange,
+        ref: `B${DATA_START + 1}:B${lastDataRow}`,
         rules: [{
           type: "expression",
-          formulae: [`AND(B${DATA_START + 1}=B${DATA_START},A${DATA_START + 1}=A${DATA_START})`],
+          formulae: [`AND(B${DATA_START + 1}=B${DATA_START},A${DATA_START + 1}=A${DATA_START},B${DATA_START + 1}<>"")`],
           style: {
-            font: { color: { argb: C.blue1 } }   // same as subdomain bg → invisible
+            font: { color: { argb: C.blue1 } }
+          }
+        }]
+      });
+      // Green subdomain repeated rows
+      wsRep.addConditionalFormatting({
+        ref: `B${DATA_START + 1}:B${lastDataRow}`,
+        rules: [{
+          type: "expression",
+          formulae: [`AND(B${DATA_START + 1}=B${DATA_START},A${DATA_START + 1}=A${DATA_START},B${DATA_START + 1}<>"",OR(ISNUMBER(SEARCH("Operation",A${DATA_START + 1})),ISNUMBER(SEARCH("Leader",A${DATA_START + 1}))))`],
+          style: {
+            font: { color: { argb: C.green1 } }
+          }
+        }]
+      });
+      // Purple subdomain repeated rows
+      wsRep.addConditionalFormatting({
+        ref: `B${DATA_START + 1}:B${lastDataRow}`,
+        rules: [{
+          type: "expression",
+          formulae: [`AND(B${DATA_START + 1}=B${DATA_START},A${DATA_START + 1}=A${DATA_START},B${DATA_START + 1}<>"",NOT(ISNUMBER(SEARCH("People",A${DATA_START + 1}))),NOT(ISNUMBER(SEARCH("Operation",A${DATA_START + 1}))),NOT(ISNUMBER(SEARCH("Leader",A${DATA_START + 1}))))`],
+          style: {
+            font: { color: { argb: C.purple1 } }
           }
         }]
       });
