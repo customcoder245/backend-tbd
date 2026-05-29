@@ -1595,7 +1595,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const thinBorder = mkBorder();
     const medBorder = mkBorder("FFAAB8CC", "medium");
 
-    // Title banner
+    // ── Title banner (rows 1-3, cols 1-5) — matches Individual Report exactly ──
     mergeCells(1, 1, 3, 5);
     applyCell(wsRep.getCell(1, 1), {
       value: "DYNAMIC RESPONSE REPORT",
@@ -1603,62 +1603,56 @@ export const exportOrganizationReportExcel = async (req, res) => {
       font: { name: "Segoe UI", size: 20, bold: true, color: { argb: C.white } },
       align: { horizontal: "left", vertical: "middle", indent: 1 },
       border: {
-        top: { style: "medium", color: { argb: "FFD4AF37" } },
-        left: { style: "medium", color: { argb: "FFD4AF37" } },
+        top:    { style: "medium", color: { argb: "FFD4AF37" } },
+        left:   { style: "medium", color: { argb: "FFD4AF37" } },
         bottom: { style: "medium", color: { argb: "FFD4AF37" } },
-        right: { style: "medium", color: { argb: "FFD4AF37" } },
+        right:  { style: "medium", color: { argb: "FFD4AF37" } },
       }
     });
 
+    // Premium golden top line across cols 1-5
     for (let c = 1; c <= 5; c++) {
       applyCell(wsRep.getCell(1, c), {
         border: { top: { style: "thick", color: { argb: "FFD4AF37" } } }
       });
     }
 
-    mergeCells(4, 1, 4, 3);
+    // Subtitle strip — full width cols 1-5 (same as Individual Report)
+    mergeCells(4, 1, 4, 5);
     applyCell(wsRep.getCell(4, 1), {
-      value: "Dynamic, interactive response analysis driven by Home sheet selection",
+      value: "Detailed response analysis by domain, sub-domain and question performance",
       fill: C.navyLight,
       font: { name: "Segoe UI", size: 9, bold: false, color: { argb: C.white } },
       align: { horizontal: "left", vertical: "middle", indent: 1 },
       border: thinBorder
     });
 
-    // Back to Selection button
-    mergeCells(4, 4, 4, 5);
-    applyCell(wsRep.getCell(4, 4), {
-      value: { text: "← BACK TO SELECTION", hyperlink: "#'Home'!A1" },
-      fill: "FFE8F0FE",
-      font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF0F2547" } },
-      align: { horizontal: "center", vertical: "middle" },
-      border: thinBorder
-    });
-
-    // Metadata panel background
+    // ── Right metadata panel (rows 1-4, cols 6-9) — same as Individual Report ──
     for (let r = 1; r <= 4; r++) {
       for (let c = 6; c <= 9; c++) {
         applyCell(wsRep.getCell(r, c), {
           fill: "FFF8FAFC",
           border: {
-            top: { style: "thin", color: { argb: "FFE2E8F0" } },
-            left: { style: "thin", color: { argb: "FFE2E8F0" } },
+            top:    { style: "thin", color: { argb: "FFE2E8F0" } },
+            left:   { style: "thin", color: { argb: "FFE2E8F0" } },
             bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
-            right: { style: "thin", color: { argb: "FFE2E8F0" } },
+            right:  { style: "thin", color: { argb: "FFE2E8F0" } },
           }
         });
       }
     }
 
     const metaRows = [
-      ["NAME", { formula: "Home!$H$7" }],
-      ["DEPARTMENT", { formula: "XLOOKUP(Home!$H$7, Raw_Data!B:B, Raw_Data!E:E, \"N/A\")" }],
-      ["ROLE", { formula: "XLOOKUP(Home!$H$7, Raw_Data!B:B, Raw_Data!D:D, \"N/A\")" }],
-      ["COMPLETED", { formula: "TEXT(XLOOKUP(Home!$H$7, Raw_Data!B:B, Raw_Data!F:F, \"\"), \"DD-MMM-YYYY\")" }],
+      ["NAME",       { formula: "Home!$H$7" }],
+      ["DEPARTMENT", { formula: 'IFERROR(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$E:$E),"N/A")' }],
+      ["ROLE",       { formula: 'IFERROR(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$D:$D),"N/A")' }],
+      ["COMPLETED",  { formula: 'IFERROR(TEXT(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$F:$F),"DD-MMM-YYYY"),"—")' }],
     ];
 
     metaRows.forEach(([label, val], i) => {
       const row = i + 1;
+
+      // Label cell (cols 6-7)
       mergeCells(row, 6, row, 7);
       applyCell(wsRep.getCell(row, 6), {
         value: label,
@@ -1668,6 +1662,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
         border: thinBorder
       });
 
+      // Value cell (cols 8-9)
       mergeCells(row, 8, row, 9);
       applyCell(wsRep.getCell(row, 8), {
         value: val,
@@ -1684,10 +1679,10 @@ export const exportOrganizationReportExcel = async (req, res) => {
     setHeight(4, 18);
     setHeight(5, 8); // Spacer row
 
-    // Assessment Summary Header
+    // Assessment Summary Header — matches Individual Report label
     mergeCells(6, 1, 6, 9);
     applyCell(wsRep.getCell(6, 1), {
-      value: "DYNAMIC ASSESSMENT SUMMARY",
+      value: "ASSESSMENT SUMMARY",
       fill: C.navy,
       font: mkFont(C.white, 9, true),
       align: mkAlign("center", "middle"),
