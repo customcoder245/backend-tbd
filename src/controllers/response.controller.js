@@ -1400,12 +1400,44 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const noPersonSelected = `OR(Home!$H$7="",Home!$H$7="Select Person")`;
     const rdXL = (seqN, resultCol) => `IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_${seqN}",Raw_Data!$P:$P,Raw_Data!${resultCol}:${resultCol},""),"")`;
 
+    // ── Domain/Subdomain theme map ──────────────────────────────────────────
+    // KEY INSIGHT: seqN is per-person (person's 1st question = seqN 1, regardless of domain).
+    // We CANNOT pre-compute which domain belongs to which seqN statically.
+    // Solution: write the XLOOKUP formula in EVERY row for both domain and subdomain,
+    // then use conditional formatting to color rows by domain AND to visually blank out
+    // duplicates (same technique as image — text color = bg color for repeat rows).
+    // This is the only approach that works correctly for any selected person.
+    const domainThemesList = [
+      { domain: "Mindset & Adaptability",             bg: "FFE8F0FE", text: "FF1E3A8A" },
+      { domain: "Psychological Health & Safety",      bg: "FFE6F9EE", text: "FF065F46" },
+      { domain: "People Potential",                   bg: "FFF5F0FF", text: "FF4C1D95" },
+      { domain: "Relational & Emotional Intelligence",bg: "FFFEF3C7", text: "FFB45309" }
+    ];
+
     for (let seqN = 1; seqN <= maxQuestionsPerPerson; seqN++) {
       const isOdd = (seqN % 2) !== 0;
       const hideRow = `OR(${noPersonSelected},${rdXL(seqN, "G")}="")`;
 
-      applyCell(wsRep.getCell(currentRow, 1), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "K")})` }, fill: C.offWhite, font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.darkText } }, align: mkAlign("center", "middle", true), border: thinBorder });
-      applyCell(wsRep.getCell(currentRow, 2), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "L")})` }, fill: C.offWhite, font: { name: "Segoe UI", size: 9, bold: false, color: { argb: C.darkText } }, align: mkAlign("center", "middle", true), border: thinBorder });
+      // Col A: Domain — formula in every row; CF will color + hide duplicates
+      {
+        const cell = wsRep.getCell(currentRow, 1);
+        cell.value = { formula: `IF(${hideRow},"",${rdXL(seqN, "K")})` };
+        cell.fill = mkFill(C.offWhite);
+        cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: C.darkText } };
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        cell.border = thinBorder;
+      }
+
+      // Col B: Sub-Domain — formula in every row; CF will color + hide duplicates
+      {
+        const cell = wsRep.getCell(currentRow, 2);
+        cell.value = { formula: `IF(${hideRow},"",${rdXL(seqN, "L")})` };
+        cell.fill = mkFill(C.offWhite);
+        cell.font = { name: "Segoe UI", size: 9, bold: false, color: { argb: C.darkText } };
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        cell.border = thinBorder;
+      }
+
       applyCell(wsRep.getCell(currentRow, 3), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "G")})` }, fill: C.offWhite, font: mkFont(C.navy, 9, true), align: mkAlign("center", "middle"), border: thinBorder });
       applyCell(wsRep.getCell(currentRow, 4), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "J")})` }, fill: isOdd ? C.altRow : C.white, font: mkFont(C.darkText, 9), align: mkAlign("left", "middle", true), border: thinBorder });
       applyCell(wsRep.getCell(currentRow, 5), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "M")})` }, fill: C.offWhite, font: mkFont(C.mutedText, 8, true), align: mkAlign("center", "middle", true), border: thinBorder });
@@ -1425,39 +1457,58 @@ export const exportOrganizationReportExcel = async (req, res) => {
       currentRow++;
     }
 
-    // Domain & Subdomain theming and hide-repeat
+    // ── Conditional formatting for Domain & SubDomain columns ────────────────
+    // Applied once over the whole data range — works for ANY selected person.
+    // Priority order (Excel applies highest-priority first):
+    //   1. Color by domain (bg + text)
+    //   2. Hide duplicate domain in col A (text = bg so invisible)
+    //   3. Hide duplicate subdomain in col B (text = bg so invisible)
     const lastDataRow = currentRow - 1;
     if (lastDataRow >= DATA_START) {
-      const domainRange = `A${DATA_START}:A${lastDataRow}`;
-      const subdomainRange = `B${DATA_START}:B${lastDataRow}`;
-      const domainThemes = {
-        "Mindset & Adaptability": { bg: "FFE8F0FE", text: "FF1E3A8A" },
-        "Psychological Health & Safety": { bg: "FFE6F9EE", text: "FF065F46" },
-        "People Potential": { bg: "FFF5F0FF", text: "FF4C1D95" },
-        "Relational & Emotional Intelligence": { bg: "FFFEF3C7", text: "FFB45309" }
-      };
-      for (const [domain, theme] of Object.entries(domainThemes)) {
+      const domA = `A${DATA_START}:A${lastDataRow}`;
+      const domB = `B${DATA_START}:B${lastDataRow}`;
+      const hideA = `A${DATA_START + 1}:A${lastDataRow}`;
+      const hideB = `B${DATA_START + 1}:B${lastDataRow}`;
+
+      // Step 1 — background + text color per domain (cols A and B)
+      for (const { domain, bg, text } of domainThemesList) {
+        // Col A: color when this row's domain matches
         wsRep.addConditionalFormatting({
-          ref: domainRange,
-          rules: [{ type: "expression", formulae: [`=INDIRECT("A"&ROW())="${domain}"`], style: { fill: mkFill(theme.bg), font: { name: "Segoe UI", bold: true, size: 9, color: { argb: theme.text } } } }]
+          ref: domA,
+          rules: [{ type: "expression", formulae: [`A${DATA_START}="${domain}"`],
+            style: { fill: { type: "pattern", pattern: "solid", bgColor: { argb: bg }, fgColor: { argb: bg } },
+                     font: { name: "Segoe UI", bold: true, size: 9, color: { argb: text } } } }]
         });
+        // Col B: color when this row's domain (col A) matches
         wsRep.addConditionalFormatting({
-          ref: subdomainRange,
-          rules: [{ type: "expression", formulae: [`=INDIRECT("A"&ROW())="${domain}"`], style: { fill: mkFill(theme.bg), font: { name: "Segoe UI", bold: false, size: 9, color: { argb: theme.text } } } }]
-        });
-      }
-      // Hide duplicate Domain
-      for (const [domain, theme] of Object.entries(domainThemes)) {
-        wsRep.addConditionalFormatting({
-          ref: `A${DATA_START + 1}:A${lastDataRow}`,
-          rules: [{ type: "expression", formulae: [`=AND(INDIRECT("A"&ROW())=INDIRECT("A"&ROW()-1), INDIRECT("A"&ROW())="${domain}")`], style: { font: { color: { argb: theme.bg } } } }]
+          ref: domB,
+          rules: [{ type: "expression", formulae: [`A${DATA_START}="${domain}"`],
+            style: { fill: { type: "pattern", pattern: "solid", bgColor: { argb: bg }, fgColor: { argb: bg } },
+                     font: { name: "Segoe UI", bold: false, size: 9, color: { argb: text } } } }]
         });
       }
-      // Hide duplicate Subdomain
-      for (const [domain, theme] of Object.entries(domainThemes)) {
+
+      // Step 2 — hide duplicate Domain in col A: make text same color as background
+      // Formula anchored to top of hideA range (row DATA_START+1).
+      // "current row = domain AND row above = same domain" → text invisible
+      for (const { domain, bg } of domainThemesList) {
         wsRep.addConditionalFormatting({
-          ref: `B${DATA_START + 1}:B${lastDataRow}`,
-          rules: [{ type: "expression", formulae: [`=AND(INDIRECT("B"&ROW())=INDIRECT("B"&ROW()-1), INDIRECT("A"&ROW())=INDIRECT("A"&ROW()-1), INDIRECT("A"&ROW())="${domain}")`], style: { font: { color: { argb: theme.bg } } } }]
+          ref: hideA,
+          rules: [{ type: "expression",
+            formulae: [`AND(A${DATA_START + 1}="${domain}",A${DATA_START}="${domain}")`],
+            style: { font: { name: "Segoe UI", bold: true, size: 9, color: { argb: bg } },
+                     fill: { type: "pattern", pattern: "solid", bgColor: { argb: bg }, fgColor: { argb: bg } } } }]
+        });
+      }
+
+      // Step 3 — hide duplicate SubDomain in col B: make text same color as background
+      for (const { domain, bg } of domainThemesList) {
+        wsRep.addConditionalFormatting({
+          ref: hideB,
+          rules: [{ type: "expression",
+            formulae: [`AND(B${DATA_START + 1}=B${DATA_START},A${DATA_START + 1}="${domain}",A${DATA_START}="${domain}")`],
+            style: { font: { name: "Segoe UI", bold: false, size: 9, color: { argb: bg } },
+                     fill: { type: "pattern", pattern: "solid", bgColor: { argb: bg }, fgColor: { argb: bg } } } }]
         });
       }
     }
