@@ -1140,8 +1140,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
     // Height setups
     wsHome.getRow(5).height = 28;
     wsHome.getRow(7).height = 28;
-    wsHome.getRow(16).height = 20;
-    wsHome.getRow(17).height = 20;
 
     const applyCardHeader = (cell, text, bg) => {
       cell.value = text;
@@ -1167,9 +1165,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
       right: { style: "thin", color: { argb: "FFAAB8CC" } }
     };
 
-    // Card 1 Info
-    wsHome.mergeCells("B10:F14");
-    const roleDescCell = wsHome.getCell("B10");
+    // Card 1 Info — moved to row 9 (directly under warning row 8)
+    wsHome.mergeCells("B9:F14");
+    const roleDescCell = wsHome.getCell("B9");
     roleDescCell.value = "✔ Roles are the top level of hierarchy.\n\n✔ Selecting a role filters available people in card 2 dynamically.";
     roleDescCell.font = { name: "Segoe UI", size: 9.5, italic: true, color: { argb: "FF4C1D95" } };
     roleDescCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
@@ -1198,9 +1196,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
       right: { style: "thin", color: { argb: "FFAAB8CC" } }
     };
 
-    // Card 2 Info
-    wsHome.mergeCells("H10:L14");
-    const personDescCell = wsHome.getCell("H10");
+    // Card 2 Info — also row 9, aligned with left card
+    wsHome.mergeCells("H9:L14");
+    const personDescCell = wsHome.getCell("H9");
     personDescCell.value = "✔ People lists are fully dependent on the selected role.\n\n✔ Choose a person and click below to view details!";
     personDescCell.font = { name: "Segoe UI", size: 9.5, italic: true, color: { argb: "FF7C2D12" } };
     personDescCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
@@ -1212,47 +1210,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
       right: { style: "thin", color: { argb: "FFD0D8E4" } }
     };
 
-    // Go to Report Button (H16:L17)
-    wsHome.mergeCells("H16:L17");
-    const btnCell = wsHome.getCell("H16");
-    btnCell.value = { text: "VIEW DYNAMIC REPORT →", hyperlink: "#'Report'!A1" };
-    btnCell.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
-    btnCell.alignment = { horizontal: "center", vertical: "middle" };
-    btnCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F2547" } };
-    btnCell.border = {
-      top: { style: "medium", color: { argb: "FFD4AF37" } },
-      bottom: { style: "medium", color: { argb: "FFD4AF37" } },
-      left: { style: "medium", color: { argb: "FFD4AF37" } },
-      right: { style: "medium", color: { argb: "FFD4AF37" } }
-    };
 
-    // All Data Button (H18:L19)
-    wsHome.mergeCells("H18:L19");
-    const allDataBtn = wsHome.getCell("H18");
-    allDataBtn.value = { text: "VIEW ALL DATA →", hyperlink: "#'All Data'!A1" };
-    allDataBtn.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
-    allDataBtn.alignment = { horizontal: "center", vertical: "middle" };
-    allDataBtn.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F2547" } };
-    allDataBtn.border = {
-      top: { style: "medium", color: { argb: "FFD4AF37" } },
-      bottom: { style: "medium", color: { argb: "FFD4AF37" } },
-      left: { style: "medium", color: { argb: "FFD4AF37" } },
-      right: { style: "medium", color: { argb: "FFD4AF37" } }
-    };
-
-    // Summary Button (H20:L21)
-    wsHome.mergeCells("H20:L21");
-    const summaryBtn = wsHome.getCell("H20");
-    summaryBtn.value = { text: "VIEW SUMMARY →", hyperlink: "#'Summary'!A1" };
-    summaryBtn.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
-    summaryBtn.alignment = { horizontal: "center", vertical: "middle" };
-    summaryBtn.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0E9F6E" } };
-    summaryBtn.border = {
-      top: { style: "medium", color: { argb: "FFD4AF37" } },
-      bottom: { style: "medium", color: { argb: "FFD4AF37" } },
-      left: { style: "medium", color: { argb: "FFD4AF37" } },
-      right: { style: "medium", color: { argb: "FFD4AF37" } }
-    };
 
     // ────────────────────────────────────────────────────────────────────────
     // HIDDEN CONFIG SHEET (powers cascading dropdowns via formulas)
@@ -1283,9 +1241,10 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
     // ── Write _Config sheet ──────────────────────────────────────────────────
     // Layout: each role gets its own column starting at col A.
-    // Row 1 = role name (header), Row 2+ = people for that role.
-    // The person dropdown for each role points directly to that column's data range.
-    // This avoids Excel data-validation not supporting dynamic spill references (#).
+    // Row 1 = role name (header), Row 2 = always "Select Person" (placeholder),
+    // Row 3+ = real names for that role, sorted alphabetically.
+    // This ensures that whenever the user changes the role dropdown on the Home sheet,
+    // "Select Person" is always the FIRST visible option in the person dropdown.
 
     // Track which column each role's people list starts in (for dropdown formula)
     const roleColMap = {}; // roleKey -> { col (1-based), count }
@@ -1293,14 +1252,18 @@ export const exportOrganizationReportExcel = async (req, res) => {
     uniqueRolesSorted.forEach((role, idx) => {
       const col = idx + 1; // 1-based column index in _Config
       const people = roleToPersonMap[role];
-      roleColMap[role] = { col, count: people.length };
+      // "Select Person" is ALWAYS row 2 (the first selectable item) for every role column.
+      // Real names follow from row 3 onwards, sorted alphabetically.
+      // This guarantees that after a role change the person cell shows "Select Person" at top.
+      const allPeople = ["Select Person", ...people];
+      roleColMap[role] = { col, count: allPeople.length };
 
-      // Header row
+      // Row 1 = role name header
       const headerCell = wsConfig.getCell(1, col);
       headerCell.value = role;
 
-      // People rows starting at row 2
-      people.forEach((name, pi) => {
+      // Row 2 = "Select Person" (index 0), Row 3+ = real names
+      allPeople.forEach((name, pi) => {
         wsConfig.getCell(pi + 2, col).value = name;
       });
     });
@@ -1344,7 +1307,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
       wsHome.getCell("H7").dataValidation = {
         type: "list",
         allowBlank: true,
-        formulae: [chooseFormula],
+        formulae: [`=${chooseFormula}`],
         showErrorMessage: true,
         errorTitle: "Invalid Person",
         error: "Please select a person from the dropdown."
@@ -1358,11 +1321,83 @@ export const exportOrganizationReportExcel = async (req, res) => {
       };
     }
 
-    // Pre-select first role on Home sheet so person list is visible immediately on open
+    // Pre-select first role on Home sheet so person dropdown is ready immediately on open
     roleCell.value = uniqueRolesSorted.length > 0 ? uniqueRolesSorted[0] : "";
-    // Pre-fill person cell with first person of first role
-    const firstRolePeople = uniqueRolesSorted.length > 0 ? roleToPersonMap[uniqueRolesSorted[0]] : [];
-    personCell.value = firstRolePeople.length > 0 ? firstRolePeople[0] : "Select Person";
+    // Show "Select Person" as placeholder on first open
+    personCell.value = "Select Person";
+
+    // ────────────────────────────────────────────────────────────────────────
+    // WARNING ROW H8: hidden by default (white background, no text).
+    // The formula evaluates to "" when H7 is empty or "Select Person",
+    // and also evaluates to "" when H7 is a valid person for the current role.
+    // It ONLY shows the red warning text when a person from a DIFFERENT role
+    // is still sitting in H7 after the role was changed.
+    // Background and border are WHITE by default so the row is invisible —
+    // the conditional format turns it red only when warning text is present.
+    // ────────────────────────────────────────────────────────────────────────
+    wsHome.mergeCells("H8:L8");
+    wsHome.getRow(8).height = 22;
+    const warnCell = wsHome.getCell("H8");
+
+    // Also fill B8:F8 white so left card side matches
+    wsHome.mergeCells("B8:F8");
+    const leftSpacer8 = wsHome.getCell("B8");
+    leftSpacer8.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
+    leftSpacer8.border = {
+      top:    { style: "thin", color: { argb: "FFFFFFFF" } },
+      bottom: { style: "thin", color: { argb: "FFFFFFFF" } },
+      left:   { style: "thin", color: { argb: "FFFFFFFF" } },
+      right:  { style: "thin", color: { argb: "FFFFFFFF" } }
+    };
+
+    if (uniqueRolesSorted.length > 0) {
+      const roleListLiteralWarn = '{"' + uniqueRolesSorted.join('","') + '"}';
+      const warnRangeParts = uniqueRolesSorted.map(role => {
+        const { col, count } = roleColMap[role];
+        const letter = colLetter(col);
+        // rows 3+ are real names (row 2 = "Select Person" placeholder)
+        return `"_Config!$${letter}$3:$${letter}$${count + 1}"`;
+      });
+      const warnIndirect = `INDIRECT(CHOOSE(IFERROR(MATCH(Home!$B$7,${roleListLiteralWarn},0),1),${warnRangeParts.join(",")}))`;
+      // Formula returns "" (invisible) when: H7 is blank, or "Select Person", or valid for current role.
+      // Returns warning text ONLY when H7 holds a name not in the current role's list.
+      warnCell.value = {
+        formula: `IF(OR(H7="",H7="Select Person"),"",IF(COUNTIF(${warnIndirect},H7)=0,"⚠  Role changed — please re-select person from the dropdown above",""))`
+      };
+    } else {
+      warnCell.value = "";
+    }
+
+    // Default styling: invisible (white bg, white border, red text so it shows when formula fires)
+    warnCell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFDC2626" } };
+    warnCell.alignment = { horizontal: "center", vertical: "middle" };
+    warnCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
+    warnCell.border = {
+      top:    { style: "thin", color: { argb: "FFFFFFFF" } },
+      bottom: { style: "thin", color: { argb: "FFFFFFFF" } },
+      left:   { style: "thin", color: { argb: "FFFFFFFF" } },
+      right:  { style: "thin", color: { argb: "FFFFFFFF" } }
+    };
+
+    // Conditional format: when H8 is not empty, apply red background + bold red border
+    wsHome.addConditionalFormatting({
+      ref: "H8:L8",
+      rules: [
+        {
+          type: "expression",
+          formulae: ['H8<>""'],
+          style: {
+            fill: {
+              type: "pattern",
+              pattern: "solid",
+              bgColor: { argb: "FFFEE2E2" },
+              fgColor: { argb: "FFFEE2E2" }
+            },
+            font: { name: "Segoe UI", bold: true, size: 10, color: { argb: "FFDC2626" } }
+          }
+        }
+      ]
+    });
 
     // ────────────────────────────────────────────────────────────────────────
     // SHEET 3: RAW DATA (Hidden database dump)
@@ -1401,7 +1436,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
           const comment = resp.comment || "";
 
           wsRaw.addRow({
-            lookupKey: `${report.empName}_${resp.questionCode}`,
+            lookupKey: `${report.empName.trim()}_${resp.questionCode.trim()}`,
             personName: report.empName,
             email: report.email,
             role: report.role,
@@ -1756,9 +1791,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
         border: thinBorder,
       });
 
-      // Col F - Your Score (FORMULA!)
+      // Col F - Your Score (FORMULA with TRIM to handle whitespace in names)
       applyCell(wsRep.getCell(currentRow, 6), {
-        value: { formula: `XLOOKUP(Home!$H$7 & "_" & C${currentRow}, Raw_Data!$A$2:$A$10000, Raw_Data!$H$2:$H$10000, "—")` },
+        value: { formula: `IFERROR(XLOOKUP(TRIM(Home!$H$7) & "_" & TRIM(C${currentRow}), Raw_Data!$A:$A, Raw_Data!$H:$H, "—"), "—")` },
         fill: C.offWhite,
         font: mkFont(C.darkText, 10, true),
         align: mkAlign("center", "middle"),
@@ -1776,16 +1811,16 @@ export const exportOrganizationReportExcel = async (req, res) => {
 
       // Col H - % Score (FORMULA!)
       applyCell(wsRep.getCell(currentRow, 8), {
-        value: { formula: `IF(F${currentRow}="—", "—", IF(OR(F${currentRow}="A", F${currentRow}="B"), 50, F${currentRow}*20))` },
+        value: { formula: `IF(F${currentRow}="—", "—", IF(OR(F${currentRow}="A", F${currentRow}="B"), 50, IFERROR(F${currentRow}*20, "—")))` },
         fill: C.offWhite,
         font: mkFont(C.darkText, 9, true),
         align: mkAlign("center", "middle"),
         border: thinBorder,
       });
 
-      // Col I - Comments (FORMULA!)
+      // Col I - Comments (FORMULA with TRIM)
       applyCell(wsRep.getCell(currentRow, 9), {
-        value: { formula: `XLOOKUP(Home!$H$7 & "_" & C${currentRow}, Raw_Data!$A$2:$A$10000, Raw_Data!$I$2:$I$10000, "—")` },
+        value: { formula: `IFERROR(XLOOKUP(TRIM(Home!$H$7) & "_" & TRIM(C${currentRow}), Raw_Data!$A:$A, Raw_Data!$I:$I, "—"), "—")` },
         fill: isOdd ? C.altRow : C.white,
         font: mkFont(C.mutedText, 8, false),
         align: mkAlign("left", "middle", true),
