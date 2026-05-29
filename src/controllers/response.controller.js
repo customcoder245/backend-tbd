@@ -1129,6 +1129,12 @@ export const exportOrganizationReportExcel = async (req, res) => {
     personDescCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF2F8" } };
 
     // Config sheet for dropdowns
+    // ── EXCEL-COMPATIBLE NAMED RANGE APPROACH ────────────────────────────────
+    // Excel does NOT support INDIRECT/CHOOSE/MATCH inside dataValidation formulae.
+    // The fix: write each role's person list into its own _Config column, define a
+    // workbook-level named range whose name equals the role value, then use
+    // =INDIRECT(Home!$B$7) as the person-dropdown source.  INDIRECT of a named
+    // range resolves correctly in both Excel and WPS.
     const wsConfig = workbook.addWorksheet("_Config", { views: [{ showGridLines: true }] });
     wsConfig.state = "hidden";
 
@@ -1142,6 +1148,21 @@ export const exportOrganizationReportExcel = async (req, res) => {
     Object.keys(roleToPersonMap).forEach(k => roleToPersonMap[k].sort());
     const uniqueRolesSorted = Object.keys(roleToPersonMap).sort();
 
+    // Helper: convert 1-based column index → Excel column letter(s)
+    const colLetter = (n) => {
+      let s = "";
+      while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+      return s;
+    };
+
+    // Helper: sanitise a role string into a valid Excel defined-name
+    // Rules: starts with letter/underscore, only letters/digits/underscores, max 255 chars
+    const toDefinedName = (role) =>
+      role
+        .replace(/[^A-Za-z0-9_]/g, "_")   // replace spaces & specials with _
+        .replace(/^([0-9])/, "_$1")         // can't start with a digit
+        .substring(0, 255);
+
     const roleColMap = {};
     uniqueRolesSorted.forEach((role, idx) => {
       const col = idx + 1;
@@ -1150,31 +1171,30 @@ export const exportOrganizationReportExcel = async (req, res) => {
       roleColMap[role] = { col, count: allPeople.length };
       wsConfig.getCell(1, col).value = role;
       allPeople.forEach((name, pi) => { wsConfig.getCell(pi + 2, col).value = name; });
+
+      // Define a workbook-level named range for this role so INDIRECT(B7) resolves
+      const letter = colLetter(col);
+      const endRow = allPeople.length + 1;   // row 2 .. endRow  (header in row 1)
+      const definedName = toDefinedName(role);
+      workbook.definedNames.add(
+        `_Config!$${letter}$2:$${letter}$${endRow}`,
+        definedName
+      );
     });
 
+    // Role dropdown — inline list is fine and works in both apps
     const roleDropListStr = '"' + (uniqueRolesSorted.length > 0 ? uniqueRolesSorted.join(",") : "Leader,Manager,Employee") + '"';
     wsHome.getCell("B7").dataValidation = {
       type: "list", allowBlank: true, formulae: [roleDropListStr],
       showErrorMessage: true, errorTitle: "Invalid Role", error: "Please select a role from the dropdown."
     };
 
-    const colLetter = (n) => {
-      let s = "";
-      while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
-      return s;
-    };
-
+    // Person dropdown — INDIRECT of the named range that matches the selected role.
+    // This formula works in Excel AND WPS because it resolves to a static named range.
     if (uniqueRolesSorted.length > 0) {
-      const roleListLiteral = '{"' + uniqueRolesSorted.join('","') + '"}';
-      const rangeParts = uniqueRolesSorted.map(role => {
-        const { col, count } = roleColMap[role];
-        const letter = colLetter(col);
-        const endRow = count + 1;
-        return `"_Config!$${letter}$2:$${letter}$${endRow}"`;
-      });
-      const chooseFormula = `INDIRECT(CHOOSE(MATCH(Home!$B$7,${roleListLiteral},0),${rangeParts.join(",")}))`;
       wsHome.getCell("H7").dataValidation = {
-        type: "list", allowBlank: true, formulae: [`=${chooseFormula}`],
+        type: "list", allowBlank: true,
+        formulae: ["INDIRECT(SUBSTITUTE(Home!$B$7,\" \",\"_\"))"],
         showErrorMessage: true, errorTitle: "Invalid Person", error: "Please select a person from the dropdown."
       };
     } else {
@@ -1192,14 +1212,8 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const leftSpacer8 = wsHome.getCell("B8");
     leftSpacer8.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
     if (uniqueRolesSorted.length > 0) {
-      const roleListLiteralWarn = '{"' + uniqueRolesSorted.join('","') + '"}';
-      const warnRangeParts = uniqueRolesSorted.map(role => {
-        const { col, count } = roleColMap[role];
-        const letter = colLetter(col);
-        return `"_Config!$${letter}$3:$${letter}$${count + 1}"`;
-      });
-      const warnIndirect = `INDIRECT(CHOOSE(IFERROR(MATCH(Home!$B$7,${roleListLiteralWarn},0),1),${warnRangeParts.join(",")}))`;
-      warnCell.value = { formula: `IF(OR(H7="",H7="Select Person"),"",IF(COUNTIF(${warnIndirect},H7)=0,"⚠  Role changed — please re-select person from the dropdown above",""))` };
+      // COUNTIF against INDIRECT(named range) — works in Excel and WPS
+      warnCell.value = { formula: `IF(OR(B7="",H7="",H7="Select Person"),"",IF(COUNTIF(INDIRECT(SUBSTITUTE(Home!$B$7," ","_")),H7)=0,"⚠  Role changed — please re-select person from the dropdown above",""))` };
     } else { warnCell.value = ""; }
     warnCell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFDC2626" } };
     warnCell.alignment = { horizontal: "center", vertical: "middle" };
