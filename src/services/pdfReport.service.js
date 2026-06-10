@@ -2,6 +2,7 @@ import handlebars from 'handlebars';
 import { PDFDocument, rgb } from 'pdf-lib';
 import fs from 'fs';
 import feedbackData from '../data/domainSubdomainFeedback.js';
+import { computeTopPriorities } from '../utils/priority.utils.js';
 
 const BRAND_LOGO_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1774516563/logos/talent_by_design_logo_new.svg";
 const REPORT_BACK_COVER_URL = "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778732728/Frame_2147225299_grcclv.png";
@@ -122,6 +123,181 @@ class PDFReportService {
         return "High";
     }
 
+    _stateLabel(score) {
+        const s = Math.round(score || 0);
+        if (s >= 75) return "STRENGTH";
+        if (s >= 50) return "MONITOR";
+        return "NEEDS ATTENTION";
+    }
+
+    _buildTriangleModelData(report) {
+        const ppScore = Math.round(report?.scores?.domains?.["People Potential"]?.score || 0);
+        const osScore = Math.round(report?.scores?.domains?.["Operational Steadiness"]?.score || 0);
+        const dfScore = Math.round(report?.scores?.domains?.["Digital Fluency"]?.score || 0);
+
+        const center = { x: 150, y: 153 };
+        const radius = 120;
+        const P = { x: center.x, y: center.y - radius };
+        const O = {
+            x: center.x - radius * Math.sin(Math.PI / 3),
+            y: center.y + radius * Math.cos(Math.PI / 3),
+        };
+        const D = {
+            x: center.x + radius * Math.sin(Math.PI / 3),
+            y: center.y + radius * Math.cos(Math.PI / 3),
+        };
+
+        const scoreTotal = ppScore + osScore + dfScore || 1;
+        const wP = osScore / scoreTotal;
+        const wO = dfScore / scoreTotal;
+        const wD = ppScore / scoreTotal;
+
+        const C = {
+            x: wP * P.x + wO * O.x + wD * D.x,
+            y: wP * P.y + wO * O.y + wD * D.y,
+        };
+
+        const triPoints = (a, b, c) => `${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y}`;
+
+        return {
+            ppScore,
+            osScore,
+            dfScore,
+            sectorOS: triPoints(C, O, D),
+            sectorDF: triPoints(C, P, D),
+            sectorPP: triPoints(C, P, O),
+            outline: triPoints(P, O, D),
+            labelPP: { x: P.x, y: P.y - 22 },
+            labelOS: { x: O.x - 8, y: O.y + 18 },
+            labelDF: { x: D.x + 8, y: D.y + 18 },
+        };
+    }
+
+    _buildExecutiveDashboardData(report, topPriorities = [], aiInsight = null, comparisonData = null) {
+        const overall = Math.round(report?.scores?.overall || 0);
+        const cls = this._getClassification(overall);
+        const domains = report?.scores?.domains || {};
+
+        const domainMatrix = ["People Potential", "Operational Steadiness", "Digital Fluency"]
+            .filter((name) => domains[name])
+            .map((name) => {
+                const d = domains[name];
+                const score = Math.round(d.score || 0);
+                const benchmarkRaw = comparisonData?.orgAvg?.[name]?.avgScore;
+                const benchmark = benchmarkRaw != null ? Math.round(benchmarkRaw) : null;
+                const gap = benchmark != null ? score - benchmark : null;
+                return {
+                    name,
+                    score,
+                    classification: this._getClassification(score),
+                    stateLabel: this._stateLabel(score),
+                    stateClass: score >= 75 ? "state-strength" : score >= 50 ? "state-monitor" : "state-attention",
+                    benchmark,
+                    gap,
+                    gapLabel: gap != null ? `${gap >= 0 ? "+" : ""}${gap}%` : "—",
+                    gapClass: gap == null ? "" : gap >= 0 ? "gap-positive" : "gap-negative",
+                    focusAction: score >= 75 ? "Continue" : score >= 50 ? "Optimize" : "Accelerate",
+                    focusClass: score >= 75 ? "focus-continue" : score >= 50 ? "focus-optimize" : "focus-accelerate",
+                    description: this.domainDescriptions[name] || "",
+                };
+            });
+
+        const buildRangeSummary = (domains, sortAsc = false) => {
+            if (!domains.length) return null;
+            const sorted = [...domains].sort((a, b) => (sortAsc ? a.score - b.score : b.score - a.score));
+            const avg = Math.round(domains.reduce((sum, d) => sum + d.score, 0) / domains.length);
+            return {
+                avg,
+                count: domains.length,
+                domainNames: sorted.map((d) => d.name),
+            };
+        };
+
+        const strengthDomains = domainMatrix.filter((d) => d.score >= 75);
+        const averageDomains = domainMatrix.filter((d) => d.score >= 50 && d.score < 75);
+        const opportunityDomains = domainMatrix.filter((d) => d.score < 50);
+
+        const strengthSummary = buildRangeSummary(strengthDomains);
+        const averageSummary = buildRangeSummary(averageDomains);
+        const opportunitySummary = buildRangeSummary(opportunityDomains, true);
+
+        const lowCount = topPriorities.filter((p) => p.classification === "Low").length;
+        const riskLevel = lowCount >= 2 ? "HIGH" : lowCount === 1 ? "MODERATE" : "LOW";
+        const riskClass = riskLevel === "LOW" ? "risk-low" : riskLevel === "MODERATE" ? "risk-moderate" : "risk-high";
+
+        const aiInsights = domainMatrix.map((d) => ({
+            title: d.name,
+            text: d.score >= 75
+                ? `${d.name} is performing at ${d.score}% — a relative strength to leverage across the organization.`
+                : `${d.name} at ${d.score}% — targeted leadership action is recommended to prevent downstream friction.`,
+            score: d.score,
+        }));
+
+        const recommendations = domainMatrix.map((d) => ({
+            name: d.name,
+            focus: d.focusAction,
+            focusClass: d.focusClass,
+            description: d.description,
+        }));
+
+        const roadmap = {
+            quick: topPriorities.slice(0, 1).map((p) => p.recommendedStep).filter(Boolean),
+            shortTerm: topPriorities.slice(1, 2).map((p) => p.recommendedStep).filter(Boolean),
+            strategic: topPriorities.slice(2, 3).map((p) => p.recommendedStep).filter(Boolean),
+        };
+        if (!roadmap.quick.length) {
+            roadmap.quick = ["Review lowest-scoring subdomain with your leadership team within 30 days."];
+        }
+        if (!roadmap.shortTerm.length) {
+            roadmap.shortTerm = domainMatrix.filter((d) => d.score < 75).map((d) => `Implement improvement plan for ${d.name}.`);
+        }
+        if (!roadmap.strategic.length) {
+            roadmap.strategic = ["Embed POD-360 practices into quarterly planning and leadership routines."];
+        }
+
+        const takeaways = [
+            {
+                title: "Overall Trajectory",
+                text: aiInsight?.description || `Portfolio score of ${overall}% reflects ${cls.toLowerCase()} efficiency across assessed domains.`,
+            },
+            {
+                title: "Primary Strength",
+                text: strengthSummary
+                    ? `Strength domains average ${strengthSummary.avg}% across ${strengthSummary.count} area${strengthSummary.count > 1 ? "s" : ""} — leverage this momentum for broader change.`
+                    : "Establish baseline strengths by completing the recommended first steps below.",
+            },
+            {
+                title: "Priority Focus",
+                text: topPriorities[0]?.impact || "Monitor all domains and reinforce consistent leadership practices.",
+            },
+            {
+                title: "Immediate Action",
+                text: topPriorities[0]?.recommendedStep || "Review the detailed domain sections that follow this summary.",
+            },
+        ];
+
+        return {
+            overallHealth: overall >= 75 ? "STRONG" : overall >= 50 ? "MONITOR" : "NEEDS ATTENTION",
+            healthClass: overall >= 75 ? "health-strong" : overall >= 50 ? "health-monitor" : "health-critical",
+            portfolioScore: overall,
+            portfolioClass: cls,
+            portfolioColor: overall >= 75 ? this.colors.flow : overall >= 50 ? this.colors.resistance : this.colors.friction,
+            percentileLabel: `Top ${Math.max(8, Math.min(92, 100 - Math.round(overall * 0.85)))}% vs. benchmark`,
+            riskLevel,
+            riskClass,
+            strengthSummary,
+            averageSummary,
+            opportunitySummary,
+            domainMatrix,
+            aiInsights,
+            recommendations,
+            roadmap,
+            takeaways,
+            overallTrend: overall >= 75 ? "Improving" : overall >= 50 ? "Stable" : "Needs Attention",
+            trendClass: overall >= 75 ? "trend-up" : overall >= 50 ? "trend-stable" : "trend-down",
+        };
+    }
+
     async generateReport(data, stream) {
         const buffer = await this.generateReportBuffer(data);
         stream.write(buffer);
@@ -231,6 +407,7 @@ class PDFReportService {
         return this._launchingPromise;
     }
 
+    
     async generateReportBuffer(data) {
         const html = this._buildHTML(data);
         const { user } = data;
@@ -770,6 +947,619 @@ class PDFReportService {
             border-left: 4px solid var(--secondary);
         }
 
+        /* Top Priorities — executive summary block */
+        .top-priorities-block {
+            margin-top: 5mm;
+            margin-bottom: 4mm;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .top-priorities-intro {
+            font-size: 8pt;
+            color: var(--light-text);
+            line-height: 1.45;
+            margin: 0 0 3mm 0;
+        }
+        .priority-item {
+            background: #fff8f6;
+            border: 1px solid #fecaca;
+            border-left: 3.5px solid var(--friction);
+            border-radius: 2.5mm;
+            padding: 3mm 4mm;
+            margin-bottom: 2.5mm;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .priority-item.priority-medium {
+            background: #fffbeb;
+            border-color: #fde68a;
+            border-left-color: var(--resistance);
+        }
+        .priority-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 3mm;
+            margin-bottom: 2mm;
+        }
+        .priority-rank-label {
+            font-size: 6pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--friction);
+            margin-bottom: 0.5mm;
+        }
+        .priority-area-name {
+            font-family: 'Quicksand', sans-serif;
+            font-size: 9pt;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1.25;
+        }
+        .priority-domain-name {
+            font-size: 7pt;
+            color: var(--light-text);
+            margin-top: 0.5mm;
+        }
+        .priority-score-wrap {
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .priority-score-val {
+            font-family: 'Quicksand', sans-serif;
+            font-size: 14pt;
+            font-weight: 800;
+            color: var(--friction);
+            line-height: 1;
+        }
+        .priority-field-label {
+            font-size: 6pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94A3B8;
+            margin: 1.5mm 0 0.5mm 0;
+        }
+        .priority-field-text {
+            font-size: 7.5pt;
+            line-height: 1.4;
+            color: var(--text);
+            margin: 0;
+        }
+        .priority-step-text {
+            font-size: 7.5pt;
+            line-height: 1.45;
+            color: var(--text);
+            font-weight: 400;
+            margin: 0;
+        }
+
+        /* ── Executive Intelligence Dashboard (compact — matches domain pages) ── */
+        .page-content.dashboard-content {
+            padding: 3mm 15mm 3mm 15mm;
+        }
+        .dashboard-content h1,
+        .dashboard-content h2,
+        .dashboard-content .section-heading {
+            margin: 0 0 1mm 0 !important;
+        }
+        .stack-section {
+            margin-bottom: 2.5mm;
+            width: 100%;
+        }
+        .stack-section:last-child {
+            margin-bottom: 0;
+        }
+        .section-heading {
+            font-family: 'Quicksand', sans-serif;
+            font-size: 11pt;
+            font-weight: 800;
+            color: #1A3652;
+            letter-spacing: -0.3px;
+        }
+        .section-heading-sub {
+            font-size: 7pt;
+            color: #94a3b8;
+            line-height: 1.35;
+            margin: 0 0 1.5mm 0;
+        }
+        .section-subtitle {
+            font-size: 7.5pt;
+            color: var(--light-text);
+            line-height: 1.4;
+            margin: 0 0 1.5mm 0;
+        }
+        .intro-block {
+            margin-bottom: 2.5mm;
+            padding-bottom: 2mm;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .pod-model-card {
+            border: 1px solid rgba(68, 140, 210, 0.2);
+            border-radius: 2.5mm;
+            padding: 2.5mm 3.5mm;
+            background: #ffffff;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .pod-model-subtitle {
+            font-size: 6.5pt;
+            color: #64748B;
+            font-weight: 500;
+            margin: 0 0 1mm 0;
+        }
+        .pod-model-body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .pod-triangle-svg {
+            width: 185px;
+            height: 185px;
+            display: block;
+        }
+
+        .exec-summary-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 2.5mm;
+            padding: 3mm 4mm;
+            background: #ffffff;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .exec-summary-card > h2 {
+            margin: 0 0 2mm 0 !important;
+            font-size: 11pt;
+            font-weight: 800;
+            color: #1A3652;
+        }
+        .exec-summary-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 2mm;
+        }
+        .exec-metric-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5mm;
+        }
+        .exec-metric {
+            background: #fafbfc;
+            border: 1px solid #edf2f7;
+            border-radius: 2mm;
+            padding: 2mm 2.5mm;
+            min-height: 11mm;
+        }
+        .exec-metric-label {
+            font-size: 5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #448CD2;
+            margin-bottom: 0.8mm;
+        }
+        .exec-metric-value {
+            font-size: 11pt;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.05;
+        }
+        .health-strong { color: #166534; }
+        .health-monitor { color: #854d0e; }
+        .health-critical { color: #991b1b; }
+        .risk-low { color: #166534; }
+        .risk-moderate { color: #854d0e; }
+        .risk-high { color: #991b1b; }
+
+        .exec-lists-row {
+            display: grid;
+            grid-template-columns: 1fr 1px 1fr 1px 1fr;
+            gap: 0;
+            margin-top: 1.5mm;
+            padding-top: 1.5mm;
+            border-top: 1px solid #f1f5f9;
+        }
+        .exec-list-col {
+            min-width: 0;
+            padding: 0 3mm;
+        }
+        .exec-list-col:first-child { padding-left: 0; }
+        .exec-list-col:last-child { padding-right: 0; }
+        .exec-list-col-divider {
+            background: #e2e8f0;
+            width: 1px;
+            align-self: stretch;
+        }
+        .exec-list-block { margin-top: 0; }
+        .exec-list-title {
+            font-size: 7pt;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            margin-bottom: 1.2mm;
+        }
+        .exec-list-title-strengths {
+            color: #16a34a;
+            text-transform: none;
+        }
+        .exec-list-title-average {
+            color: #ca8a04;
+            text-transform: none;
+        }
+        .exec-list-title-opportunity {
+            color: #ea580c;
+            text-transform: none;
+        }
+        .exec-list-item-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 2mm;
+            margin: 0 0 1mm 0;
+        }
+        .exec-list-item-row:last-child { margin-bottom: 0; }
+        .exec-list-item-text {
+            font-size: 7.5pt;
+            line-height: 1.35;
+            color: var(--text);
+            font-weight: 500;
+        }
+        .exec-avg-value {
+            font-size: 9pt;
+            font-weight: 800;
+            color: #166534;
+            line-height: 1.2;
+        }
+        .exec-avg-value-average {
+            font-size: 9pt;
+            font-weight: 800;
+            color: #ca8a04;
+            line-height: 1.2;
+        }
+        .exec-opp-avg-value {
+            font-size: 9pt;
+            font-weight: 800;
+            line-height: 1.2;
+            color: #dc2626;
+        }
+        .exec-list-empty {
+            font-size: 9pt;
+            font-weight: 700;
+            color: #cbd5e1;
+            margin-left: 3.5mm;
+            line-height: 1.2;
+        }
+        .exec-icon-average {
+            background: #eab308;
+            color: #ffffff;
+            font-size: 8pt;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .exec-list-subtext {
+            font-size: 6.5pt;
+            line-height: 1.3;
+            color: #64748B;
+            margin: 0.5mm 0 0 3.5mm;
+            font-weight: 500;
+        }
+        .exec-domain-names {
+            margin: 0.5mm 0 0 3.5mm;
+        }
+        .exec-domain-name {
+            font-size: 6.5pt;
+            line-height: 1.35;
+            color: #64748B;
+            font-weight: 500;
+            margin: 0 0 0.4mm 0;
+        }
+        .exec-domain-name:last-child { margin-bottom: 0; }
+        .exec-icon {
+            width: 11px;
+            height: 11px;
+            flex-shrink: 0;
+            margin-top: 0.5mm;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        .exec-icon-check {
+            background: #16a34a;
+            color: #ffffff;
+            font-size: 7pt;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .exec-icon-warn {
+            color: #ffffff;
+            font-size: 7pt;
+            font-weight: 800;
+            font-style: italic;
+            line-height: 1;
+        }
+        .opp-warn-critical { background: #dc2626; }
+        .opp-warn-moderate { background: #ea580c; }
+        .opp-warn-attention { background: #f59e0b; }
+
+        .priority-card-v2 {
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid #fbbf24;
+            border-radius: 2.5mm;
+            padding: 2.5mm 3.5mm;
+            margin-bottom: 2mm;
+            background: #ffffff;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .priority-card-v2:last-child { margin-bottom: 0; }
+        .priority-card-v2.priority-high { border-left-color: #ef4444; }
+        .priority-card-v2.priority-medium { border-left-color: #fbbf24; }
+        .priority-card-v2.priority-low { border-left-color: #22c55e; }
+        .priority-card-v2-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 3mm;
+            margin-bottom: 1.5mm;
+            padding-bottom: 1.5mm;
+            border-bottom: 1px solid #f8fafc;
+        }
+        .priority-rank-pill {
+            font-size: 5pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: white;
+            background: #ea580c;
+            padding: 0.5mm 2mm;
+            border-radius: 50px;
+            display: inline-block;
+            margin-bottom: 1mm;
+        }
+        .pill-high { background: #dc2626; }
+        .pill-medium { background: #ea580c; }
+        .pill-low { background: #16a34a; }
+        .priority-area-name {
+            font-family: 'Quicksand', sans-serif;
+            font-size: 9.5pt;
+            font-weight: 700;
+            color: #1A3652;
+            line-height: 1.2;
+        }
+        .priority-domain-name {
+            font-size: 6.5pt;
+            color: #94a3b8;
+            margin-top: 0.3mm;
+        }
+        .priority-score-val {
+            font-family: 'Quicksand', sans-serif;
+            font-size: 15pt;
+            font-weight: 800;
+            color: #e11d48;
+            line-height: 1;
+        }
+        .score-urgent { color: #e11d48; }
+        .score-medium { color: #d97706; }
+        .score-mild { color: #16a34a; }
+        .dashboard-content .priority-field-label {
+            font-size: 5.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #448CD2;
+            margin: 1mm 0 0.3mm 0;
+        }
+        .dashboard-content .priority-field-text,
+        .dashboard-content .priority-step-text {
+            font-size: 7pt;
+            line-height: 1.35;
+        }
+
+        .portfolio-block {
+            border: 1px solid #e2e8f0;
+            border-radius: 2.5mm;
+            padding: 2.5mm 3.5mm;
+            background: #f8fafc;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .portfolio-row {
+            display: flex;
+            align-items: center;
+            gap: 4mm;
+            margin-top: 1mm;
+        }
+        .portfolio-gauge {
+            width: 130px !important;
+            height: 82px !important;
+            flex-shrink: 0;
+        }
+        .portfolio-gauge .gauge-val {
+            font-size: 16pt;
+        }
+        .portfolio-gauge .gauge-label {
+            font-size: 6pt;
+            letter-spacing: 1px;
+        }
+        .portfolio-block-text {
+            font-size: 7.5pt;
+            line-height: 1.4;
+            color: var(--light-text);
+            text-align: left;
+            margin: 0;
+            flex: 1;
+        }
+
+        .insight-card-v2 {
+            border: 1px solid #e2e8f0;
+            border-radius: 2mm;
+            padding: 2mm 3mm;
+            margin-bottom: 1.5mm;
+            background: white;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .insight-card-v2:last-child { margin-bottom: 0; }
+        .insight-card-v2-title {
+            font-size: 7.5pt;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5mm;
+        }
+        .insight-card-v2-text {
+            font-size: 7pt;
+            line-height: 1.35;
+            color: var(--light-text);
+            margin: 0;
+        }
+
+        .state-strength { background: #dcfce7; color: #166534; }
+        .state-monitor { background: #fef9c3; color: #854d0e; }
+        .state-attention { background: #fee2e2; color: #991b1b; }
+        .gap-positive { color: #166534; font-weight: 700; }
+        .gap-negative { color: #991b1b; font-weight: 700; }
+
+        .rec-card-v2 {
+            border: 1px solid #e2e8f0;
+            border-radius: 2mm;
+            padding: 2mm 3mm;
+            margin-bottom: 1.5mm;
+            background: white;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .rec-card-v2:last-child { margin-bottom: 0; }
+        .rec-card-v2-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 2mm;
+            margin-bottom: 0.8mm;
+        }
+        .rec-card-v2-title { font-size: 8pt; font-weight: 700; color: var(--primary); }
+        .focus-pill {
+            font-size: 5.5pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            padding: 0.6mm 2mm;
+            border-radius: 50px;
+        }
+        .focus-continue { background: #dcfce7; color: #166534; }
+        .focus-optimize { background: #fef9c3; color: #854d0e; }
+        .focus-accelerate { background: #fee2e2; color: #991b1b; }
+        .rec-card-v2-text {
+            font-size: 7pt;
+            line-height: 1.35;
+            color: var(--light-text);
+            margin: 0;
+        }
+
+        .roadmap-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 2.5mm;
+            padding: 2.5mm 3.5mm;
+            background: #f8fafc;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .roadmap-phase {
+            margin-bottom: 2mm;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .roadmap-phase:last-child { margin-bottom: 0; }
+        .roadmap-phase-label {
+            font-size: 6.5pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--secondary);
+            margin-bottom: 0.8mm;
+        }
+        .roadmap-item {
+            font-size: 7pt;
+            line-height: 1.35;
+            color: var(--text);
+            margin: 0 0 0.5mm 0;
+            padding-left: 3.5mm;
+            position: relative;
+        }
+        .roadmap-item::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--secondary);
+        }
+
+        .takeaway-stack { display: flex; flex-direction: column; gap: 1.5mm; }
+        .takeaway-item-v2 {
+            border: 1px solid #e2e8f0;
+            border-radius: 2mm;
+            padding: 2mm 3mm;
+            background: white;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .takeaway-item-v2-title {
+            font-size: 6.5pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--secondary);
+            margin-bottom: 0.5mm;
+        }
+        .takeaway-item-v2-text {
+            font-size: 7pt;
+            line-height: 1.35;
+            color: var(--text);
+            margin: 0;
+        }
+
+        .trend-banner {
+            margin-top: 1.5mm;
+            padding: 1.5mm 2.5mm;
+            border-radius: 1.5mm;
+            background: #edf5fd;
+            font-size: 7pt;
+            color: var(--primary);
+            font-weight: 600;
+            line-height: 1.35;
+        }
+        .dashboard-content .table-container {
+            margin: 1mm 0 0 0;
+            break-inside: auto;
+            page-break-inside: auto;
+        }
+        .dashboard-content .table th,
+        .dashboard-content .table td {
+            padding: 2mm 2.5mm;
+            font-size: 6.5pt;
+        }
+        .trend-up { color: #166534; }
+        .trend-stable { color: #854d0e; }
+        .trend-down { color: #991b1b; }
+
+        .flow-text {
+            break-inside: auto;
+            page-break-inside: auto;
+            orphans: 2;
+            widows: 2;
+        }
+        .dashboard-content .table tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .continued-label {
+            font-size: 6.5pt;
+            color: #94a3b8;
+            font-style: italic;
+            margin-bottom: 1mm;
+        }
+
         /* Premium Sub-Domain Cards */
         .premium-card {
             background: var(--sidebar);
@@ -856,95 +1646,306 @@ class PDFReportService {
     </div>
 
     {{#unless isMasterReport}}
-    <!-- SUMMARY PAGE -->
+    <!-- INTELLIGENCE DASHBOARD — PAGE 1 -->
     <div class="page">
         ${pageHeader}
-        <div class="page-content">
-            <h1 style="margin-bottom: 0mm;">The Data Synergy</h1>
-            <div style="margin-bottom: 2mm;">
-                <p style="font-size: 9pt; color: var(--light-text); margin-bottom: 2mm; line-height: 1.5;">{{synergyIntro}}</p>
-                <div style="display: flex; flex-direction: column; gap: 2mm;">
-                    <div style="display: flex; align-items: center; gap: 3mm; margin-top: 2mm;">
-                        <span style="font-family: 'Quicksand', sans-serif; font-weight: 700; color: var(--secondary); font-size: 10pt; text-transform: capitalize;">Assessed Role: {{synergyRole.name}}</span>
+        <div class="page-content dashboard-content">
+            <section class="stack-section intro-block">
+                <h1 style="margin-bottom: 1mm;">The Data Synergy</h1>
+                <p class="section-subtitle">{{synergyIntro}}</p>
+                <p style="font-family: 'Quicksand', sans-serif; font-weight: 700; color: var(--secondary); font-size: 8.5pt; margin: 1mm 0 0.5mm 0;">Assessed Role: {{synergyRole.name}}</p>
+                <p class="section-subtitle" style="margin-bottom: 0;">{{synergyRole.description}}</p>
+            </section>
+
+            <section class="stack-section exec-summary-card">
+                <h2>Executive Summary</h2>
+                <div class="exec-summary-grid">
+                    <div class="exec-metric-row">
+                        <div class="exec-metric">
+                            <div class="exec-metric-label">Overall Health</div>
+                            <div class="exec-metric-value {{dashboard.healthClass}}">{{dashboard.overallHealth}}</div>
+                        </div>
+                        <div class="exec-metric">
+                            <div class="exec-metric-label">Portfolio Score</div>
+                            <div class="exec-metric-value" style="color: {{dashboard.portfolioColor}};">{{dashboard.portfolioScore}}%</div>
+                            <div style="font-size: 6pt; color: #94a3b8; margin-top: 0.5mm;">{{dashboard.portfolioClass}} Efficiency</div>
+                        </div>
+                        <div class="exec-metric">
+                            <div class="exec-metric-label">Percentile Rank</div>
+                            <div class="exec-metric-value" style="font-size: 9pt; line-height: 1.2;">{{dashboard.percentileLabel}}</div>
+                        </div>
+                        <div class="exec-metric">
+                            <div class="exec-metric-label">Risk Level</div>
+                            <div class="exec-metric-value {{dashboard.riskClass}}">{{dashboard.riskLevel}}</div>
+                            <div style="font-size: 6pt; color: #94a3b8; margin-top: 0.5mm;">Organizational Risk</div>
+                        </div>
                     </div>
-                    <p style="color: var(--light-text); font-size: 9pt; margin: 0; line-height: 1.5;">{{synergyRole.description}}</p>
+                    <div class="exec-lists-row">
+                        <div class="exec-list-col">
+                            <div class="exec-list-block">
+                                <div class="exec-list-title exec-list-title-strengths">Strength</div>
+                                {{#if dashboard.strengthSummary}}
+                                <div class="exec-list-item-row">
+                                    <span class="exec-icon exec-icon-check">✓</span>
+                                    <span class="exec-list-item-text">
+                                        <span class="exec-avg-value">{{dashboard.strengthSummary.avg}}%</span> Domain Average
+                                    </span>
+                                </div>
+                                <div class="exec-domain-names">
+                                    {{#each dashboard.strengthSummary.domainNames}}
+                                    <div class="exec-domain-name">{{this}}</div>
+                                    {{/each}}
+                                </div>
+                                {{else}}
+                                <div class="exec-list-empty">—</div>
+                                <div class="exec-list-subtext">75–100% range</div>
+                                {{/if}}
+                            </div>
+                        </div>
+                        <div class="exec-list-col-divider"></div>
+                        <div class="exec-list-col">
+                            <div class="exec-list-block">
+                                <div class="exec-list-title exec-list-title-average">Average</div>
+                                {{#if dashboard.averageSummary}}
+                                <div class="exec-list-item-row">
+                                    <span class="exec-icon exec-icon-average">~</span>
+                                    <span class="exec-list-item-text">
+                                        <span class="exec-avg-value-average">{{dashboard.averageSummary.avg}}%</span> Domain Average
+                                    </span>
+                                </div>
+                                <div class="exec-domain-names">
+                                    {{#each dashboard.averageSummary.domainNames}}
+                                    <div class="exec-domain-name">{{this}}</div>
+                                    {{/each}}
+                                </div>
+                                {{else}}
+                                <div class="exec-list-empty">—</div>
+                                <div class="exec-list-subtext">50–75% range</div>
+                                {{/if}}
+                            </div>
+                        </div>
+                        <div class="exec-list-col-divider"></div>
+                        <div class="exec-list-col">
+                            <div class="exec-list-block">
+                                <div class="exec-list-title exec-list-title-opportunity">Primary Opportunity</div>
+                                {{#if dashboard.opportunitySummary}}
+                                <div class="exec-list-item-row">
+                                    <span class="exec-icon exec-icon-warn opp-warn-critical">!</span>
+                                    <span class="exec-list-item-text">
+                                        <span class="exec-opp-avg-value">{{dashboard.opportunitySummary.avg}}%</span> Domain Average
+                                    </span>
+                                </div>
+                                <div class="exec-domain-names">
+                                    {{#each dashboard.opportunitySummary.domainNames}}
+                                    <div class="exec-domain-name">{{this}}</div>
+                                    {{/each}}
+                                </div>
+                                {{else}}
+                                <div class="exec-list-empty">—</div>
+                                <div class="exec-list-subtext">Below 50% range</div>
+                                {{/if}}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="summary-hero">
-                <div class="visual-container" style="width: 190px; height: 120px;">
-                    <svg width="190" height="120" viewBox="0 0 200 110">
-                        <defs>
-                            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" style="stop-color:{{gaugeColor report.scores.overall}};stop-opacity:0.7" />
-                                <stop offset="100%" style="stop-color:{{gaugeColor report.scores.overall}};stop-opacity:1" />
-                            </linearGradient>
-                            <filter id="shadow">
-                                <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1" />
-                            </filter>
-                        </defs>
-                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#f1f5f9" stroke-width="18" stroke-linecap="round" />
-                        <path d="M 20 100 A 80 80 0 0 1 {{gaugePath 80 report.scores.overall}}" fill="none" stroke="url(#gaugeGradient)" stroke-width="18" stroke-linecap="round" filter="url(#shadow)" />
-                        <circle cx="{{gaugePathX 80 report.scores.overall}}" cy="{{gaugePathY 80 report.scores.overall}}" r="7" fill="white" stroke="{{gaugeColor report.scores.overall}}" stroke-width="4" />
+            <section class="stack-section portfolio-block">
+                <h2 class="section-heading">Portfolio Score</h2>
+                <div class="portfolio-row">
+                    <div class="visual-container portfolio-gauge">
+                        <svg width="130" height="82" viewBox="0 0 200 110">
+                            <defs>
+                                <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:{{gaugeColor report.scores.overall}};stop-opacity:0.7" />
+                                    <stop offset="100%" style="stop-color:{{gaugeColor report.scores.overall}};stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#f1f5f9" stroke-width="18" stroke-linecap="round" />
+                            <path d="M 20 100 A 80 80 0 0 1 {{gaugePath 80 report.scores.overall}}" fill="none" stroke="url(#gaugeGradient)" stroke-width="18" stroke-linecap="round" />
+                            <circle cx="{{gaugePathX 80 report.scores.overall}}" cy="{{gaugePathY 80 report.scores.overall}}" r="7" fill="white" stroke="{{gaugeColor report.scores.overall}}" stroke-width="4" />
+                        </svg>
+                        <div class="gauge-val">{{round report.scores.overall}}%</div>
+                        <div class="gauge-label">{{getClassification report.scores.overall}}</div>
+                    </div>
+                    <p class="portfolio-block-text">Your consolidated performance score is <strong style="color: var(--secondary);">{{round report.scores.overall}}%</strong>, indicating <strong style="color: {{gaugeColor report.scores.overall}};">{{getClassification report.scores.overall}} Efficiency</strong> across your organizational footprint.</p>
+                </div>
+            </section>
+
+            {{#if prioritiesPageOne.length}}
+            <section class="stack-section">
+                <h2 class="section-heading">Top Priorities</h2>
+                <p class="section-heading-sub">Ranked by urgency — address these before reviewing detailed domain sections.</p>
+                {{#each prioritiesPageOne}}
+                <div class="priority-card-v2 {{cardClass}}">
+                    <div class="priority-card-v2-header">
+                        <div style="flex: 1; min-width: 0;">
+                            <span class="priority-rank-pill {{pillClass}}">{{rank}} · {{urgencyLabel}} Priority</span>
+                            <div class="priority-area-name">{{area}}</div>
+                            <div class="priority-domain-name">{{domain}}</div>
+                        </div>
+                        <div class="priority-score-val {{scoreColorClass}}">{{score}}%</div>
+                    </div>
+                    <div class="priority-field-label">Issue</div>
+                    <p class="priority-field-text flow-text">{{issue}}</p>
+                    <div class="priority-field-label">Impact</div>
+                    <p class="priority-field-text flow-text">{{impact}}</p>
+                    <div class="priority-field-label">First Recommended Step</div>
+                    <p class="priority-step-text flow-text">{{recommendedStep}}</p>
+                </div>
+                {{/each}}
+            </section>
+            {{/if}}
+        </div>
+        ${pageFooter}
+    </div>
+
+    <!-- INTELLIGENCE DASHBOARD — PAGE 2 -->
+    <div class="page">
+        ${pageHeader}
+        <div class="page-content dashboard-content">
+            {{#if hasPrioritiesContinued}}
+            <section class="stack-section">
+                {{#each prioritiesPageTwo}}
+                <div class="priority-card-v2 {{cardClass}}">
+                    <div class="priority-card-v2-header">
+                        <div style="flex: 1; min-width: 0;">
+                            <span class="priority-rank-pill {{pillClass}}">{{rank}} · {{urgencyLabel}} Priority</span>
+                            <div class="priority-area-name">{{area}}</div>
+                            <div class="priority-domain-name">{{domain}}</div>
+                        </div>
+                        <div class="priority-score-val {{scoreColorClass}}">{{score}}%</div>
+                    </div>
+                    <div class="priority-field-label">Issue</div>
+                    <p class="priority-field-text flow-text">{{issue}}</p>
+                    <div class="priority-field-label">Impact</div>
+                    <p class="priority-field-text flow-text">{{impact}}</p>
+                    <div class="priority-field-label">First Recommended Step</div>
+                    <p class="priority-step-text flow-text">{{recommendedStep}}</p>
+                </div>
+                {{/each}}
+            </section>
+            {{/if}}
+
+            <section class="stack-section">
+                <h2 class="section-heading">AI Insights</h2>
+                {{#each dashboard.aiInsights}}
+                <div class="insight-card-v2">
+                    <div class="insight-card-v2-title">{{title}} · {{score}}%</div>
+                    <p class="insight-card-v2-text flow-text">{{text}}</p>
+                </div>
+                {{/each}}
+            </section>
+
+            <section class="stack-section">
+                <h2 class="section-heading">Domain Analysis Matrix</h2>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Strategic Domain</th>
+                                <th>Efficiency</th>
+                                <th>Current State</th>
+                                <th>Benchmark</th>
+                                <th>Gap</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each dashboard.domainMatrix}}
+                            <tr>
+                                <td style="font-weight: 700; color: var(--primary);">{{name}}</td>
+                                <td style="font-weight: 800; color: var(--secondary);">{{score}}%</td>
+                                <td><span class="badge {{stateClass}}">{{stateLabel}}</span></td>
+                                <td>{{#if benchmark}}{{benchmark}}%{{else}}—{{/if}}</td>
+                                <td class="{{gapClass}}">{{gapLabel}}</td>
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="trend-banner">Overall Trend: <span class="{{dashboard.trendClass}}">{{dashboard.overallTrend}}</span> — review priority actions below to sustain or improve momentum.</div>
+            </section>
+
+            <section class="stack-section">
+                <h2 class="section-heading">Recommendations</h2>
+                {{#each dashboard.recommendations}}
+                <div class="rec-card-v2">
+                    <div class="rec-card-v2-header">
+                        <div class="rec-card-v2-title">{{name}}</div>
+                        <span class="focus-pill {{focusClass}}">Focus: {{focus}}</span>
+                    </div>
+                    <p class="rec-card-v2-text flow-text">{{description}}</p>
+                </div>
+                {{/each}}
+            </section>
+
+            <section class="stack-section pod-model-card">
+                <h2 class="section-heading">POD-360™ Model Performance Intelligence</h2>
+                <p class="pod-model-subtitle">Interconnectivity of focus areas</p>
+                <div class="pod-model-body">
+                    <svg viewBox="0 0 300 300" class="pod-triangle-svg" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="{{triangle.sectorOS}}" fill="#EDF5FD" />
+                        <polygon points="{{triangle.sectorDF}}" fill="#C7E0F8" />
+                        <polygon points="{{triangle.sectorPP}}" fill="#3C7CBA" />
+                        <polygon points="{{triangle.outline}}" fill="none" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="4 2" />
+                        <text x="{{triangle.labelPP.x}}" y="{{triangle.labelPP.y}}" text-anchor="middle" font-family="Quicksand, sans-serif" font-weight="800" fill="#1E293B" font-size="9">
+                            <tspan x="{{triangle.labelPP.x}}" dy="0">PEOPLE POTENTIAL</tspan>
+                            <tspan x="{{triangle.labelPP.x}}" dy="1.1em" font-size="12">({{triangle.ppScore}}%)</tspan>
+                        </text>
+                        <text x="{{triangle.labelOS.x}}" y="{{triangle.labelOS.y}}" text-anchor="middle" font-family="Quicksand, sans-serif" font-weight="800" fill="#1E293B" font-size="9">
+                            <tspan x="{{triangle.labelOS.x}}" dy="0">OPERATIONAL</tspan>
+                            <tspan x="{{triangle.labelOS.x}}" dy="1.1em">STEADINESS</tspan>
+                            <tspan x="{{triangle.labelOS.x}}" dy="1.1em" font-size="12">({{triangle.osScore}}%)</tspan>
+                        </text>
+                        <text x="{{triangle.labelDF.x}}" y="{{triangle.labelDF.y}}" text-anchor="middle" font-family="Quicksand, sans-serif" font-weight="800" fill="#1E293B" font-size="9">
+                            <tspan x="{{triangle.labelDF.x}}" dy="0">DIGITAL</tspan>
+                            <tspan x="{{triangle.labelDF.x}}" dy="1.1em">FLUENCY</tspan>
+                            <tspan x="{{triangle.labelDF.x}}" dy="1.1em" font-size="12">({{triangle.dfScore}}%)</tspan>
+                        </text>
                     </svg>
-                    <div class="gauge-val">{{round report.scores.overall}}%</div>
-                    <div class="gauge-label">{{getClassification report.scores.overall}}</div>
                 </div>
-                <div style="flex: 1;">
-                    <h3 style="font-family: 'Quicksand', sans-serif; font-size: 12pt; font-weight: 700; color: var(--text); margin: 0 0 0.5mm 0; letter-spacing: -0.5px;">Portfolio Score</h3>
-                    <p style="font-size: 9pt; color: var(--light-text); margin-bottom: 0; line-height: 1.5;">Your consolidated performance score is <strong style="color: var(--secondary); font-family: 'Quicksand', sans-serif;">{{round report.scores.overall}}%</strong>. This indicates a state of <strong style="color: {{gaugeColor report.scores.overall}};">{{getClassification report.scores.overall}} Efficiency</strong> across your organizational footprint.</p>
+            </section>
+        </div>
+        ${pageFooter}
+    </div>
+
+    <!-- INTELLIGENCE DASHBOARD — PAGE 3 -->
+    <div class="page">
+        ${pageHeader}
+        <div class="page-content dashboard-content">
+            <section class="stack-section roadmap-card">
+                <h2 class="section-heading">90-Day Action Roadmap</h2>
+                <div class="roadmap-phase">
+                    <div class="roadmap-phase-label">0–30 Days · Quick Wins</div>
+                    {{#each dashboard.roadmap.quick}}
+                    <p class="roadmap-item flow-text">{{this}}</p>
+                    {{/each}}
                 </div>
-            </div>
+                <div class="roadmap-phase">
+                    <div class="roadmap-phase-label">31–90 Days · Short-Term Initiatives</div>
+                    {{#each dashboard.roadmap.shortTerm}}
+                    <p class="roadmap-item flow-text">{{this}}</p>
+                    {{/each}}
+                </div>
+                <div class="roadmap-phase">
+                    <div class="roadmap-phase-label">90+ Days · Strategic Initiatives</div>
+                    {{#each dashboard.roadmap.strategic}}
+                    <p class="roadmap-item flow-text">{{this}}</p>
+                    {{/each}}
+                </div>
+            </section>
 
-            <h2 style="margin-top: 8mm;">Domain Analysis Matrix</h2>
-            <div class="table-container">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Strategic Domain</th>
-                            <th>Efficiency</th>
-                            <th>Current State</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {{#each domainPages}}
-                        <tr>
-                            <td style="font-weight: 700; color: var(--primary); font-size: 8pt;">{{name}}</td>
-                            <td style="font-weight: 800; color: var(--secondary); font-size: 8pt; font-family: 'Quicksand', sans-serif;">{{round score}}%</td>
-                            <td><span class="badge badge-{{toLowerCase (getClassification score)}}">{{getClassification score}}</span></td>
-                        </tr>
-                        {{/each}}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- POD-360 MODEL TRIANGLE (Summary Page Only) -->
-            <div class="premium-card secondary" style="margin-top: 10mm;">
-                <div class="premium-card-title">POD-360&#8482; Model Performance Intelligence</div>
-                    <svg width="220" height="200" viewBox="-10 -5 320 320" style="display: block; margin: 0 auto; -webkit-print-color-adjust: exact; overflow: visible;">
-                        <defs>
-                            <clipPath id="roundedTriClip">
-                                <path d="M 157,57 L 263,243 Q 270,255 256,255 L 44,255 Q 30,255 37,243 L 143,57 Q 150,45 157,57 Z"/>
-                            </clipPath>
-                        </defs>
-                        <path d="M 157,57 L 263,243 Q 270,255 256,255 L 44,255 Q 30,255 37,243 L 143,57 Q 150,45 157,57 Z" fill="#EDF5FD" stroke="none"/>
-                        <g clip-path="url(#roundedTriClip)">
-                            <polygon points="150,45 30,255 150,185" fill="#1A3652"/>
-                            <polygon points="30,255 270,255 150,185" fill="#3C7CBA"/>
-                            <polygon points="150,45 270,255 150,185" fill="#C7E0F8"/>
-                        </g>
-                        <path d="M 157,57 L 263,243 Q 270,255 256,255 L 44,255 Q 30,255 37,243 L 143,57 Q 150,45 157,57 Z" fill="none" stroke="#C7E0F8" stroke-width="2" stroke-linejoin="round"/>
-                        <text x="150" y="16"  text-anchor="middle" font-family="Arial,sans-serif" font-size="11"  font-weight="700" fill="#1A3652">PEOPLE</text>
-                        <text x="150" y="29"  text-anchor="middle" font-family="Arial,sans-serif" font-size="11"  font-weight="700" fill="#1A3652">POTENTIAL</text>
-                        <text x="150" y="44"  text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="800" fill="#1A3652">{{@root.triangleSVG.ppScore}}%</text>
-                        <text x="2"   y="268" text-anchor="start"  font-family="Arial,sans-serif" font-size="11"  font-weight="700" fill="#1A3652">OPERATIONAL</text>
-                        <text x="2"   y="281" text-anchor="start"  font-family="Arial,sans-serif" font-size="11"  font-weight="700" fill="#1A3652">STEADINESS</text>
-                        <text x="2"   y="296" text-anchor="start"  font-family="Arial,sans-serif" font-size="13" font-weight="800" fill="#1A3652">{{@root.triangleSVG.osScore}}%</text>
-                        <text x="298" y="268" text-anchor="end"    font-family="Arial,sans-serif" font-size="11"  font-weight="700" fill="#1A3652">DIGITAL</text>
-                        <text x="298" y="281" text-anchor="end"    font-family="Arial,sans-serif" font-size="11"  font-weight="700" fill="#1A3652">FLUENCY</text>
-                        <text x="298" y="296" text-anchor="end"    font-family="Arial,sans-serif" font-size="13" font-weight="800" fill="#1A3652">{{@root.triangleSVG.dfScore}}%</text>
-                    </svg>
-            </div>
+            <section class="stack-section">
+                <h2 class="section-heading">Key Takeaways</h2>
+                <div class="takeaway-stack">
+                    {{#each dashboard.takeaways}}
+                    <div class="takeaway-item-v2">
+                        <div class="takeaway-item-v2-title">{{title}}</div>
+                        <p class="takeaway-item-v2-text flow-text">{{text}}</p>
+                    </div>
+                    {{/each}}
+                </div>
+            </section>
         </div>
         ${pageFooter}
     </div>
@@ -1236,23 +2237,42 @@ class PDFReportService {
                 return Object.keys(pod360RoleData).find(k => normalise(k) === normalise(name)) || null;
             };
 
-            // Precompute triangle SVG polygon points for the POD-360 Model visualization
-            const ppScore = Math.round(report.scores?.domains?.["People Potential"]?.score || 0);
-            const osScore = Math.round(report.scores?.domains?.["Operational Steadiness"]?.score || 0);
-            const dfScore = Math.round(report.scores?.domains?.["Digital Fluency"]?.score || 0);
+            templateData.triangle = this._buildTriangleModelData(report);
 
-            const ppFrac = Math.min(1, ppScore / 100);
-            const osFrac = Math.min(1, osScore / 100);
-            const dfFrac = Math.min(1, dfScore / 100);
-
-            templateData.triangleSVG = {
-                ppScore, osScore, dfScore,
-                // Perfect equilateral triangle: T=(150,35) L=(30,243) R=(270,243), C=(150,173.67)
-                // ML=(90,139)  MR=(210,139)  MB=(150,243)
-                pp: `150,173.67 ${(150 - 60 * ppFrac).toFixed(2)},${(173.67 - 34.67 * ppFrac).toFixed(2)} 150,${(173.67 - 138.67 * ppFrac).toFixed(2)} ${(150 + 60 * ppFrac).toFixed(2)},${(173.67 - 34.67 * ppFrac).toFixed(2)}`,
-                os: `150,173.67 ${(150 - 60 * osFrac).toFixed(2)},${(173.67 - 34.67 * osFrac).toFixed(2)} ${(150 - 120 * osFrac).toFixed(2)},${(173.67 + 69.33 * osFrac).toFixed(2)} 150,${(173.67 + 69.33 * osFrac).toFixed(2)}`,
-                df: `150,173.67 ${(150 + 60 * dfFrac).toFixed(2)},${(173.67 - 34.67 * dfFrac).toFixed(2)} ${(150 + 120 * dfFrac).toFixed(2)},${(173.67 + 69.33 * dfFrac).toFixed(2)} 150,${(173.67 + 69.33 * dfFrac).toFixed(2)}`
+            const resolvePriorityRole = (key) => {
+                const normalized = (key || "employee").toLowerCase();
+                if (normalized === "superadmin" || normalized === "super_admin") return "admin";
+                if (feedbackData[normalized]) return normalized;
+                return "leader";
             };
+
+            templateData.topPriorities = computeTopPriorities({
+                scores: report.scores,
+                role: resolvePriorityRole(roleKey),
+                limit: 3,
+            }).map((p) => {
+                const perf = (p.classification || "Low").toLowerCase();
+                const urgency = perf === "low" ? "high" : perf === "medium" ? "medium" : "low";
+                const urgencyLabel = urgency.charAt(0).toUpperCase() + urgency.slice(1);
+                return {
+                    ...p,
+                    urgencyLabel,
+                    cardClass: `priority-${urgency}`,
+                    pillClass: `pill-${urgency}`,
+                    scoreColorClass: urgency === "high" ? "score-urgent" : urgency === "medium" ? "score-medium" : "score-mild",
+                    badgeClass: `badge-${urgency}`,
+                };
+            });
+            templateData.prioritiesPageOne = templateData.topPriorities.slice(0, 2);
+            templateData.prioritiesPageTwo = templateData.topPriorities.slice(2);
+            templateData.hasPrioritiesContinued = templateData.prioritiesPageTwo.length > 0;
+
+            templateData.dashboard = this._buildExecutiveDashboardData(
+                report,
+                templateData.topPriorities,
+                aiInsight,
+                comparisonData,
+            );
 
             templateData.domainPages = ["People Potential", "Operational Steadiness", "Digital Fluency"].map(dName => {
                 const dData = report.scores?.domains?.[dName];

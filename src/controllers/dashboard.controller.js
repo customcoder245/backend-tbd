@@ -5,6 +5,7 @@ import PDFReportService from "../services/pdfReport.service.js";
 import mongoose from "mongoose";
 import { sendReportReleasedEmail } from "../utils/sendEmail.js";
 import feedbackData from "../data/domainSubdomainFeedback.js";
+import { computeTopPriorities, teamAvgToScores } from "../utils/priority.utils.js";
 
 /**
  * Shared helper to fetch the latest report for a user
@@ -713,6 +714,75 @@ export const updateDomainDetailedReport = async (req, res) => {
 /**
  * Shared helper to aggregate organization/team averages
  */
+function buildOverviewScope({ role, orgName, department, data, isOrgWide = false }) {
+    const r = (role || "").toLowerCase();
+    const deptLabel = department || data?.department || "Your Department";
+    const counts = {
+        leaders: data?.leaderCount ?? 0,
+        managers: data?.managerCount ?? 0,
+        employees: data?.employeeCount ?? 0,
+        total: data?.memberCount ?? 0,
+    };
+
+    if (r === "admin" || r === "superadmin" || r === "super_admin" || isOrgWide) {
+        return {
+            level: "organization",
+            title: "Organization Overview",
+            subtitle: `Performance across all departments in ${orgName}`,
+            orgName,
+            department: null,
+            activeLevel: "organization",
+            hierarchy: [
+                { key: "organization", label: orgName || "Organization", active: true },
+            ],
+            includesRoles: [
+                { role: "leader", label: "Leaders", count: counts.leaders },
+                { role: "manager", label: "Managers", count: counts.managers },
+                { role: "employee", label: "Employees", count: counts.employees },
+            ],
+            totalMembers: counts.total,
+        };
+    }
+
+    if (r === "leader") {
+        return {
+            level: "department",
+            title: "Department Overview",
+            subtitle: `${deptLabel} · Managers and employees in your department`,
+            orgName,
+            department: deptLabel,
+            activeLevel: "department",
+            hierarchy: [
+                { key: "organization", label: orgName || "Organization", active: false },
+                { key: "department", label: deptLabel, active: true },
+            ],
+            includesRoles: [
+                { role: "manager", label: "Managers", count: counts.managers },
+                { role: "employee", label: "Employees", count: counts.employees },
+            ],
+            totalMembers: counts.managers + counts.employees,
+        };
+    }
+
+    return {
+        level: "team",
+        title: "Team Overview",
+        subtitle: `${deptLabel} · Employees reporting to you`,
+        orgName,
+        department: deptLabel,
+        activeLevel: "team",
+        hierarchy: [
+            { key: "organization", label: orgName || "Organization", active: false },
+            { key: "department", label: deptLabel, active: false },
+            { key: "team", label: "Your Team", active: true },
+        ],
+        includesRoles: [
+            { role: "employee", label: "Employees", count: counts.employees },
+        ],
+        totalMembers: counts.employees,
+    };
+}
+
 async function getOrganizationContextData(req, res) {
     const { userId: queryUserId, email: queryEmailPayload, includeSelf, department: queryDept, orgName: queryOrgName } = req.query;
     const loggedInUserId = req.user.userId;
@@ -747,7 +817,9 @@ async function getOrganizationContextData(req, res) {
         }
         if (contextManager) {
             targetOrg = contextManager.orgName;
-            if (!targetDept) targetDept = contextManager.department;
+            if (!targetDept && req.query.skipDeptContext !== "true") {
+                targetDept = contextManager.department;
+            }
         }
     }
 
@@ -985,9 +1057,22 @@ export const getManagerTeamAvg = async (req, res) => {
     try {
         const data = await getOrganizationContextData(req, res);
         if (!data) {
-            return res.status(200).json({ teamAvg: {}, orgAvg: {}, memberCount: 0, orgMemberCount: 0 });
+            return res.status(200).json({ teamAvg: {}, orgAvg: {}, memberCount: 0, orgMemberCount: 0, topPriorities: [] });
         }
-        return res.status(200).json(data);
+        const role = req.user?.role?.toLowerCase() || "manager";
+        const scoreSource = role === "manager" ? data.employeeAvg : data.teamAvg;
+        const topPriorities = computeTopPriorities({
+            scores: teamAvgToScores(scoreSource),
+            role,
+            limit: 2,
+        });
+        const scope = buildOverviewScope({
+            role,
+            orgName: data.orgName || req.user.orgName,
+            department: req.user.department || data.department,
+            data,
+        });
+        return res.status(200).json({ ...data, topPriorities, scope });
     } catch (error) {
         console.error("getManagerTeamAvg error:", error);
         res.status(500).json({ message: "Error fetching team averages", error: error.message });
@@ -1134,7 +1219,9 @@ export const getOrgAverageReport = async (req, res) => {
         const role = req.user.role?.toLowerCase();
         const isOrgWide = (role === "superadmin" || role === "super_admin" || role === "admin");
         
-        if (!isOrgWide) {
+        if (isOrgWide) {
+            req.query.skipDeptContext = "true";
+        } else {
             req.query.department = req.user.department;
         }
         
@@ -1175,6 +1262,21 @@ export const getOrgAverageReport = async (req, res) => {
             isReleased: true
         };
 
+        const priorityRole = isOrgWide ? "admin" : (role === "leader" ? "leader" : "manager");
+        const topPriorities = computeTopPriorities({
+            scores: dummyReport.scores,
+            role: priorityRole,
+            limit: 2,
+        });
+
+        const scope = buildOverviewScope({
+            role,
+            orgName: req.user.orgName,
+            department: req.user.department,
+            data,
+            isOrgWide,
+        });
+
         return res.status(200).json({
             report: dummyReport,
             user: dummyReport.userDetails,
@@ -1183,6 +1285,8 @@ export const getOrgAverageReport = async (req, res) => {
                 description: `Average score of ${Math.round(overallScore)}% across all domains.`,
                 type: "info"
             },
+            topPriorities,
+            scope,
             hasReport: true
         });
 
