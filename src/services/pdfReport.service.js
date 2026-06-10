@@ -407,6 +407,7 @@ class PDFReportService {
         return this._launchingPromise;
     }
 
+    
     async generateReportBuffer(data) {
         const html = this._buildHTML(data);
         const { user } = data;
