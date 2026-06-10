@@ -1060,10 +1060,12 @@ export const getManagerTeamAvg = async (req, res) => {
             return res.status(200).json({ teamAvg: {}, orgAvg: {}, memberCount: 0, orgMemberCount: 0, topPriorities: [] });
         }
         const role = req.user?.role?.toLowerCase() || "manager";
+        const isOrgWide = role === "superadmin" || role === "super_admin" || role === "admin";
         const scoreSource = role === "manager" ? data.employeeAvg : data.teamAvg;
+        const priorityRole = isOrgWide ? "admin" : (role === "leader" ? "leader" : "manager");
         const topPriorities = computeTopPriorities({
             scores: teamAvgToScores(scoreSource),
-            role,
+            role: priorityRole,
             limit: 2,
         });
         const scope = buildOverviewScope({
@@ -1071,6 +1073,7 @@ export const getManagerTeamAvg = async (req, res) => {
             orgName: data.orgName || req.user.orgName,
             department: req.user.department || data.department,
             data,
+            isOrgWide,
         });
         return res.status(200).json({ ...data, topPriorities, scope });
     } catch (error) {
