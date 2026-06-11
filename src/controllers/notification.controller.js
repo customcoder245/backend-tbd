@@ -8,7 +8,7 @@ export const getNotifications = async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(50); // Get last 50
         res.status(200).json(notifications);
-    } catch (error) {
+    } catch {
         res.status(500).json({ message: "Error fetching notifications" });
     }
 };
@@ -19,7 +19,7 @@ export const markAsRead = async (req, res) => {
         const { id } = req.params;
         await Notification.findByIdAndUpdate(id, { isRead: true });
         res.status(200).json({ message: "Marked as read" });
-    } catch (error) {
+    } catch {
         res.status(500).json({ message: "Error marking as read" });
     }
 };
@@ -30,7 +30,7 @@ export const markAllAsRead = async (req, res) => {
         const userId = req.user.userId;
         await Notification.updateMany({ recipient: userId, isRead: false }, { isRead: true });
         res.status(200).json({ message: "All marked as read" });
-    } catch (error) {
+    } catch {
         res.status(500).json({ message: "Error marking all read" });
     }
 };
@@ -41,7 +41,7 @@ export const clearNotifications = async (req, res) => {
         const userId = req.user.userId;
         await Notification.deleteMany({ recipient: userId });
         res.status(200).json({ message: "Notifications cleared" });
-    } catch (error) {
+    } catch {
         res.status(500).json({ message: "Error clearing notifications" });
     }
 };

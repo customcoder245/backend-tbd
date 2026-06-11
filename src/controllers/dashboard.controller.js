@@ -340,7 +340,7 @@ export const getDomainDetailedReport = async (req, res) => {
         let domainData = null;
 
         if (req.query.isOrgAverage === 'true') {
-            const orgContext = await getOrganizationContextData(req, res);
+            const orgContext = await getOrganizationContextData(req);
             if (!orgContext || !orgContext.teamAvg) {
                 return res.status(404).json({ message: "No organizational data found." });
             }
@@ -409,9 +409,6 @@ export const getDomainDetailedReport = async (req, res) => {
 
         // Check for specific subdomain feedback, otherwise fallback to domain-level feedback
         let feedback = {};
-        let aggregatedInsights = [];
-        let aggregatedCoachingTips = [];
-        let aggregatedRecommendations = [];
 
         if (subdomain && domainData.subdomainFeedback) {
             // Try exact match first
@@ -675,7 +672,6 @@ export const updateDomainDetailedReport = async (req, res) => {
                 : null;
 
             const currentActualDomain = domainKey || domain;
-            const itemPrefix = subdomain ? `subdomainFeedback.${subdomain}` : `feedback`;
 
             if (!assessment.scores.domains[currentActualDomain]) assessment.scores.domains[currentActualDomain] = { score: 0 };
             const domainData = assessment.scores.domains[currentActualDomain];
@@ -783,7 +779,7 @@ function buildOverviewScope({ role, orgName, department, data, isOrgWide = false
     };
 }
 
-async function getOrganizationContextData(req, res) {
+async function getOrganizationContextData(req) {
     const { userId: queryUserId, email: queryEmailPayload, includeSelf, department: queryDept, orgName: queryOrgName } = req.query;
     const loggedInUserId = req.user.userId;
     var contextManager = null;
@@ -831,7 +827,7 @@ async function getOrganizationContextData(req, res) {
     const safeOrg = orgName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const orgRegex = new RegExp(`^${safeOrg}$`, 'i');
 
-    const [invitationDepts, userDepts, roles, invitations, registeredUsers] = await Promise.all([
+    const [invitationDepts, userDepts, , invitations, registeredUsers] = await Promise.all([
         Invitation.distinct("department", { orgName: orgRegex }),
         User.distinct("department", { orgName: orgRegex }),
         Invitation.distinct("role", { orgName: orgRegex }),

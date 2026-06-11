@@ -345,7 +345,7 @@ const sendEmail = async (mailOptions) => {
     if (error.response) {
       console.error(error.response.body);
     }
-    throw new Error(`Failed to send email: ${error.message}`);
+    throw new Error(`Failed to send email: ${error.message}`, { cause: error });
   }
 };
 
@@ -409,7 +409,6 @@ export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {
 export const sendVerificationEmail = async (user, link) => {
   if (!user?.email || !link) return;
 
-  const title = "Welcome to Talent By Design";
   const content = `
     <p style="font-size: 16px; margin-bottom: 24px;">
       Welcome aboard!

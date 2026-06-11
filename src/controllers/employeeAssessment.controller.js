@@ -186,7 +186,7 @@ export const submitEmployeeAssessment = async (req, res) => {
     }
 
     // 🔥 5️⃣ SAVE ASSESSMENT & SNAPSHOT (In parallel for speed)
-    const [savedAssessment, submittedAssessment] = await Promise.all([
+    const [, submittedAssessment] = await Promise.all([
       assessment.save(),
       SubmittedAssessment.create({
         assessmentId: assessment._id,

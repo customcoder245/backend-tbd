@@ -157,7 +157,6 @@ export const exportIndividualReportExcel = async (req, res) => {
     let userDetails = {};
     let scores = {};
     let submittedAt = new Date();
-    let stakeholder = "employee";
 
     const submitted = await SubmittedAssessment.findOne({ assessmentId });
     if (submitted) {
@@ -165,7 +164,6 @@ export const exportIndividualReportExcel = async (req, res) => {
       userDetails = submitted.userDetails || {};
       scores = submitted.scores || {};
       submittedAt = submitted.submittedAt || submitted.createdAt || new Date();
-      stakeholder = submitted.stakeholder || "employee";
     } else {
       const assessment = await Assessment.findById(assessmentId);
       if (!assessment) {
@@ -176,7 +174,6 @@ export const exportIndividualReportExcel = async (req, res) => {
       userDetails = assessment.userDetails || {};
       scores = assessment.scores || {};
       submittedAt = assessment.submittedAt || assessment.createdAt || new Date();
-      stakeholder = assessment.stakeholder || "employee";
     }
 
     // 2. Format details
@@ -186,10 +183,6 @@ export const exportIndividualReportExcel = async (req, res) => {
     const completedDate = new Date(submittedAt).toLocaleDateString("en-US", {
       day: "2-digit", month: "short", year: "numeric"
     });
-    const assessmentName = stakeholder
-      ? `${stakeholder.charAt(0).toUpperCase() + stakeholder.slice(1)} Assessment`
-      : "POD-360 Assessment";
-
     // 3. Setup workbook
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "TBD Platform";
@@ -443,8 +436,6 @@ export const exportIndividualReportExcel = async (req, res) => {
     // SECTION 3 - SUMMARY CARDS  (rows 6-9)
     // ════════════════════════════════════════════════════════════════════════
     const ratingResponses = responses.filter(r => r.value !== null && r.value !== undefined);
-    const selfCount = responses.filter(r => r.questionType === "Self-Rating").length;
-    const behavCount = responses.filter(r => r.questionType === "Behavioural").length;
 
     let overallAvgVal = 0;
     if (scores.overall && scores.overall > 0) {
@@ -461,7 +452,7 @@ export const exportIndividualReportExcel = async (req, res) => {
     //   const v = Math.round(r.value);
     //   if (v >= 1 && v <= 5) scoreDistribution[v]++;
     // });
-    const totalRated = ratingResponses.length || 1;
+
 
     // Card header
     mergeCells(6, 1, 6, 9);
@@ -826,7 +817,7 @@ export const exportIndividualReportExcel = async (req, res) => {
     // PREMIUM ANALYTICS SECTION
     // ════════════════════════════════════════════════════════════════════════
 
-    const summaryStartRow = currentRow + 3;
+
 
     // ── Freeze panes: freeze header row so column labels stay visible ─────────
     ws.views = [{
@@ -1005,7 +996,6 @@ export const exportOrganizationReportExcel = async (req, res) => {
       r.dept = toTitleCase(r.dept);
     });
 
-    const uniqueRoles = [...new Set(reportsData.map(r => r.role).filter(Boolean))];
     const completedCount = reportsData.filter(r => r.isCompleted).length;
 
     // ════════════════════════════════════════════════════════════════════════

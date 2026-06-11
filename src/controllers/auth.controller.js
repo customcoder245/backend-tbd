@@ -22,7 +22,7 @@ export const getAllOrganizations = async (req, res) => {
 // ================= REGISTER =================
 export const register = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
@@ -160,7 +160,7 @@ export const completeProfile = async (req, res) => {
 
       // Check if another ADMIN already has this organization name
       const existingOrg = await User.findOne({
-        orgName: { $regex: new RegExp("^" + orgName.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + "$", "i") },
+        orgName: { $regex: new RegExp("^" + orgName.trim().replace(new RegExp("[-/\\\\^$*+?.()|[\\]{}]", "g"), "\\$&") + "$", "i") },
         role: "admin",
         _id: { $ne: user._id }
       });
@@ -578,7 +578,7 @@ export const logout = async (req, res) => {
     return res.status(200).json({
       message: "Logged out successfully",
     });
-  } catch (error) {
+  } catch {
     return res.status(500).json({
       message: "Logout failed",
     });
@@ -745,7 +745,6 @@ export const getOrganizationMembers = async (req, res) => {
       }
     });
 
-    const target = allMembers.find(m => m.email.toLowerCase() === "tbdemployee@yopmail.com");
     // Debug log removed
 
     res.status(200).json({

@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-let isConnected = false;
 let connectionPromise = null;
 
 const connectDB = async () => {
@@ -24,7 +23,6 @@ const connectDB = async () => {
     serverSelectionTimeoutMS: 30000,
     socketTimeoutMS: 45000,
   }).then((conn) => {
-    isConnected = true;
     console.log("MongoDB connected successfully");
     return conn;
   }).catch((error) => {

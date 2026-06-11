@@ -1,5 +1,4 @@
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import Invitation from "../models/invitation.model.js";
 
 export const protect = (req, res, next) => {

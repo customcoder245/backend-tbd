@@ -13,7 +13,7 @@ import {
   downloadTemplate
 } from "../controllers/question.controller.js";
 import { protect, flexibleProtect } from "../middlewares/auth.middleware.js";
-import { upload, excelUpload } from "../middlewares/multer.middleware.js";
+import { excelUpload } from "../middlewares/multer.middleware.js";
 
 const router = express.Router();
 

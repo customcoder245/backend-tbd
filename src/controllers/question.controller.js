@@ -126,7 +126,7 @@ export const createMultipleQuestions = async (req, res) => {
 
     // Iterate over the object of questions
     for (const key in questions) {
-      if (questions.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(questions, key)) {
         const questionData = questions[key];
         const {
           stakeholder,
@@ -1062,7 +1062,7 @@ export const downloadTemplate = async (req, res) => {
     const tempFilePath = path.join(__dirname, "../../tmp-template.xlsx");
     await workbook.xlsx.writeFile(tempFilePath);
 
-    res.download(tempFilePath, "Question_Upload_Template.xlsx", (err) => {
+    res.download(tempFilePath, "Question_Upload_Template.xlsx", () => {
       if (fs.existsSync(tempFilePath)) {
         fs.unlinkSync(tempFilePath);
       }

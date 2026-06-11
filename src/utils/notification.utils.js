@@ -118,7 +118,7 @@ export const notifyHierarchy = async ({ initiatorId, title, message, type = "inf
         const initiator = await User.findById(initiatorId);
         if (!initiator) return;
 
-        const { role, orgName, department } = initiator;
+        const { role, orgName } = initiator;
         if (!orgName) return;
 
         const superiors = [];

@@ -12,7 +12,7 @@ const truncate = (text, maxLen = 220) => {
 
 const firstStep = (text) => {
     if (!text || typeof text !== "string") return "";
-    const line = text.split(/\n|(?=•)/).map((s) => s.trim().replace(/^[•\-\*]\s*/, "")).find(Boolean);
+    const line = text.split(/\n|(?=•)/).map((s) => s.trim().replace(/^[•\-*]\s*/, "")).find(Boolean);
     return line || text.trim();
 };
 

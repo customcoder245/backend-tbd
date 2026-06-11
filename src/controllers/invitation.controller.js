@@ -6,7 +6,7 @@ import Organization from "../models/organization.model.js";
 import Response from "../models/response.model.js";
 import { sendInvitationEmail, sendAssessmentResetEmail } from "../utils/sendEmail.js";
 import jwt from "jsonwebtoken";
-import { createNotification, notifyHierarchy } from "../utils/notification.utils.js";
+import { notifyHierarchy } from "../utils/notification.utils.js";
 import fs from "fs";
 import csv from "csv-parser";
 
@@ -431,7 +431,7 @@ export const deleteInvitation = async (req, res) => {
         await Invitation.deleteMany(query);
 
         res.status(200).json({ message: "Expired invitation deleted successfully" });
-    } catch (error) {
+    } catch {
         res.status(500).json({ message: "Failed to delete" });
     }
 };

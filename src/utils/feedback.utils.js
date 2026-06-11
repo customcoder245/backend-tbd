@@ -1,11 +1,5 @@
-import path from "path";
-import { fileURLToPath } from "url";
-import fs from "fs";
 // 🚀 Importing as JS module is 100% reliable for Vercel
 import feedbackData from "../data/domainSubdomainFeedback.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 console.log(`[Feedback Utils] Data loaded. Total roles: ${Object.keys(feedbackData || {}).length}`);
 

@@ -3,7 +3,7 @@ import User from "../models/user.model.js";
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Response from "../models/response.model.js";
 import mongoose from "mongoose";
-import { createNotification, notifySuperAdmins, notifyOrgAdmins, notifyHierarchy } from "../utils/notification.utils.js";
+import { createNotification, notifySuperAdmins, notifyHierarchy } from "../utils/notification.utils.js";
 import Invitation from "../models/invitation.model.js";
 import { ASSESSMENT_CYCLE_MONTHS, getAssessmentCycleStartDate } from "../config/assessment.config.js";
 import { calculateAssessmentScores } from "../utils/scoring.utils.js";
@@ -261,7 +261,7 @@ export const submitAssessment = async (req, res) => {
     assessment.markModified('scores');
 
     // 🔥 5️⃣ SAVE ASSESSMENT & SNAPSHOT & USER (In parallel for speed)
-    const [savedAssessment, submittedAssessment, savedUser] = await Promise.all([
+    const [, submittedAssessment] = await Promise.all([
       assessment.save(),
       SubmittedAssessment.create({
         assessmentId: assessment._id,
@@ -468,7 +468,7 @@ export const getSuperAdminIntelligence = async (req, res) => {
       employeeInvites,
       employeeAssessments,
       invitedEmailsList,
-      adminCount,
+      ,
       completedEmailsList,
       totalCompletedRaw,
       completionByRole,
@@ -647,10 +647,6 @@ export const getAdminIntelligence = async (req, res) => {
     const escapedName = orgName.trim().replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
     const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, 'i');
 
-    const teamFilter = { orgName, role: { $ne: "admin" } };
-    // Use full assessment history for accurate overall engagement stats
-    const assessmentFilter = { orgName: orgRegex };
-
     // Run independent queries in parallel
     const [assessments, registeredUsers, allRegisteredEmails, assessmentEmails, activeInviteEmails, recentInvites] = await Promise.all([
       Assessment.find({ orgName: orgRegex, isDeleted: { $ne: true } }).lean(),
@@ -809,13 +805,6 @@ export const getLeaderIntelligence = async (req, res) => {
 
     const period = cycleMap[selectedQuarter];
     let dateFilter = { $or: [{ createdAt: { $gte: period.start, $lte: period.end } }, { submittedAt: { $gte: period.start, $lte: period.end } }] };
-
-    // Leader sees manager and employee in their department
-    const teamFilter = {
-      orgName,
-      department: requesterDept,
-      role: { $in: ["manager", "employee"] }
-    };
 
     // Fallback if department is empty (meaning they shouldn't see anyone if they aren't assigned a department properly, except maybe if the data is messy, but let's be strict or lenient?)
     // Let's rely on JavaScript filtering to be safe, so we fetch broadly and filter
