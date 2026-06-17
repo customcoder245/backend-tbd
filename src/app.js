@@ -12,6 +12,7 @@ import questionRoutes from "./routes/question.routes.js";
 import responseRoutes from "./routes/response.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import organizationRoutes from "./routes/organization.routes.js";
+import contactRoutes from "./routes/contact.routes.js";
 
 const app = express();
 
@@ -60,5 +61,6 @@ app.use("/api/v1/questions", questionRoutes);
 app.use("/api/v1/responses", responseRoutes);
 app.use("/api/v1/dashboard", dashboardRoutes);
 app.use("/api/v1/organization", organizationRoutes);
+app.use("/api/v1/contact", contactRoutes);
 
 export { app };

@@ -36,9 +36,9 @@ const getTransporter = () => {
 };
 
 const LOGO_URL =
-  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775850/talent-by-design/email-assets/logo.png";
+  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1781682374/POD-logo_xfxslq.svg";
 const FOOTER_LOGO_URL =
-  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775853/talent-by-design/email-assets/footer-logo.png";
+  "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1781683627/pod-footer-logo_zinyxo.svg";
 const FB_ICON_URL =
   "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1772775855/talent-by-design/email-assets/fb.png";
 const INSTA_ICON_URL =
@@ -185,7 +185,7 @@ const getEmailWrapper = (
                 ${content}
                 <p style="margin: 20px 0 0 0; font-size: 14px">
                   Thanks,<br /><strong style="font-size: 16px"
-                    >Team Talent By Design</strong
+                    >Team POD360</strong
                   >
                 </p>
               </td>
@@ -289,7 +289,7 @@ const getEmailWrapper = (
                               line-height: 18px;
                             "
                           >
-                            © ${new Date().getFullYear()} TALENT BY DESIGN COLLECTIVE Inc. All rights
+                            © ${new Date().getFullYear()} POD-360™ Inc. All rights
                             reserved.
                           </td>
                         </tr>
@@ -317,7 +317,9 @@ const sendEmail = async (mailOptions) => {
           email: process.env.EMAIL_USER, // The email you verified in SendGrid
           name: "Talent By Design Support"
         },
-        replyTo: process.env.EMAIL_USER, // Crucial for spam filters
+        replyTo: mailOptions.replyTo
+          ? { email: mailOptions.replyTo }
+          : { email: process.env.EMAIL_USER }, // Use passed replyTo or fallback
         subject: mailOptions.subject,
         text: mailOptions.subject, // Plain text version of the subject as a fallback
         html: mailOptions.html,
@@ -541,5 +543,47 @@ export const sendAssessmentResetEmail = async (email, link, firstName, orgName) 
     to: email,
     subject: subject,
     html: getEmailWrapper(firstName || "", content),
+  });
+};
+
+export const sendContactUsEmail = async ({ firstName, lastName, email, phone, message }) => {
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER || "infopod360@gmail.com";
+  const subject = `New Contact Us Form Submission from ${firstName} ${lastName}`;
+  
+  const content = `
+    <h2 style="font-size: 22px; color: #0f172a; margin-bottom: 24px; font-weight: 700;">New Contact Submission</h2>
+    
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 15px; margin-bottom: 32px; border-collapse: separate; border-spacing: 0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+      <tr>
+        <td style="padding: 16px 20px; background-color: #f8fafc; font-weight: 600; width: 120px; border-bottom: 1px solid #e2e8f0; color: #64748b; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em; border-top-left-radius: 12px;">Name</td>
+        <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background-color: #ffffff; color: #0f172a; font-weight: 500; border-top-right-radius: 12px;">${firstName} ${lastName}</td>
+      </tr>
+      <tr>
+        <td style="padding: 16px 20px; background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #64748b; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em;">Email</td>
+        <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background-color: #ffffff; color: #0f172a; font-weight: 500;"><a href="mailto:${email}" style="color: #3b82f6; text-decoration: none; font-weight: 600;">${email}</a></td>
+      </tr>
+      <tr>
+        <td style="padding: 16px 20px; background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #64748b; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em;">Phone</td>
+        <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background-color: #ffffff; color: #0f172a; font-weight: 500;">${phone || 'N/A'}</td>
+      </tr>
+      <tr>
+        <td style="padding: 16px 20px; background-color: #f8fafc; font-weight: 600; color: #64748b; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em; vertical-align: top; border-bottom-left-radius: 12px;">Message</td>
+        <td style="padding: 16px 20px; background-color: #ffffff; color: #334155; white-space: pre-wrap; line-height: 1.6; border-bottom-right-radius: 12px;">${message}</td>
+      </tr>
+    </table>
+    
+    <div style="margin: 32px 0;">
+      <a href="mailto:${email}" style="display: inline-block; padding: 12px 32px; background: #448cd2; color: #ffffff; text-decoration: none; border-radius: 32px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px 0 rgba(68, 140, 210, 0.39);">
+        Reply to ${firstName}
+      </a>
+    </div>
+  `;
+
+  await sendEmail({
+    from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
+    to: adminEmail,
+    replyTo: email, // This allows the admin to directly click "Reply" in their email client
+    subject: subject,
+    html: getEmailWrapper(firstName, content),
   });
 };
