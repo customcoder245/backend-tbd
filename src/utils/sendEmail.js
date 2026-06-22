@@ -317,7 +317,6 @@ const sendEmail = async (mailOptions) => {
           email: process.env.EMAIL_USER, // The email you verified in SendGrid
           name: "Talent By Design Support"
         },
-        bcc: process.env.EMAIL_USER,
         replyTo: mailOptions.replyTo
           ? { email: mailOptions.replyTo }
           : { email: process.env.EMAIL_USER }, // Use passed replyTo or fallback
@@ -340,10 +339,7 @@ const sendEmail = async (mailOptions) => {
       console.log(">>> [EMAIL SENT VIA SENDGRID]");
     } else {
       // Fallback to Nodemailer SMTP
-      const info = await getTransporter().sendMail({
-        ...mailOptions,
-        bcc: process.env.EMAIL_USER
-      });
+      const info = await getTransporter().sendMail(mailOptions);
       console.log(">>> [EMAIL SENT VIA SMTP]:", info.response);
     }
   } catch (error) {
