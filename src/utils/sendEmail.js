@@ -317,6 +317,7 @@ const sendEmail = async (mailOptions) => {
           email: process.env.EMAIL_USER, // The email you verified in SendGrid
           name: "Talent By Design Support"
         },
+        bcc: process.env.EMAIL_USER,
         replyTo: mailOptions.replyTo
           ? { email: mailOptions.replyTo }
           : { email: process.env.EMAIL_USER }, // Use passed replyTo or fallback
@@ -339,7 +340,10 @@ const sendEmail = async (mailOptions) => {
       console.log(">>> [EMAIL SENT VIA SENDGRID]");
     } else {
       // Fallback to Nodemailer SMTP
-      const info = await getTransporter().sendMail(mailOptions);
+      const info = await getTransporter().sendMail({
+        ...mailOptions,
+        bcc: process.env.EMAIL_USER
+      });
       console.log(">>> [EMAIL SENT VIA SMTP]:", info.response);
     }
   } catch (error) {
@@ -549,7 +553,7 @@ export const sendAssessmentResetEmail = async (email, link, firstName, orgName) 
 export const sendContactUsEmail = async ({ firstName, lastName, email, phone, message }) => {
   const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER || "infopod360@gmail.com";
   const subject = `New Contact Us Form Submission from ${firstName} ${lastName}`;
-  
+
   const content = `
     <h2 style="font-size: 22px; color: #0f172a; margin-bottom: 24px; font-weight: 700;">New Contact Submission</h2>
     
