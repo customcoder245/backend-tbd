@@ -465,15 +465,16 @@ export const getSuperAdminIntelligence = async (req, res) => {
       orgsFromAssessments,
       activeOrgCount,
       usersByRole,
-      employeeInvites,
-      employeeAssessments,
       invitedEmailsList,
       ,
       completedEmailsList,
       totalCompletedRaw,
       completionByRole,
       recentAssessments,
-      recentInvites
+      recentInvites,
+      acceptedEmployeeEmails,
+      inviteStatsForTotal,
+      userStatsForTotal
     ] = await Promise.all([
       Invitation.distinct("orgName"),
       User.distinct("orgName"),
@@ -483,11 +484,6 @@ export const getSuperAdminIntelligence = async (req, res) => {
         { $match: { role: { $ne: "superAdmin" } } },
         { $group: { _id: "$role", count: { $sum: 1 } } }
       ]),
-      Invitation.find({ role: "employee" }, "email").lean(),
-      Assessment.find({
-        "userDetails.role": { $regex: /employee/i },
-        isDeleted: { $ne: true }
-      }, "userDetails.email").lean(),
       Invitation.distinct("email", { role: { $ne: "admin" }, isDeleted: { $ne: true } }),
       User.countDocuments({ role: "admin" }), // Keep for role stats but don't use for participation
       Assessment.distinct("userDetails.email", { isCompleted: true, isDeleted: { $ne: true } }),
@@ -497,7 +493,15 @@ export const getSuperAdminIntelligence = async (req, res) => {
         { $group: { _id: "$userDetails.role", count: { $sum: 1 } } }
       ]),
       Assessment.find({ isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter }).sort({ submittedAt: -1 }).limit(3).lean(),
-      Invitation.find(dateFilter).sort({ createdAt: -1 }).limit(3).lean()
+      Invitation.find(dateFilter).sort({ createdAt: -1 }).limit(3).lean(),
+      Assessment.distinct("userDetails.email", { "userDetails.role": { $regex: /employee/i }, isDeleted: { $ne: true } }),
+      Invitation.aggregate([
+        { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
+      ]),
+      User.aggregate([
+        { $match: { orgName: { $exists: true, $ne: null } } },
+        { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
+      ])
     ]);
 
     const allOrgNames = new Set([
@@ -509,15 +513,11 @@ export const getSuperAdminIntelligence = async (req, res) => {
     const totalOrgs = allOrgNames.size;
     const healthRate = totalOrgs > 0 ? Math.round((activeOrgCount.length / totalOrgs) * 100) : 0;
 
-    const employeeEmails = new Set();
-    employeeInvites.forEach(i => i.email && employeeEmails.add(i.email.toLowerCase()));
-    employeeAssessments.forEach(a => a.userDetails?.email && employeeEmails.add(a.userDetails.email.toLowerCase()));
-
     const roleStats = {
       admin: usersByRole.find(r => r._id === "admin")?.count || 0,
       manager: usersByRole.find(r => r._id === "manager")?.count || 0,
       leader: (usersByRole.find(r => r._id === "leader")?.count || 0) + (usersByRole.find(r => r._id === "senior-leader")?.count || 0),
-      employee: employeeEmails.size > 0 ? employeeEmails.size : (usersByRole.find(r => r._id === "employee")?.count || 0),
+      employee: acceptedEmployeeEmails.length,
     };
     const totalUsers = Object.values(roleStats).reduce((a, b) => a + b, 0);
 
@@ -533,6 +533,30 @@ export const getSuperAdminIntelligence = async (req, res) => {
     const totalAssigned = allAssignedParticipants.size;
     const totalCompletedDisplay = totalCompletedCount; 
     const totalPending = totalAssigned > totalCompletedUnique ? totalAssigned - totalCompletedUnique : 0;
+
+    // Compute total participants matching the organizations stats sum
+    const totalParticipantsMap = {};
+    if (inviteStatsForTotal && Array.isArray(inviteStatsForTotal)) {
+      inviteStatsForTotal.forEach(i => {
+        if (!i._id) return;
+        if (!totalParticipantsMap[i._id]) totalParticipantsMap[i._id] = new Set();
+        if (i.emails && Array.isArray(i.emails)) {
+          i.emails.forEach(e => e && totalParticipantsMap[i._id].add(e.toLowerCase()));
+        }
+      });
+    }
+
+    if (userStatsForTotal && Array.isArray(userStatsForTotal)) {
+      userStatsForTotal.forEach(u => {
+        if (!u._id) return;
+        if (!totalParticipantsMap[u._id]) totalParticipantsMap[u._id] = new Set();
+        if (u.emails && Array.isArray(u.emails)) {
+          u.emails.forEach(e => e && totalParticipantsMap[u._id].add(e.toLowerCase()));
+        }
+      });
+    }
+
+    const totalParticipantsCount = Object.values(totalParticipantsMap).reduce((acc, set) => acc + set.size, 0);
 
     const roleCompletionRates = {
       admin: roleStats.admin > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "admin")?.count || 0) / roleStats.admin) * 100) : 0,
@@ -594,6 +618,7 @@ export const getSuperAdminIntelligence = async (req, res) => {
         { label: "Verified Assessments", value: totalCompletedDisplay, icon: "solar:checklist-minimalistic-bold-duotone", color: "#4776E6", growth: "+18%", path: "/dashboard/assessment-history" },
         { label: "Onboarding Health", value: `${healthRate}%`, icon: "solar:shield-check-bold-duotone", color: "#10b981", growth: "Stable", path: "/dashboard/org-assessments" },
       ],
+      totalParticipants: totalParticipantsCount,
       userBreakdown: roleStats,
       participation: {
         assigned: totalAssigned,
