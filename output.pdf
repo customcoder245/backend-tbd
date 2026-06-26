@@ -1,0 +1,71 @@
+Polished request template
+
+- What to convert (pick one and provide details):
+  1. GitHub file — provide: owner/repo/path and optional branch (e.g., owner: customcoder245, repo: docs, path: guides/setup.md, branch: main)
+  2. Public web page — provide the full URL
+  3. Paste content — paste your Markdown or plain text here (I’ll convert Markdown to styled PDF)
+  4. Images — attach one or more images to combine into a PDF
+  5. Chat transcript — say “convert this chat” and confirm if you want the whole conversation or a selection
+- Output filename (default: output.pdf)
+- Page size and orientation (defaults: A4 / portrait)
+- Styling and formatting options:
+  - Theme: professional / minimal / code-friendly
+  - Include cover page? (yes/no) — if yes, give title, subtitle, author, and optional cover image URL
+  - Table of contents? (yes/no)
+  - Page numbers? (yes/no and position: footer/header)
+  - Add headers/footers text? (e.g., project name or date)
+  - Include clickable links and bookmarks? (yes/no)
+  - Font preference (serif/sans/monospace) — default: readable sans
+- Delivery options:
+  - Provide a download link in chat (default)
+  - Or commit the PDF to a GitHub repo — provide owner/repo, target branch (optional), and commit message
+- Anything else: special page breaks, watermarks, or accessibility (tagged PDF) requirements?
+
+Also tell me:
+- Desired filename (default: output.pdf)
+- Page size (A4 or Letter) and orientation (portrait/landscape)
+- Any extras: include a cover page, table of contents, or page numbers
+
+Recommended defaults (if you don’t care to decide)
+- Filename: output.pdf
+- Page size: A4, portrait
+- Theme: professional
+- Cover page: yes (auto-generated title from source filename)
+- Table of contents: yes (for documents > 2 pages)
+- Page numbers: yes, bottom center
+- Links/bookmarks: enabled
+- Delivery: download link
+
+Examples you can copy & paste
+- Example A (GitHub file)
+  Convert the README:
+  - Source: customcoder245/my-repo/README.md (branch: main)
+  - Filename: project-readme.pdf
+  - Page size: A4 portrait
+  - Theme: professional, include cover page (Title: My Project, Author: Jane Doe)
+  - Table of contents: yes, page numbers: yes, links/bookmarks: yes
+  - Delivery: provide download link
+
+- Example B (Paste Markdown)
+  Here’s my Markdown to convert:
+  ---
+  # Product Overview
+  Blah blah...
+  ---
+  Options: output.pdf, Letter/portrait, minimal theme, no cover, include page numbers footer-right, deliver download link
+
+- Example C (Images)
+  Combine three images into a single PDF:
+  - Images: attach image1.jpg, image2.png, image3.jpg
+  - Filename: photos.pdf
+  - Orientation: landscape, page size: A4
+  - Add captions from filenames: yes
+  - Delivery: download link
+
+What I’ll do after you send the details
+- Convert the specified content into a well-formatted PDF using the options you pick.
+- Optimize layout (headers, fonts, margins), generate a clickable table of contents when requested, and embed links/bookmarks.
+- Provide a secure download link in chat (or commit to your GitHub repo if you requested that).
+- If there are any small issues (images too large, external links broken), I’ll report them and suggest fixes.
+
+Go ahead — paste the source or pick one of the examples and tell me the options you want. I’ll start creating your PDF right away.
