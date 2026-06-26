@@ -1,4 +1,4 @@
-backend-tbd — Complete Handover & API Documentation
+Backend-tbd — Complete Handover & API Documentation
 
 Prepared for: Successor backend engineer / maintainer
 Author: customcoder245
@@ -511,8 +511,5 @@ Appendix E — Quick code pointers (where to look first)
 - src/middlewares/employee.middleware.js — invite token logic
 
 --------------------------------------------------------------------------------
-End of handover document
 
-Notes: This file has been prepared as a comprehensive handover. If you want this converted into a styled PDF (A4, portrait) with a professional cover, table of contents, headers/footers and page numbers, reply "Attach here" and I will generate the PDF and attach it for download. If you want the PDF committed to the repository instead, reply with:
-"Commit to repo: customcoder245/backend-tbd path: docs/handover.pdf branch: main message: Add full handover PDF"
 
