@@ -1,304 +1,462 @@
-backend-tbd — Handover & API Documentation
+backend-tbd — Complete Handover & API Documentation
 
-Prepared for: successor backend engineer / maintainer
+Prepared for: Successor backend engineer / maintainer
 Author: customcoder245
 Generated: 2026-06-26
 
-------------------------------------------------------------
+--------------------------------------------------------------------------------
 Table of contents
 1. Executive summary
-2. Architecture & high-level flow
-3. Tech stack & notable libraries
-4. Repository layout and key files
-5. Setup & run (detailed)
-6. Environment variables (recommended .env.example)
-7. Data models & database notes
-8. Authentication & authorization
-9. Middleware behaviors
-10. Endpoints (grouped) with examples
-11. File uploads, exports and background work
-12. Cron & scheduled tasks
-13. Deployment notes (Vercel and alternatives)
-14. Testing & QA checklist
-15. Onboarding checklist
-16. Troubleshooting - common issues & fixes
-17. Immediate improvements & roadmap
+2. Goals & audience
+3. High-level architecture and data flow
+4. Tech stack & dependencies
+5. Repository layout and important files
+6. Development setup — step-by-step
+7. Environment variables (.env.example)
+8. Database models — schemas & important fields
+9. Authentication & token flows
+10. Middlewares and their behavior
+11. Routes & endpoints — full reference with examples
+12. File uploads, storage and exports
+13. Background jobs, cron, and long-running tasks
+14. Deployment & production checklist (Vercel + alternatives)
+15. Observability, logging & error handling
+16. Testing, QA & CI recommendations
+17. Onboarding checklist (first 24 hours)
+18. Troubleshooting guide — common issues & fixes
+19. Security checklist
+20. Suggested immediate improvements and roadmap
 Appendices
-A. Example .env.example
-B. Example API request samples
-C. Postman collection (recommendation)
+A. Detailed .env.example
+B. Example requests (curl) and sample responses
+C. Postman collection structure
+D. Migration/upgrade notes
+E. Quick code pointers (where to look first)
 
-------------------------------------------------------------
+--------------------------------------------------------------------------------
 1 — Executive summary
-This repository implements a Node.js + Express backend for an assessment and feedback platform. The API supports two primary user flows:
-- Authenticated admin/manager/leader flows for creating and managing assessments, question banks, exporting reports, and viewing dashboards.
-- Invitation-based employee (no-login) flows that allow invited employees to complete assessments via a secure token link.
+This document is a comprehensive handover for "backend-tbd" — a Node.js + Express backend that powers an assessment platform. It is intended to give a new backend engineer everything needed to understand, run, maintain, and improve the system, including architecture, models, routes, deployment notes, and common troubleshooting steps.
 
-Key capabilities:
-- User lifecycle (register/login/profile/email verification/password resets).
-- Invitation issuance (single and bulk via CSV/Excel) and tokenized employee access.
-- Assessment lifecycle: draft, start, submit, review, and export (Excel/PDF).
-- Question bank CRUD with bulk upload and template support.
-- Role-based dashboards and intelligence endpoints (PDF/Excel exports powered by Puppeteer).
-- File uploads (images and Excel), email sending integrations, and a scheduled cron cleanup job.
+Short description:
+- Provides admin/manager/leader/employee roles.
+- Invitation-based employee flow (no-login tokenized access).
+- Assessment lifecycle: create, start, submit, export (Excel/PDF).
+- Question bank CRUD and bulk upload (Excel/CSV).
+- Dashboards and role-based analytics.
+- File uploads (images, Excel), email sending, and a cron job for cleanup.
 
-Primary audience: the next backend engineer or maintainer taking over the project.
+This handover expands prior notes into a professionally organized document suitable for printing or PDF delivery.
 
-------------------------------------------------------------
-2 — Architecture & high-level flow
-- Entry point: src/index.js — loads environment, connects to MongoDB, conditionally starts server and schedules cron jobs.
-- App composition: src/app.js — builds Express app, registers middlewares, mounts versioned routes (/api/v1/*).
-- Persistence: MongoDB (mongoose). Models live in src/models/*.model.js.
-- Controller pattern: src/controllers/*Controller.js — each controller handles input validation, business logic, and database calls.
-- Services: src/services — encapsulate external integrations (email, cloudinary, PDF generation) and complex helper logic.
-- Middlewares: src/middlewares — auth, invite flows, file upload handling and role restrictions.
-- Exports & heavy operations: some endpoints use Puppeteer to render HTML to PDF, and exceljs/xlsx/json2xls for Excel exports.
+--------------------------------------------------------------------------------
+2 — Goals & audience
+Primary goal: enable a backend engineer to onboard quickly and be productive within a day or two.
+Audience:
+- New backend engineer who will maintain or extend the API
+- DevOps or SRE who will deploy and monitor the app
+- Product/PM for high-level understanding of capabilities
 
-Typical request flow (protected admin action):
-Client -> Auth middleware (protect) -> Controller -> Models -> Services (email/cloudinary) -> Response
+What this document assumes:
+- Familiarity with Node.js and Express
+- Basic MongoDB / Mongoose knowledge
+- Comfortable with command-line tools and environment variables
 
-Typical no-login employee flow:
-Client (invite link with token) -> employeeAccess middleware (verify token) -> Controller serves assessment -> Submit saves Responses and may mark Invitation as used
+--------------------------------------------------------------------------------
+3 — High-level architecture and data flow
+3.1 Components
+- Entrypoint: src/index.js — environment, DB connect, conditional server start, cron jobs
+- App builder: src/app.js — constructs Express app, global middlewares, route mounting
+- Controllers: src/controllers/* — business logic and input validation
+- Models: src/models/* — Mongoose schemas and methods
+- Middlewares: src/middlewares/* — auth checks, file handling, CSV parsing
+- Services: src/services/* — email providers, cloudinary, PDF generation, Excel exports
+- Utilities: src/utils/* — small helpers, validators
 
-------------------------------------------------------------
-3 — Tech stack & notable libraries
-- Node.js (ES modules) + Express v5
-- MongoDB via mongoose
-- Authentication: jsonwebtoken (JWT)
+3.2 Data flow examples
+- Admin creates assessment:
+  POST /api/v1/assessment/start -> protect -> controller creates Assessment document -> returns id
+
+- Employee completes assessment (no-login):
+  Employee opens invite link -> employeeAccess middleware validates inviteToken -> controller fetches questions -> employee submits answers -> controller saves Response documents and marks Invitation.used=true
+
+- Export flow:
+  Request -> controller queries Response data -> generates Excel (exceljs) or renders HTML and uses Puppeteer to produce PDF -> returns file or stores in cloud and returns download URL
+
+--------------------------------------------------------------------------------
+4 — Tech stack & dependencies
+- Node.js (ES modules) & npm
+- Express v5
+- MongoDB with mongoose
+- Authentication: jsonwebtoken
 - File uploads: multer
-- Emails: nodemailer, @sendgrid/mail, or resend (controllers may use different providers; check code)
-- PDFs: puppeteer + @sparticuz/chromium, pdf-lib
+- Email: nodemailer, @sendgrid/mail, resend (check which is wired in controllers)
 - Excel/CSV: exceljs, xlsx, csv-parser, json2xls
-- Image processing & storage: sharp, cloudinary
+- PDF: puppeteer + @sparticuz/chromium, pdf-lib
+- Image tools: sharp, cloudinary
 - Scheduler: node-cron
+- Dev tooling: nodemon, eslint
 
-Important: package.json uses "type": "module" — import/export syntax (ESM) is used across the codebase.
+Notes:
+- package.json uses "type":"module" — use import/export syntax.
+- Puppeteer in serverless environments needs a compatible Chromium binary; @sparticuz/chromium is included to help with that.
 
-------------------------------------------------------------
-4 — Repository layout and key files
-Top-level:
-- src/
-  - config/                  (env loader, constants)
-  - db/                      (connectDB, mongoose setup)
-  - controllers/             (auth.controller.js, assessment.controller.js, ...)
-  - middlewares/             (auth.middleware.js, multer.middleware.js, employee.middleware.js, ...)
-  - models/                  (user.model.js, invitation.model.js, question.model.js, response.model.js, ...)
-  - routes/                  (auth.routes.js, assessment.routes.js, ...)
-  - services/                (email, cloudinary, pdf generation helpers)
-  - utils/                   (helpers, validators)
-  - app.js                   (Express app builder)
-  - index.js                 (entry point, server + cron)
-- package.json
-- README.md
-- Dockerfile
-- public/ (static assets)
+--------------------------------------------------------------------------------
+5 — Repository layout and important files
+Top-level files:
+- package.json — scripts and dependencies
+- README.md — repo overview (update with this document)
+- Dockerfile — containerization
+- .github/workflows/ — (if present) CI workflows
 
-Files to inspect first:
-- src/index.js — server start conditions, cron setup, DB connect behavior
-- src/app.js — middleware ordering and route mounting
-- src/models/user.model.js — JWT generation and user indexes
-- src/middlewares/auth.middleware.js — protect/flexibleProtect/restrictTo behavior
-- src/controllers/* — implement business rules and call services
+src/ (primary application)
+- src/index.js — entrypoint, DB connect, cron jobs
+- src/app.js — Express app creation, middlewares, route mounting
+- src/config/ — env loaders and constants
+- src/db/ — mongoose connection helpers (connectDB)
+- src/controllers/ — controllers for auth, assessment, questions, responses, dashboard, contact, organization
+- src/middlewares/ — auth.middleware.js, employee.middleware.js, multer.middleware.js, csvUpload.middleware.js, role.middleware.js
+- src/models/ — user.model.js, invitation.model.js, question.model.js, response.model.js, assessment.model.js, organization.model.js
+- src/routes/ — auth.routes.js, assessment.routes.js, questions.routes.js, responses.routes.js, dashboard.routes.js, organization.routes.js, contact.routes.js, employeeAssessment.routes.js
+- src/services/ — email service, cloudinary/upload service, pdf service, excel service
+- src/utils/ — validators, formatters, error classes
+- public/ — static assets
 
-------------------------------------------------------------
-5 — Setup & run (detailed)
-1) Prerequisites
-- Node >= 18 (recommended), npm >= 9
+Files to open first (priority):
+1) src/index.js — to understand start conditions and cron
+2) src/app.js — to see middleware order and global error handler
+3) src/models/user.model.js — JWT generation & indexes
+4) src/middlewares/auth.middleware.js — protect/flexibleProtect behavior
+5) src/controllers/auth.controller.js — registration, login, invites
+
+--------------------------------------------------------------------------------
+6 — Development setup — step-by-step
+Prerequisites:
+- Node >= 18, npm >= 9
 - MongoDB instance (Atlas or local)
-- Optional: Cloudinary account, Sendgrid/Resend credentials for email, and a Chromium-compatible environment for Puppeteer when generating PDFs.
 
-2) Local steps
-- Copy env template:
-  cp .env.example .env
-  Fill MONGODB_URL, JWT_SECRET and other provider credentials.
+Local quickstart:
+1) Clone the repo
+   git clone https://github.com/customcoder245/backend-tbd.git
+   cd backend-tbd
 
-- Install dependencies:
-  npm install
+2) Copy env template and fill variables
+   cp .env.example .env
+   # Edit .env and provide required values (MONGODB_URL, JWT_SECRET, etc.)
 
-- Development server (nodemon + dotenv):
-  npm run dev
+3) Install dependencies
+   npm install
 
-- Production-like start:
-  npm start
+4) Start dev server
+   npm run dev
+   # dev = nodemon -r dotenv/config src/index.js
 
-- Health check:
-  GET http://localhost:8000/ -> { success: true, message: "API is working 🚀" }
+5) Health check
+   curl http://localhost:8000/
+   # Expected: { success: true, message: "API is working 🚀" }
 
-3) Notes on serverless (Vercel)
-- src/index.js checks process.env.VERCEL — if set, it will NOT call app.listen, and the app is exported for serverless functions.
-- Cron and local index cleanup won't run on serverless — separate scheduled workers are required if cron tasks are needed in production.
+6) Useful scripts (package.json)
+- npm start — production-like start (node src/index.js)
+- npm run dev — development with nodemon
+- npm run lint — run eslint
 
-------------------------------------------------------------
-6 — Environment variables (recommended .env.example)
-Required/core:
-- MONGODB_URL=
-- JWT_SECRET=
+Notes:
+- If running on Vercel, ensure process.env.VERCEL is set so that index.js does not call listen (app exported for serverless).
+
+--------------------------------------------------------------------------------
+7 — Environment variables (.env.example)
+A recommended .env.example is included in Appendix A. Key variables:
+- MONGODB_URL= # required
+- JWT_SECRET=  # required
 - PORT=8000
 - NODE_ENV=development
-Optional / provider specific:
-- SENDGRID_API_KEY=
-- RESEND_API_KEY=
-- SMTP_HOST=, SMTP_PORT=, SMTP_USER=, SMTP_PASS=
+- FRONTEND_URL=http://localhost:3000
+- SENDGRID_API_KEY= or RESEND_API_KEY= or SMTP_* for email
 - CLOUDINARY_CLOUD_NAME=, CLOUDINARY_API_KEY=, CLOUDINARY_API_SECRET=
-- FRONTEND_URL= (CORS origin)
-- VERCEL=true (if deploying serverless)
+- VERCEL=true (for serverless)
 
-(See Appendix A for a ready .env.example block.)
+--------------------------------------------------------------------------------
+8 — Database models — schemas & important fields
+This section lists the major models and the fields you will interact with most often. File paths are approximate — open src/models/*.model.js for exact schemas.
 
-------------------------------------------------------------
-7 — Data models & database notes
-All models are defined using mongoose. Core models to be familiar with:
-- User: fields include email, password, role, orgName, profile, tokens, verification/reset tokens; method generateAccessToken()
-- Invitation: holds invite tokens, email, role, department, expiry and used flags
-- Question: question bank records including type (single/multi/scale), metadata, weights
-- Assessment / EmployeeAssessment / SubmittedAssessment: assessment instances, persisted snapshots, and responses
-- Response: stores answers; used by export endpoints to create Excel/PDF reports
+8.1 User (src/models/user.model.js)
+- Fields:
+  - _id (ObjectId)
+  - email (String, unique, indexed)
+  - password (String, hashed)
+  - role (String enum: superAdmin, admin, leader, manager, employee)
+  - orgName (String)
+  - adminId (ObjectId referencing user)
+  - firstName, lastName
+  - department
+  - profileImage (URL)
+  - isEmailVerified (Boolean)
+  - emailVerificationToken, emailVerificationExpires
+  - resetPasswordToken, resetPasswordExpires
+  - invitationToken (for guest invites)
+  - profileCompleted (Boolean)
+  - notificationPreferences (Object)
+  - lastAssessmentScore, classification
+- Methods:
+  - generateAccessToken() -> returns JWT signed with JWT_SECRET (exp ~3h)
 
-Indexes & important fields:
-- invitationToken and reset tokens are indexed for quick lookup
-- orgName combined indexes for organization-scoped queries
+Indexes: invitationToken, resetPasswordToken, emailVerificationToken, role, orgName
 
-Data migration considerations:
-- Be careful when dropping or altering indexes — src/index.js includes a local index-drop step for invitationId_1 (review before running in prod)
+8.2 Invitation (src/models/invitation.model.js)
+- Fields:
+  - token, token1 (String) — support for alternate token field
+  - email (String)
+  - invitedBy (user id)
+  - role, department, orgName
+  - used (Boolean)
+  - expiredAt (Date)
 
-------------------------------------------------------------
-8 — Authentication & authorization (details)
-- JWT signing: User model provides generateAccessToken which signs JWT with JWT_SECRET and typically expires in ~3h.
-- Middleware:
-  protect: Bails out if Authorization: Bearer <token> is missing or invalid. Sets req.user = user document.
-  flexibleProtect: Tries session JWT (Authorization header or cookie) then falls back to invite token (x-invite-token header or invitation cookie). If invite valid, sets req.guest and req.employee.
-  restrictTo(...roles): Use to restrict endpoints to specific roles.
-  employeeAccess: Strict invite-mode used for no-login flows.
+Usage: employeeAccess middleware searches invitation by token or token1 and checks expiry/used flags.
 
-Security tips:
-- Keep JWT_SECRET out of source control.
-- Avoid placing invite tokens in URLs for production-sensitive flows — use headers or single-use tokens where possible.
-- Add rate-limiting to auth endpoints.
+8.3 Question
+- Fields: id, orgName, text, type (single/multi/scale/text), options, weight, domain, tags, createdBy
 
-------------------------------------------------------------
-9 — Middleware behaviors (practical notes)
-- multer.middleware: uses disk storage and writes to os.tmpdir() or /tmp when VERCEL is set. Files should be uploaded to cloud storage after processing and temp files deleted.
-- excelUpload: intended for bulk questions/invitations. No size limit configured; monitor memory when parsing large files.
-- csvUpload: used by bulk invitation routes — CSV format expected by controller (inspect middleware for precise columns).
-- validateImageSize: ensures image uploads meet MIN and MAX bounds (10KB - 4MB).
+8.4 Assessment / EmployeeAssessment / SubmittedAssessment
+- Assessment stores template/metadata, participants, status, assigned stakeholders
+- SubmittedAssessment/Response stores snapshot of answers per question with timestamps and optional score
 
-------------------------------------------------------------
-10 — Endpoints (grouped) with short examples
+8.5 Response
+- Fields: assessmentId, respondent (user or guest), answers: [ { questionId, value, score } ], createdAt
+
+Notes: Review index definitions in each model; they guide query performance for exports and dashboard aggregations.
+
+--------------------------------------------------------------------------------
+9 — Authentication & token flows (detailed)
+9.1 JWT-based auth
+- Users log in with POST /api/v1/auth/login
+- Controller validates credentials and returns JWT token and user info
+- Tokens included in Authorization: Bearer <token> header for protected routes
+- Tokens should be stored on the client side securely (httpOnly cookies recommended)
+
+9.2 Invite / guest flows
+- Invite tokens allow a guest/employee to access assessment without registering
+- Two middlewares implement this:
+  - flexibleProtect: accepts session JWT or invite token (header or cookie) and sets req.user or req.employee accordingly
+  - employeeAccess: strict invite-mode — token required (x-invite-token header or query param)
+- Invitations include used/expired flags — controllers should mark used=true when required
+
+9.3 Token expiration and refresh
+- JWT tokens have expiry — refresh approach is not implemented explicitly in the repo (consider adding refresh tokens if needed)
+
+Security recommendations:
+- Never commit JWT secret to repo
+- Prefer short-lived tokens for admin flows and single-use tokens for invites
+- Log suspicious token reuse or repeated token attempts (possible sharing/leak)
+
+--------------------------------------------------------------------------------
+10 — Middlewares and their behavior
+10.1 auth.middleware.js
+- protect(req,res,next): verify Authorization header -> find user -> attach req.user
+- flexibleProtect(req,res,next): first check Authorization header or cookie; if no session token, check invite token in x-invite-token or cookie; attach req.user or req.employee
+- restrictTo(...roles): returns middleware that checks req.user.role
+
+10.2 employee.middleware.js
+- employeeAccess: validates invite token parameter/header -> finds Invitation -> checks used/expiry -> sets req.employee
+
+10.3 multer.middleware.js
+- upload (image files) -> disk storage to os.tmpdir() (or /tmp on Vercel)
+- excelUpload -> used for bulk imports
+- validateImageSize ensures image min 10KB and max 4MB
+
+10.4 csvUpload.middleware.js
+- Parses CSV to JS objects for bulk invitation imports; controller handles creation logic
+
+10.5 role.middleware.js
+- Small helpers to map roles and enforce role-specific logic
+
+Operational notes:
+- Always ensure temp files are removed from disk after processing to avoid filling /tmp
+- For large uploads, consider streaming or offloading to direct-to-cloud uploads (pre-signed S3 URLs)
+
+--------------------------------------------------------------------------------
+11 — Routes & endpoints — full reference with examples
 Base path: /api/v1
-Auth examples
+
+A) Auth & User routes
 - POST /auth/register
-  Body: { email, password, firstName, lastName, orgName }
+  Body: { email, password, firstName?, lastName?, orgName? }
+  Response: newly created user (without password)
+
 - POST /auth/login
   Body: { email, password }
   Response: { token, user }
 
-Invitations
-- POST /auth/send-invitation (protected)
-  Body: { email, role, orgName, department, expiresAt }
-- POST /auth/send-bulk-invitation (protected)
-  multipart/form-data: file=bulk.csv
+- POST /auth/logout
+  Clears cookie or server session
 
-Employee flow (no-login)
-- POST /employee-assessment/start
-  Header: x-invite-token: <invite-token>
-  Response: assessment meta + questions
-- POST /employee-assessment/:assessmentId/submit/:token
-  Body: { answers: [ { questionId, answer } ] }
+- GET /auth/me
+  flexibleProtect -> returns current session or guest
 
-Assessment & responses
-- POST /assessment/start (protected)
-- POST /assessment/:assessmentId/submit (protected)
-- POST /responses (flexibleProtect)
-- GET /responses/:assessmentId/export (flexibleProtect) -> Excel download
+- POST /auth/send-invitation (protect)
+  Body: { email, role, orgName, department, expiresAt? }
 
-Dashboard & exports
-- GET /dashboard/export-pdf (protected) -> triggers Puppeteer render and returns PDF
+- POST /auth/send-bulk-invitation (protect)
+  multipart/form-data: file=invite.xlsx or invite.csv
 
-Notes: For each protected route ensure Authorization header if called as admin. Many endpoints accept flexibleProtect to support both logged-in users and invite-based sessions.
+B) Assessment
+- GET /assessment/start
+  Returns meta required to start assessment (templates, config)
 
-------------------------------------------------------------
-11 — File uploads, exports and background work
-- Uploads saved to disk (tmp) via multer; controllers should move processed files to cloud storage and remove temp files.
-- Excel exports: exceljs and xlsx produce workbooks; large exports should be streamed and offloaded to background jobs to avoid request timeouts.
-- PDF exports: puppeteer + @sparticuz/chromium used to run headless chromium in serverless environments. This is resource-heavy — prefer queuing and returning a job URL.
+- POST /assessment/start (protect)
+  Create assessment draft and participants
 
-Best practice: implement a job queue (BullMQ / Redis) for heavy tasks (PDF/Excel generation), persist job status and provide download endpoints.
+- POST /assessment/:assessmentId/submit (protect)
+  Accepts completion and persists SubmittedAssessment
 
-------------------------------------------------------------
-12 — Cron & DB maintenance
-- src/index.js schedules a cron ('* * * * *') that deletes expired/unverified users every minute. This runs only when index.js is started (not serverless).
-- There is code in index.js that attempts to drop an index named invitationId_1 from the assessments collection. This is a local maintenance step and should be reviewed before running in production.
+- GET /assessment/history (protect)
+  Returns user's past assessments
 
-Recommendation: Move scheduled tasks to a separate worker process or external scheduler (e.g., server cron, AWS CloudWatch Events, GitHub Actions scheduled workflow) and guard any destructive DB operations.
+C) Employee Assessment (invite)
+- POST /employee-assessment/start (employeeAccess)
+  Body: { token or header } -> returns questions and assessment instance
 
-------------------------------------------------------------
-13 — Deployment notes (Vercel & alternatives)
-Vercel considerations:
-- App should be exported and not call listen when process.env.VERCEL is set.
-- Puppeteer requires a compatible chromium binary; @sparticuz/chromium helps but test in the target environment.
-- /tmp is writable on serverless platforms — ensure temp file usage conforms.
+- POST /employee-assessment/:assessmentId/submit/:token (employeeAccess)
+  Body: { answers: [...] } -> saves responses and marks invitation used if applicable
 
-Alternative deployments:
-- Docker-based deployment on VPS or container platform (DigitalOcean, AWS ECS, Heroku, Render) gives more control for background workers and persistent processes.
+D) Questions
+- GET /questions/all (protect)
+- POST /questions/upload (protect + excelUpload.single('file')) -> bulk import
+- POST /questions/multiple -> seed multiple questions
 
-------------------------------------------------------------
-14 — Testing & QA checklist
-- Create Postman or Insomnia collection with environment placeholders:
-  - Base URL, JWT_TOKEN, INVITE_TOKEN
-- Smoke tests:
-  - Register/login as admin
-  - Create organization and invitation
-  - Start and submit an employee assessment via invite
-  - Upload Excel and download exports
-- Add automated tests (suggest using Jest + Supertest):
-  - Unit tests for utility functions and model methods
-  - Integration tests for auth flows and response submit + export
-- CI: Add GitHub Actions to run lint and tests on PRs.
+E) Responses & Exports
+- POST /responses (flexibleProtect) -> save or update responses
+- GET /responses/:assessmentId -> fetch responses
+- GET /responses/:assessmentId/export -> generate Excel and return download
+- GET /responses/organization/:orgName/export -> org-level Excel
 
-------------------------------------------------------------
-15 — Onboarding checklist (priority)
-1) Pull repo & install: git clone && npm install
-2) Copy .env.example -> .env and fill required fields
-3) Run dev server: npm run dev and perform health check
-4) Register test admin and validate login
-5) Create an invitation and run the employee flow
-6) Test file uploads and exports locally
-7) Inspect controllers to determine which email provider is used in your environment
-8) Secure index cleanup code and remove or guard for production
-9) Add Postman collection & API.md in repo
+F) Dashboard & Reports
+- GET /dashboard/export-pdf (protect) -> returns PDF (puppeteer)
+- GET /dashboard/preview-pdf-report -> returns HTML preview
 
-------------------------------------------------------------
-16 — Troubleshooting - common issues & fixes
-- MongoDB connection failures:
-  - Ensure MONGODB_URL is correct and network access (firewall/Atlas IP whitelist) is allowed.
-  - For SRV errors, check DNS resolution and connection string format.
-- Invalid tokens:
-  - Ensure JWT_SECRET matches tokens used when issued. Reset tokens if needed.
-- Invite token not accepted:
-  - Check whether invitation token stored uses field token or token1. employeeAccess checks both.
-- Upload failures on Vercel:
-  - Ensure code uses /tmp and that the file size limits are respected.
-- Timeouts on exports:
-  - Offload large exports to background jobs; stream results when possible.
+G) Organization
+- CRUD endpoints for departments and org metadata (protect + restrictTo admin)
 
-------------------------------------------------------------
-17 — Immediate improvements & roadmap
-High priority:
-- Add .env.example to repo and update README with these docs.
-- Add request validation (Joi/express-validator) and rate-limiting to auth routes.
-- Move heavy exports to a background job queue and return job status endpoints.
-- Create Postman collection and add as /docs/postman_collection.json
-- Add unit/integration tests and CI pipeline.
+H) Contact
+- POST /contact -> public contact form that triggers email or ticket
 
-Medium priority:
-- Add OpenAPI/Swagger spec generated from routes (or write manually).
-- Audit npm dependencies and fix vulnerabilities.
-- Implement monitoring/observability for PDF export tasks and queue processing.
+Endpoint example (curl) — login
+curl -X POST "http://localhost:8000/api/v1/auth/login" -H "Content-Type: application/json" -d '{"email":"admin@example.com","password":"Password123"}'
 
-Lower priority:
-- Multi-tenant separation review if orgName is used as logical partition — consider schema-level or db-per-tenant if required.
+--------------------------------------------------------------------------------
+12 — File uploads, storage and exports
+12.1 Upload handling
+- multer with diskStorage writes files to os.tmpdir() locally and /tmp when deployed serverless
+- Controllers should validate file types/mime and sizes
+- After processing, files should be uploaded to Cloudinary or S3 and local temp files deleted
 
-------------------------------------------------------------
+12.2 Export generation
+- Excel: exceljs/xlsx/json2xls — produce workbook and either stream to response or store and return URL
+- PDF: controllers use Puppeteer to render HTML + CSS and call page.pdf(). Use pdf-lib to post-process if needed
+
+12.3 Performance considerations
+- For large datasets, stream or chunk exports
+- Offload heavy export generation to a worker/queue with persisted job state
+
+--------------------------------------------------------------------------------
+13 — Background jobs, cron, and long-running tasks
+13.1 Cron in src/index.js
+- Schedules '* * * * *' for deleting expired/unverified users every minute (only when index.js runs)
+- Also contains index-drop fix for assessments collection — review before running on prod
+
+13.2 Recommendation
+- Move scheduled tasks to a worker or an external scheduler
+- Use Redis + BullMQ or similar for job queues (export generation, email jobs, cleanup tasks)
+
+--------------------------------------------------------------------------------
+14 — Deployment & production checklist (Vercel + alternatives)
+14.1 Vercel (serverless)
+- Set VERCEL=true in env so index.js does not call listen
+- Confirm Puppeteer works with @sparticuz/chromium on Vercel build
+- Use /tmp for temporary files and ensure cleanup
+- Move cron/cleanup tasks to separate hosted runner
+
+14.2 Docker / container deployment
+- Use Dockerfile to build node image
+- Run node src/index.js with proper envs
+- Provision separate worker containers for scheduled jobs
+
+14.3 Security & infra
+- Use HTTPS and HSTS
+- Ensure environment secrets are stored securely (Vercel environment, AWS Secrets Manager, or similar)
+- Firewall and IP restrictions for DB access (Atlas allowlist)
+
+--------------------------------------------------------------------------------
+15 — Observability, logging & error handling
+- Structured logging recommended (pino or winston)
+- Centralize error handler in src/app.js to format API errors
+- Capture unhandledRejection and uncaughtException and exit gracefully after logging
+- Add request metrics and APM (Sentry, Datadog) for monitoring PDF/Export latency
+
+--------------------------------------------------------------------------------
+16 — Testing, QA & CI recommendations
+- Add unit tests (Jest) for utilities and model methods
+- Add integration tests (Supertest) for critical endpoints (auth, invite, submit)
+- CI pipeline (GitHub Actions): install, lint, test on PRs
+- Add sample database fixtures for tests (use in-memory mongo or test DB)
+
+--------------------------------------------------------------------------------
+17 — Onboarding checklist (first 24 hours)
+1) Read this PDF and open the key files (index.js, app.js, auth.controller.js)
+2) Create .env from .env.example and run npm run dev
+3) Register test user and test login
+4) Create an invitation and run the employee assessment flow end-to-end
+5) Upload a sample Excel for bulk invitation and test parsing
+6) Generate an export (small org) and validate PDF/Excel output
+7) Run linter and tests
+
+--------------------------------------------------------------------------------
+18 — Troubleshooting guide — common issues & fixes
+18.1 Mongo connection errors
+- Verify MONGODB_URL and network access
+- For SRV errors, confirm DNS and correct connection string
+
+18.2 Invalid/expired JWT
+- Check JWT_SECRET and token expiry
+- Create a new token via login if required
+
+18.3 Invitation/token not found
+- Confirm whether token is stored in token or token1
+- Check used flag and expiry
+
+18.4 File upload problems on Vercel
+- Ensure usage of /tmp and that files are removed after processing
+
+18.5 Puppeteer/Chromium failures
+- Confirm @sparticuz/chromium is included and compatible with runtime
+- Increase memory/time limits or run in a dedicated container if heavy
+
+--------------------------------------------------------------------------------
+19 — Security checklist
+- Do not commit secrets
+- Enforce input validation and sanitize inputs
+- Add rate-limiting for auth endpoints
+- Use HTTPS and secure cookies
+- Limit exposure of invite tokens (prefer headers over URL)
+- Periodically audit npm dependencies
+
+--------------------------------------------------------------------------------
+20 — Suggested immediate improvements and roadmap
+Immediate (high priority):
+- Add .env.example and docs/API.md to repo
+- Create Postman collection and include as /docs/postman_collection.json
+- Add request validation (Joi or express-validator) and rate-limiting
+- Move heavy exports to background job queue
+- Add tests and CI
+
+Near-term:
+- Add OpenAPI/Swagger spec
+- Add monitoring and APM
+- Harden deployment with secrets manager and network restrictions
+
+Long-term:
+- Consider multi-tenant architecture if orgs scale
+- Add role audit trails and admin audit logs
+- Implement refresh-token flow and token revocation
+
+--------------------------------------------------------------------------------
 Appendix A — Example .env.example
 MONGODB_URL=
 JWT_SECRET=
@@ -307,23 +465,54 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
 SENDGRID_API_KEY=
 RESEND_API_KEY=
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USER=
+SMTP_PASS=
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
+VERCEL=true
 
-Appendix B — Example API request samples (curl)
+Appendix B — Example requests (curl) and sample responses
 1) Login
 curl -X POST "http://localhost:8000/api/v1/auth/login" -H "Content-Type: application/json" -d '{"email":"admin@example.com","password":"Password123"}'
+Sample response:
+{
+  "success": true,
+  "token": "eyJhbGciOi...",
+  "user": { "email": "admin@example.com", "role": "admin" }
+}
 
-2) Start assessment (protected)
-curl -X POST "http://localhost:8000/api/v1/assessment/start" -H "Authorization: Bearer <TOKEN>" -H "Content-Type: application/json" -d '{"title":"Quarterly Survey"}'
-
-3) Employee start (invite token)
+2) Start employee assessment (invite)
 curl -X POST "http://localhost:8000/api/v1/employee-assessment/start" -H "x-invite-token: <INVITE_TOKEN>"
+Sample response: { assessmentId: "abc123", questions: [ ... ] }
 
-Appendix C — Postman collection
-- Recommended: export a Postman collection with environment variables: baseUrl, adminToken, inviteToken. Include tests for login, invite, start, submit, and export.
+Appendix C — Postman collection (recommended structure)
+- Folder: Auth
+  - register, login, me, logout
+- Folder: Invitations
+  - send-invitation, send-bulk-invitation, invite-accept
+- Folder: Assessments
+  - start, submit, history
+- Folder: Responses
+  - save, export
+- Environments: local (baseUrl), tokens variables (ADMIN_TOKEN, INVITE_TOKEN)
 
-------------------------------------------------------------
-End of document
+Appendix D — Migration & upgrade notes
+- Be careful with dropping/altering indexes — src/index.js contains index-drop logic; review and remove for production
+- When upgrading mongoose or Node, run tests and validate model behavior
+
+Appendix E — Quick code pointers (where to look first)
+- src/index.js — start conditions, cron and DB connect
+- src/app.js — middleware ordering, error handler
+- src/controllers/auth.controller.js — invites, registration, login
+- src/models/user.model.js — generateAccessToken, token fields
+- src/middlewares/employee.middleware.js — invite token logic
+
+--------------------------------------------------------------------------------
+End of handover document
+
+Notes: This file has been prepared as a comprehensive handover. If you want this converted into a styled PDF (A4, portrait) with a professional cover, table of contents, headers/footers and page numbers, reply "Attach here" and I will generate the PDF and attach it for download. If you want the PDF committed to the repository instead, reply with:
+"Commit to repo: customcoder245/backend-tbd path: docs/handover.pdf branch: main message: Add full handover PDF"
 
