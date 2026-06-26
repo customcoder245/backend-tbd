@@ -1,0 +1,25 @@
+@startuml
+skinparam monochrome true
+title backend-tbd Architecture
+
+actor "Admin/User" as User
+node "Frontend" as FE
+node "API Server" as API
+database "MongoDB" as DB
+queue "Redis / BullMQ" as QUEUE
+node "Cloudinary / S3" as STORAGE
+node "Email Provider" as EMAIL
+node "Puppeteer (PDF)" as PDF
+
+User --> FE : Uses UI
+FE --> API : HTTPS / REST
+API --> DB : Mongoose queries
+API --> STORAGE : upload/download
+API --> EMAIL : send emails
+API --> QUEUE : enqueue export jobs
+QUEUE --> API : worker processes jobs
+QUEUE --> PDF : worker triggers PDF generation
+PDF --> STORAGE : store generated PDFs
+API --> STORAGE : serve download links
+
+@enduml
