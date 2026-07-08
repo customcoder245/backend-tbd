@@ -1,6 +1,4 @@
 import handlebars from "handlebars";
-import { PDFDocument, rgb } from "pdf-lib";
-import fs from "fs";
 import feedbackData from "../data/domainSubdomainFeedback.js";
 import { computeTopPriorities } from "../utils/priority.utils.js";
 
