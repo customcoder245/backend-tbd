@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import swaggerUi from "swagger-ui-express"
+import swaggerSpec from "../swagger.js"
 
 import connectDB from "./db/index.js";
 
@@ -62,5 +64,8 @@ app.use("/api/v1/responses", responseRoutes);
 app.use("/api/v1/dashboard", dashboardRoutes);
 app.use("/api/v1/organization", organizationRoutes);
 app.use("/api/v1/contact", contactRoutes);
+
+// SWAGGER API
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 export { app };
