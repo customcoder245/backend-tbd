@@ -14,7 +14,7 @@ const options = {
         description: "Local development server",
       },
       {
-        url: "/",
+        url: "https://backend-tbd.onrender.com",
         description: "Production development server",
       },
     ],
