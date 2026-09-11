@@ -17,6 +17,17 @@ const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 export const sendInvitation = async (req, res) => {
     try {
         console.log(">>> [SERVER RECEIVED INVITE REQ]:", JSON.stringify(req.body, null, 2));
+
+        // --- ENV VAR GUARD ---
+        if (!process.env.JWT_SECRET) {
+            console.error(">>> [FATAL] JWT_SECRET is not set in environment variables.");
+            return res.status(500).json({ message: "Server configuration error: JWT_SECRET missing." });
+        }
+        if (!process.env.BACKEND_URL) {
+            console.error(">>> [FATAL] BACKEND_URL is not set in environment variables.");
+            return res.status(500).json({ message: "Server configuration error: BACKEND_URL missing." });
+        }
+
         let { email, role, department } = req.body;
 
         if (!email || !role) {
@@ -126,7 +137,7 @@ export const sendInvitation = async (req, res) => {
             console.error(">>> [EMAIL SEND FAIL] Rolling back invitation:", emailError.message);
             await Invitation.deleteOne({ _id: invitation._id });
             return res.status(500).json({
-                message: "Failed to send invitation email. Please check your configuration."
+                message: `Failed to send invitation email: ${emailError.message}`
             });
         }
 
@@ -141,7 +152,7 @@ export const sendInvitation = async (req, res) => {
         res.status(200).json({ message: "Invitation sent successfully" });
 
     } catch (error) {
-        console.error("Send invitation error:", error);
+        console.error("Send invitation error:", error.stack || error.message);
         res.status(500).json({ message: "Server error: " + error.message });
     }
 };
