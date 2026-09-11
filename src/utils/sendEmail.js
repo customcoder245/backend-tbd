@@ -12,20 +12,18 @@ if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder("ipv4first");
 }
 
+// Reset transporter on config change
 let transporter;
 
 const getTransporter = () => {
   if (!transporter) {
-    // This allows you to switch between Gmail (low limit) 
-    // and professional services like Resend/SendGrid (high limit)
-    // without changing any code, just based on your .env variables.
     transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST || "smtp.gmail.com",
       port: parseInt(process.env.EMAIL_PORT) || 465,
-      secure: process.env.EMAIL_SECURE !== "false", // default to true (port 465)
+      secure: process.env.EMAIL_SECURE !== "false",
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD,
+        user: process.env.EMAIL_USER?.trim(),
+        pass: process.env.EMAIL_APP_PASSWORD?.trim(),
       },
       tls: {
         rejectUnauthorized: false
@@ -33,6 +31,22 @@ const getTransporter = () => {
     });
   }
   return transporter;
+};
+
+// Validate that all required email env vars are present
+const validateEmailConfig = () => {
+  const missing = [];
+  if (!process.env.EMAIL_USER?.trim()) missing.push("EMAIL_USER");
+
+  if (process.env.SENDGRID_API_KEY) {
+    if (!process.env.SENDGRID_API_KEY.startsWith("SG.")) missing.push("SENDGRID_API_KEY (invalid format, must start with SG.)");
+  } else {
+    if (!process.env.EMAIL_APP_PASSWORD?.trim()) missing.push("EMAIL_APP_PASSWORD");
+  }
+
+  if (missing.length > 0) {
+    throw new Error(`Email configuration missing or invalid: ${missing.join(", ")}`);
+  }
 };
 
 const LOGO_URL =
@@ -309,23 +323,27 @@ const getEmailWrapper = (
 
 const sendEmail = async (mailOptions) => {
   try {
+    // Validate config first — fail fast with a clear message
+    validateEmailConfig();
+
+    const senderEmail = process.env.EMAIL_USER?.trim();
+
     if (process.env.SENDGRID_API_KEY) {
-      // Use SendGrid API (Works on Render/AWS/etc.)
+      // --- Use SendGrid API ---
       const msg = {
         to: mailOptions.to,
         from: {
-          email: process.env.EMAIL_USER, // The email you verified in SendGrid
+          email: senderEmail,
           name: "Talent By Design Support"
         },
         replyTo: mailOptions.replyTo
           ? { email: mailOptions.replyTo }
-          : { email: process.env.EMAIL_USER }, // Use passed replyTo or fallback
+          : { email: senderEmail },
         subject: mailOptions.subject,
-        text: mailOptions.subject, // Plain text version of the subject as a fallback
+        text: mailOptions.subject,
         html: mailOptions.html,
       };
 
-      // Add attachments if present
       if (mailOptions.attachments && mailOptions.attachments.length > 0) {
         msg.attachments = mailOptions.attachments.map(att => ({
           content: att.content.toString('base64'),
@@ -335,22 +353,46 @@ const sendEmail = async (mailOptions) => {
         }));
       }
 
-      await sgMail.send(msg);
-      console.log(">>> [EMAIL SENT VIA SENDGRID]");
+      try {
+        await sgMail.send(msg);
+        console.log(">>> [EMAIL SENT VIA SENDGRID] to:", mailOptions.to);
+      } catch (sgError) {
+        // Log the full SendGrid error for diagnosis
+        const sgStatus = sgError?.response?.status;
+        const sgBody = sgError?.response?.body;
+        console.error(">>> [SENDGRID FAILED]", {
+          status: sgStatus,
+          body: JSON.stringify(sgBody),
+          message: sgError.message
+        });
+
+        // Specific helpful messages
+        if (sgStatus === 403) {
+          throw new Error(
+            `SendGrid rejected the sender email "${senderEmail}". ` +
+            `Please verify this sender at https://app.sendgrid.com/settings/sender_auth`
+          );
+        } else if (sgStatus === 401) {
+          throw new Error("SendGrid API key is invalid or revoked. Check SENDGRID_API_KEY in your env.");
+        } else if (sgStatus === 429) {
+          throw new Error("SendGrid rate limit reached. Please wait and try again.");
+        } else {
+          throw new Error(`SendGrid error (${sgStatus}): ${sgBody?.errors?.[0]?.message || sgError.message}`);
+        }
+      }
     } else {
-      // Fallback to Nodemailer SMTP
-      const info = await getTransporter().sendMail(mailOptions);
+      // --- Fallback to Nodemailer SMTP ---
+      const info = await getTransporter().sendMail({
+        ...mailOptions,
+        from: mailOptions.from || `"Talent By Design" <${senderEmail}>`
+      });
       console.log(">>> [EMAIL SENT VIA SMTP]:", info.response);
     }
   } catch (error) {
     console.error(">>> [EMAIL FAIL]:", error.message);
-    if (error.response) {
-      console.error(error.response.body);
-    }
-    throw new Error(`Failed to send email: ${error.message}`, { cause: error });
+    throw new Error(`Failed to send email: ${error.message}`);
   }
 };
-
 
 
 export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {

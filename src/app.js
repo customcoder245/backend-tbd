@@ -30,17 +30,23 @@ app.use(async (req, res, next) => {
 app.use(express.json());
 app.use(cookieParser());
 
-// Cors moved here for cleaner flow
-const allowedOrigin = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "*";
+// Support multiple allowed origins via comma-separated CORS_ORIGIN (e.g. "http://localhost:5173,https://talent-by-design.vercel.app")
+const rawOrigins = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "*";
+const allowedOrigins = rawOrigins === "*" ? "*" : rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
 
-// Enable CORS
 app.use(
   cors({
-    origin: allowedOrigin,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins === "*") return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      console.warn(`[CORS] Blocked request from origin: ${origin}`);
+      callback(new Error(`CORS: origin '${origin}' is not allowed`));
+    },
     credentials: true
   })
 );
-
 
 app.set("trust proxy", 1);
 
