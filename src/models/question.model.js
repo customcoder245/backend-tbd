@@ -94,7 +94,10 @@ const questionSchema = new Schema(
   { timestamps: true }
 );
 
-questionSchema.index({ questionCode: 1, orgName: 1, department: 1, stakeholder: 1 }, { unique: true });
+questionSchema.index(
+  { questionCode: 1, orgName: 1, department: 1, stakeholder: 1 },
+  { unique: true }
+);
 questionSchema.index({ orgName: 1, department: 1, stakeholder: 1, isDeleted: 1, order: 1 });
 questionSchema.index({ stakeholder: 1, isDeleted: 1, order: 1 });
 questionSchema.index({ isDeleted: 1 });

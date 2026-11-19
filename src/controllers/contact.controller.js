@@ -11,7 +11,7 @@ export const submitContactForm = async (req, res) => {
     if (!firstName || !lastName || !email || !message) {
       return res.status(400).json({
         success: false,
-        message: "First name, last name, email, and message are required fields.",
+        message: "First name, last name, email, and message are required fields."
       });
     }
 
@@ -20,13 +20,13 @@ export const submitContactForm = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Contact form submitted successfully",
+      message: "Contact form submitted successfully"
     });
   } catch (error) {
     console.error("Error in submitContactForm:", error);
     return res.status(500).json({
       success: false,
-      message: "Internal server error while processing the contact form",
+      message: "Internal server error while processing the contact form"
     });
   }
 };

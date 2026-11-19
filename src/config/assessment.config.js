@@ -15,8 +15,7 @@
 export const ASSESSMENT_CYCLE_MONTHS = 3;
 
 export const getAssessmentCycleStartDate = () => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - ASSESSMENT_CYCLE_MONTHS);
-    return date;
+  const date = new Date();
+  date.setMonth(date.getMonth() - ASSESSMENT_CYCLE_MONTHS);
+  return date;
 };
-

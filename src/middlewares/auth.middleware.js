@@ -15,7 +15,7 @@ export const protect = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
+    if (error.name === "TokenExpiredError") {
       return res.status(401).json({ message: "Token has expired" });
     } else {
       return res.status(401).json({ message: "Invalid token" });
@@ -44,7 +44,7 @@ export const flexibleProtect = async (req, res, next) => {
         return next();
       }
     } catch (err) {
-      if (err.name === 'TokenExpiredError' && !inviteToken) {
+      if (err.name === "TokenExpiredError" && !inviteToken) {
         return res.status(401).json({ message: "Session expired" });
       }
       // If it's a session token but invalid, we continue to check inviteToken
@@ -79,13 +79,15 @@ export const flexibleProtect = async (req, res, next) => {
         return next();
       }
     } catch (err) {
-      if (err.name === 'TokenExpiredError') {
+      if (err.name === "TokenExpiredError") {
         return res.status(401).json({ message: "Invitation link has expired" });
       }
     }
   }
 
-  return res.status(401).json({ message: "Unauthorized. Please login or use a valid invitation link." });
+  return res
+    .status(401)
+    .json({ message: "Unauthorized. Please login or use a valid invitation link." });
 };
 
 export const restrictTo = (...roles) => {
@@ -98,7 +100,7 @@ export const restrictTo = (...roles) => {
     // roles: ['admin', 'superadmin']
     if (!roles.includes(req.user.role?.toLowerCase())) {
       return res.status(403).json({
-        message: "You do not have permission to perform this action",
+        message: "You do not have permission to perform this action"
       });
     }
 

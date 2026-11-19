@@ -15,11 +15,7 @@ import {
   getOrganizationFilters
 } from "../controllers/auth.controller.js";
 
-import {
-  getMe,
-  myProfile,
-  updateProfile
-} from "../controllers/user.controller.js";
+import { getMe, myProfile, updateProfile } from "../controllers/user.controller.js";
 
 import {
   sendInvitation,
@@ -31,7 +27,12 @@ import {
   getInvitationDetails
 } from "../controllers/invitation.controller.js";
 
-import { getNotifications, markAsRead, markAllAsRead, clearNotifications } from "../controllers/notification.controller.js";
+import {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  clearNotifications
+} from "../controllers/notification.controller.js";
 import { resendVerificationEmail } from "../controllers/resendVerification.controller.js";
 import { protect, flexibleProtect } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -847,7 +848,15 @@ router.get("/my-profile", flexibleProtect, myProfile);
  *       500:
  *         description: Server error
  */
-router.patch("/update-profile", protect, upload.fields([{ name: "profileImage", maxCount: 1 }, { name: "orgLogo", maxCount: 1 }]), updateProfile);
+router.patch(
+  "/update-profile",
+  protect,
+  upload.fields([
+    { name: "profileImage", maxCount: 1 },
+    { name: "orgLogo", maxCount: 1 }
+  ]),
+  updateProfile
+);
 
 // Notifications routes
 /**

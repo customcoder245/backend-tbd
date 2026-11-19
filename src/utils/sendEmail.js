@@ -23,7 +23,7 @@ const getTransporter = () => {
       secure: process.env.EMAIL_SECURE !== "false",
       auth: {
         user: process.env.EMAIL_USER?.trim(),
-        pass: process.env.EMAIL_APP_PASSWORD?.trim(),
+        pass: process.env.EMAIL_APP_PASSWORD?.trim()
       },
       tls: {
         rejectUnauthorized: false
@@ -39,7 +39,8 @@ const validateEmailConfig = () => {
   if (!process.env.EMAIL_USER?.trim()) missing.push("EMAIL_USER");
 
   if (process.env.SENDGRID_API_KEY) {
-    if (!process.env.SENDGRID_API_KEY.startsWith("SG.")) missing.push("SENDGRID_API_KEY (invalid format, must start with SG.)");
+    if (!process.env.SENDGRID_API_KEY.startsWith("SG."))
+      missing.push("SENDGRID_API_KEY (invalid format, must start with SG.)");
   } else {
     if (!process.env.EMAIL_APP_PASSWORD?.trim()) missing.push("EMAIL_APP_PASSWORD");
   }
@@ -66,7 +67,7 @@ const HERO_IMAGE_URL =
 
 const getEmailWrapper = (
   firstName,
-  content,
+  content
 ) => `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
@@ -320,7 +321,6 @@ const getEmailWrapper = (
   </body>
 </html>`;
 
-
 const sendEmail = async (mailOptions) => {
   try {
     // Validate config first — fail fast with a clear message
@@ -336,20 +336,18 @@ const sendEmail = async (mailOptions) => {
           email: senderEmail,
           name: "Talent By Design Support"
         },
-        replyTo: mailOptions.replyTo
-          ? { email: mailOptions.replyTo }
-          : { email: senderEmail },
+        replyTo: mailOptions.replyTo ? { email: mailOptions.replyTo } : { email: senderEmail },
         subject: mailOptions.subject,
         text: mailOptions.subject,
-        html: mailOptions.html,
+        html: mailOptions.html
       };
 
       if (mailOptions.attachments && mailOptions.attachments.length > 0) {
-        msg.attachments = mailOptions.attachments.map(att => ({
-          content: att.content.toString('base64'),
+        msg.attachments = mailOptions.attachments.map((att) => ({
+          content: att.content.toString("base64"),
           filename: att.filename,
-          type: att.contentType || 'application/pdf',
-          disposition: 'attachment'
+          type: att.contentType || "application/pdf",
+          disposition: "attachment"
         }));
       }
 
@@ -370,14 +368,18 @@ const sendEmail = async (mailOptions) => {
         if (sgStatus === 403) {
           throw new Error(
             `SendGrid rejected the sender email "${senderEmail}". ` +
-            `Please verify this sender at https://app.sendgrid.com/settings/sender_auth`
+              `Please verify this sender at https://app.sendgrid.com/settings/sender_auth`
           );
         } else if (sgStatus === 401) {
-          throw new Error("SendGrid API key is invalid or revoked. Check SENDGRID_API_KEY in your env.");
+          throw new Error(
+            "SendGrid API key is invalid or revoked. Check SENDGRID_API_KEY in your env."
+          );
         } else if (sgStatus === 429) {
           throw new Error("SendGrid rate limit reached. Please wait and try again.");
         } else {
-          throw new Error(`SendGrid error (${sgStatus}): ${sgBody?.errors?.[0]?.message || sgError.message}`);
+          throw new Error(
+            `SendGrid error (${sgStatus}): ${sgBody?.errors?.[0]?.message || sgError.message}`
+          );
         }
       }
     } else {
@@ -393,7 +395,6 @@ const sendEmail = async (mailOptions) => {
     throw new Error(`Failed to send email: ${error.message}`);
   }
 };
-
 
 export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {
   // 1. Extract email string
@@ -417,9 +418,7 @@ export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {
   const email = targetEmail.trim();
 
   const isEmployee = role === "employee";
-  const title = isEmployee
-    ? "Your Assessment Invitation"
-    : "You're Invited to Join";
+  const title = isEmployee ? "Your Assessment Invitation" : "You're Invited to Join";
   const buttonText = isEmployee ? "Start Assessment" : "Complete Registration";
 
   // You have been invited to join <strong>${orgName || 'the platform'}</strong> on Talent By Design.
@@ -427,10 +426,11 @@ export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {
     <p style="font-size: 16px; margin-bottom: 16px;">
 
       You have been invited to participate in <strong> Talent By Design's POD-360™ </strong> Workplace Assessment.  We thank you in advance for your time and look forward to supporting you along your journey
-      ${isEmployee
-      ? "We're excited to have you complete your confidential professional assessment."
-      : " "
-    }
+      ${
+        isEmployee
+          ? "We're excited to have you complete your confidential professional assessment."
+          : " "
+      }
     </p>
     <div style="margin: 40px 0;">
       <a href="${link}" style="display: inline-block; padding: 12px 28px; background: rgba(68, 140, 210, 0.05); color: #448cd2; text-decoration: none; border-radius: 32px; font-size: 16px; font-weight: 600; border: 1px solid #448cd2; cursor: pointer;">
@@ -446,7 +446,7 @@ export const sendInvitationEmail = async (emailOrUser, link, role, orgName) => {
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: title,
-    html: getEmailWrapper("", content),
+    html: getEmailWrapper("", content)
   });
 };
 
@@ -474,7 +474,7 @@ export const sendVerificationEmail = async (user, link) => {
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to: user.email,
     subject: "Verify your email address",
-    html: getEmailWrapper(user.firstName || "", content),
+    html: getEmailWrapper(user.firstName || "", content)
   });
 };
 
@@ -503,7 +503,7 @@ export const sendResetEmail = async (to, link) => {
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to,
     subject: title,
-    html: getEmailWrapper("", content),
+    html: getEmailWrapper("", content)
   });
 };
 
@@ -528,7 +528,7 @@ export const sendNotificationEmail = async (user, title, message) => {
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to: user.email,
     subject: title,
-    html: getEmailWrapper(user.firstName || "", content),
+    html: getEmailWrapper(user.firstName || "", content)
   });
 };
 
@@ -553,11 +553,15 @@ export const sendReportReleasedEmail = async (user, reportType, pdfBuffer = null
     to: user.email,
     subject: subject,
     html: getEmailWrapper(user.firstName || "", content),
-    attachments: pdfBuffer ? [{
-      filename: `POD360_Report_${(user.firstName || 'Participant').replace(/ /g, '_')}.pdf`,
-      content: pdfBuffer,
-      contentType: 'application/pdf'
-    }] : []
+    attachments: pdfBuffer
+      ? [
+          {
+            filename: `POD360_Report_${(user.firstName || "Participant").replace(/ /g, "_")}.pdf`,
+            content: pdfBuffer,
+            contentType: "application/pdf"
+          }
+        ]
+      : []
   });
 };
 
@@ -584,7 +588,7 @@ export const sendAssessmentResetEmail = async (email, link, firstName, orgName) 
     from: `"Talent By Design" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: subject,
-    html: getEmailWrapper(firstName || "", content),
+    html: getEmailWrapper(firstName || "", content)
   });
 };
 
@@ -606,7 +610,7 @@ export const sendContactUsEmail = async ({ firstName, lastName, email, phone, me
       </tr>
       <tr>
         <td style="padding: 16px 20px; background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #64748b; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em;">Phone</td>
-        <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background-color: #ffffff; color: #0f172a; font-weight: 500;">${phone || 'N/A'}</td>
+        <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background-color: #ffffff; color: #0f172a; font-weight: 500;">${phone || "N/A"}</td>
       </tr>
       <tr>
         <td style="padding: 16px 20px; background-color: #f8fafc; font-weight: 600; color: #64748b; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em; vertical-align: top; border-bottom-left-radius: 12px;">Message</td>
@@ -626,6 +630,6 @@ export const sendContactUsEmail = async ({ firstName, lastName, email, phone, me
     to: adminEmail,
     replyTo: email, // This allows the admin to directly click "Reply" in their email client
     subject: subject,
-    html: getEmailWrapper(firstName, content),
+    html: getEmailWrapper(firstName, content)
   });
 };

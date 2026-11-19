@@ -13,7 +13,7 @@ import { getAssessmentCycleStartDate } from "../config/assessment.config.js";
 export const getAllOrganizations = async (req, res) => {
   try {
     const organizations = await Organization.find({}).select("name").lean();
-    res.status(200).json({ organizations: organizations.map(org => org.name) });
+    res.status(200).json({ organizations: organizations.map((org) => org.name) });
   } catch (error) {
     console.error("Error fetching organizations:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -30,8 +30,10 @@ export const register = async (req, res) => {
 
     const invitationTokenFromUrl = req.query.token;
     const invitationTokenFromCookie = req.cookies.invitationToken;
-    const invitationTokenFromHeader = req.headers["x-invitation-token"] || req.headers["x-auth-token"];
-    const invitationToken = invitationTokenFromUrl || invitationTokenFromCookie || invitationTokenFromHeader;
+    const invitationTokenFromHeader =
+      req.headers["x-invitation-token"] || req.headers["x-auth-token"];
+    const invitationToken =
+      invitationTokenFromUrl || invitationTokenFromCookie || invitationTokenFromHeader;
 
     const query = invitationToken
       ? { $or: [{ token: invitationToken }, { token1: invitationToken }] }
@@ -73,7 +75,7 @@ export const register = async (req, res) => {
       adminId: invitation.adminId,
       emailVerificationToken: verificationToken,
       emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000,
-      invitationToken: invitationToken,
+      invitationToken: invitationToken
     });
 
     await user.save();
@@ -82,16 +84,14 @@ export const register = async (req, res) => {
     if (!backendUrl) {
       console.error(">>> [ERROR]: BACKEND_URL is missing in environment variables.");
     }
-    const baseUrl = backendUrl.endsWith("/")
-      ? backendUrl
-      : `${backendUrl}/`;
+    const baseUrl = backendUrl.endsWith("/") ? backendUrl : `${backendUrl}/`;
 
     const verificationLink = `${baseUrl}auth/verify-email/${verificationToken}`;
 
     await sendVerificationEmail({ email }, verificationLink);
 
     res.status(201).json({
-      message: "Registration successful. Please verify your email.",
+      message: "Registration successful. Please verify your email."
     });
   } catch (error) {
     console.error("Registration error:", error);
@@ -106,7 +106,7 @@ export const verifyEmail = async (req, res) => {
 
     const user = await User.findOne({
       emailVerificationToken: token,
-      emailVerificationExpires: { $gt: Date.now() },
+      emailVerificationExpires: { $gt: Date.now() }
     });
 
     if (!user) {
@@ -121,13 +121,12 @@ export const verifyEmail = async (req, res) => {
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? "none" : "lax",
-      maxAge: 15 * 60 * 1000,
+      maxAge: 15 * 60 * 1000
     });
-
 
     const frontendUrl = (process.env.FRONTEND_URL || "").endsWith("/")
       ? (process.env.FRONTEND_URL || "").slice(0, -1)
-      : (process.env.FRONTEND_URL || "");
+      : process.env.FRONTEND_URL || "";
 
     res.redirect(`${frontendUrl}/profile-info?verifyToken=${token}`);
   } catch (error) {
@@ -156,17 +155,25 @@ export const completeProfile = async (req, res) => {
     const invitation = await Invitation.findOne({ email: user.email }).sort({ createdAt: -1 });
 
     if (user.role === "admin") {
-      if (!orgName) return res.status(400).json({ message: "Organization name is required for Admins." });
+      if (!orgName)
+        return res.status(400).json({ message: "Organization name is required for Admins." });
 
       // Check if another ADMIN already has this organization name
       const existingOrg = await User.findOne({
-        orgName: { $regex: new RegExp("^" + orgName.trim().replace(new RegExp("[-/\\\\^$*+?.()|[\\]{}]", "g"), "\\$&") + "$", "i") },
+        orgName: {
+          $regex: new RegExp(
+            "^" + orgName.trim().replace(new RegExp("[-/\\\\^$*+?.()|[\\]{}]", "g"), "\\$&") + "$",
+            "i"
+          )
+        },
         role: "admin",
         _id: { $ne: user._id }
       });
 
       if (existingOrg) {
-        return res.status(400).json({ message: "This organization name is already registered. Please choose a different name." });
+        return res.status(400).json({
+          message: "This organization name is already registered. Please choose a different name."
+        });
       }
 
       user.orgName = orgName;
@@ -197,7 +204,9 @@ export const completeProfile = async (req, res) => {
       if (user.role !== "admin") {
         const org = await Organization.findOne({ name: user.orgName });
         if (org && org.departments.length > 0 && !org.departments.includes(department)) {
-          return res.status(400).json({ message: "Invalid department selected. Please pick from the approved list." });
+          return res
+            .status(400)
+            .json({ message: "Invalid department selected. Please pick from the approved list." });
         }
       }
       user.department = department;
@@ -236,7 +245,7 @@ export const completeProfile = async (req, res) => {
       try {
         const masterQuestions = await Question.find({ orgName: null, isDeleted: false });
         if (masterQuestions.length > 0) {
-          const tenantQuestions = masterQuestions.map(mq => {
+          const tenantQuestions = masterQuestions.map((mq) => {
             const qObj = mq.toObject();
             delete qObj._id;
             delete qObj.createdAt;
@@ -245,7 +254,9 @@ export const completeProfile = async (req, res) => {
             return qObj;
           });
           await Question.insertMany(tenantQuestions);
-          console.log(`Cloned ${tenantQuestions.length} master questions for organization: ${user.orgName}`);
+          console.log(
+            `Cloned ${tenantQuestions.length} master questions for organization: ${user.orgName}`
+          );
         }
       } catch (copyError) {
         console.error(`Error cloning master questions for ${user.orgName}:`, copyError);
@@ -318,7 +329,9 @@ export const getCurrentUserSession = async (req, res) => {
       }
     }
 
-    const organization = await Organization.findOne({ name: inheritedOrgName }).select("departments").lean();
+    const organization = await Organization.findOne({ name: inheritedOrgName })
+      .select("departments")
+      .lean();
 
     res.status(200).json({
       email: user.email,
@@ -374,7 +387,7 @@ export const login = async (req, res) => {
       secure: isProduction,
       sameSite: isProduction ? "none" : "lax",
       maxAge: 24 * 60 * 60 * 1000,
-      path: "/",
+      path: "/"
     };
 
     res.cookie("accessToken", accessToken, cookieOptions);
@@ -386,13 +399,20 @@ export const login = async (req, res) => {
     if (rolesWithAssessment.includes(user.role?.toLowerCase())) {
       // Check both Live (Assessment) and Finalized (SubmittedAssessment)
       const [liveAssessment, submittedAssessment] = await Promise.all([
-        Assessment.findOne({ userId: user._id, isCompleted: true }).select("submittedAt").sort({ submittedAt: -1 }).lean(),
-        SubmittedAssessment.findOne({ userId: user._id }).select("submittedAt").sort({ submittedAt: -1 }).lean()
+        Assessment.findOne({ userId: user._id, isCompleted: true })
+          .select("submittedAt")
+          .sort({ submittedAt: -1 })
+          .lean(),
+        SubmittedAssessment.findOne({ userId: user._id })
+          .select("submittedAt")
+          .sort({ submittedAt: -1 })
+          .lean()
       ]);
 
-      const latestCompleted = (submittedAssessment?.submittedAt > liveAssessment?.submittedAt)
-        ? submittedAssessment
-        : (liveAssessment || submittedAssessment);
+      const latestCompleted =
+        submittedAssessment?.submittedAt > liveAssessment?.submittedAt
+          ? submittedAssessment
+          : liveAssessment || submittedAssessment;
 
       if (!latestCompleted) {
         assessmentStatus = "PENDING";
@@ -411,10 +431,10 @@ export const login = async (req, res) => {
         orgName: user.orgName,
         department: user.department || "",
         profileCompleted: user.profileCompleted,
-        emailVerificationToken: user.emailVerificationToken,
+        emailVerificationToken: user.emailVerificationToken
       },
       accessToken,
-      assessmentStatus,
+      assessmentStatus
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -437,7 +457,7 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
     await user.save();
 
-    const baseUrl = process.env.BACKEND_URL.endsWith('/')
+    const baseUrl = process.env.BACKEND_URL.endsWith("/")
       ? process.env.BACKEND_URL
       : `${process.env.BACKEND_URL}/`;
 
@@ -475,7 +495,7 @@ export const resetPasswordRedirect = async (req, res) => {
       maxAge: 15 * 60 * 1000
     });
 
-    const frontendUrl = process.env.FRONTEND_URL.endsWith('/')
+    const frontendUrl = process.env.FRONTEND_URL.endsWith("/")
       ? process.env.FRONTEND_URL.slice(0, -1)
       : process.env.FRONTEND_URL;
 
@@ -542,7 +562,9 @@ export const changePassword = async (req, res) => {
     }
 
     if (user.password === newPassword) {
-      return res.status(400).json({ message: "New password cannot be the same as current password" });
+      return res
+        .status(400)
+        .json({ message: "New password cannot be the same as current password" });
     }
 
     user.password = newPassword;
@@ -563,7 +585,7 @@ export const logout = async (req, res) => {
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? "none" : "lax",
-      path: "/",
+      path: "/"
     };
 
     res.clearCookie("accessToken", cookieOptions);
@@ -576,11 +598,11 @@ export const logout = async (req, res) => {
     res.setHeader("Expires", "0");
 
     return res.status(200).json({
-      message: "Logged out successfully",
+      message: "Logged out successfully"
     });
   } catch {
     return res.status(500).json({
-      message: "Logout failed",
+      message: "Logout failed"
     });
   }
 };
@@ -607,14 +629,17 @@ export const getOrganizationMembers = async (req, res) => {
       .select("firstName lastName email role department createdAt profileCompleted")
       .lean();
 
-
     // 3. Fetch assessments from both Live/In-progress and Submitted collections (trim to be safe)
-    const escapedName = orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, 'i');
+    const escapedName = orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, "i");
 
     const [liveAssessments, submittedAssessments] = await Promise.all([
-      Assessment.find({ orgName: orgRegex, isDeleted: { $ne: true } }).select("employeeEmail isCompleted _id submittedAt userDetails").lean(),
-      SubmittedAssessment.find({ "userDetails.orgName": orgRegex, isDeleted: { $ne: true } }).select("userDetails assessmentId _id submittedAt scores.overall createdAt").lean()
+      Assessment.find({ orgName: orgRegex, isDeleted: { $ne: true } })
+        .select("employeeEmail isCompleted _id submittedAt userDetails")
+        .lean(),
+      SubmittedAssessment.find({ "userDetails.orgName": orgRegex, isDeleted: { $ne: true } })
+        .select("userDetails assessmentId _id submittedAt scores.overall createdAt")
+        .lean()
     ]);
 
     // Debug logs removed
@@ -623,7 +648,7 @@ export const getOrganizationMembers = async (req, res) => {
     const latestAssessments = new Map();
 
     // Map live assessments first (can be overwritten by submitted if more recent/relevant)
-    liveAssessments.forEach(ass => {
+    liveAssessments.forEach((ass) => {
       const email = ass.employeeEmail?.trim().toLowerCase();
       if (!email) return;
       latestAssessments.set(email, {
@@ -635,7 +660,7 @@ export const getOrganizationMembers = async (req, res) => {
     });
 
     // Submitted assessments represent final "Completed" state
-    submittedAssessments.forEach(ass => {
+    submittedAssessments.forEach((ass) => {
       const email = ass.userDetails?.email?.trim().toLowerCase();
       if (!email) return;
       const existing = latestAssessments.get(email);
@@ -655,20 +680,30 @@ export const getOrganizationMembers = async (req, res) => {
     // Debug log removed
 
     // Mapping registered users
-    const activeMembers = registeredUsers.map(u => {
+    const activeMembers = registeredUsers.map((u) => {
       const assessment = latestAssessments.get(u.email.toLowerCase());
       const assDetails = assessment?.userDetails || {};
 
-      const fName = (assDetails.firstName && assDetails.firstName !== "-") ? assDetails.firstName : (u.firstName && u.firstName !== "-" ? u.firstName : "");
+      const fName =
+        assDetails.firstName && assDetails.firstName !== "-"
+          ? assDetails.firstName
+          : u.firstName && u.firstName !== "-"
+            ? u.firstName
+            : "";
       const lName = assDetails.lastName || u.lastName || "";
 
       return {
         _id: u._id,
-        firstName: (fName || lName) ? fName : u.email,
-        lastName: (fName || lName) ? lName : "",
+        firstName: fName || lName ? fName : u.email,
+        lastName: fName || lName ? lName : "",
         email: u.email,
         role: u.role,
-        department: (assDetails.department && assDetails.department !== "-") ? assDetails.department : (u.department && u.department !== "-" ? u.department : "-"),
+        department:
+          assDetails.department && assDetails.department !== "-"
+            ? assDetails.department
+            : u.department && u.department !== "-"
+              ? u.department
+              : "-",
         createdAt: u.createdAt,
         status: "Accept",
         assessmentStatus: assessment?.status || "Not Started",
@@ -678,33 +713,46 @@ export const getOrganizationMembers = async (req, res) => {
       };
     });
 
-    // 4. Fetch all pending/expired invitations for this org 
-    const registeredEmails = new Set(registeredUsers.map(u => u.email.toLowerCase()));
+    // 4. Fetch all pending/expired invitations for this org
+    const registeredEmails = new Set(registeredUsers.map((u) => u.email.toLowerCase()));
 
     let invitationQuery = { orgName, used: false };
     if (orgName === "Pending Setup" || orgName === "Unnamed Org") {
-      invitationQuery = { role: "admin", used: false, orgName: { $in: [null, "", "Pending Setup", "Unnamed Org"] } };
+      invitationQuery = {
+        role: "admin",
+        used: false,
+        orgName: { $in: [null, "", "Pending Setup", "Unnamed Org"] }
+      };
     }
 
     const invitations = await Invitation.find(invitationQuery).lean();
 
-
     const pendingMembers = invitations
-      .filter(inv => !registeredEmails.has(inv.email.toLowerCase()))
-      .map(inv => {
+      .filter((inv) => !registeredEmails.has(inv.email.toLowerCase()))
+      .map((inv) => {
         const assessment = latestAssessments.get(inv.email.toLowerCase());
         const assDetails = assessment?.userDetails || {};
 
-        const fName = (assDetails.firstName && assDetails.firstName !== "-") ? assDetails.firstName : (inv.name && inv.name !== "-" ? inv.name : "");
+        const fName =
+          assDetails.firstName && assDetails.firstName !== "-"
+            ? assDetails.firstName
+            : inv.name && inv.name !== "-"
+              ? inv.name
+              : "";
         const lName = assDetails.lastName || "";
 
         return {
           _id: inv._id,
-          firstName: (fName || lName) ? fName : inv.email,
-          lastName: (fName || lName) ? lName : "",
+          firstName: fName || lName ? fName : inv.email,
+          lastName: fName || lName ? lName : "",
           email: inv.email,
           role: inv.role,
-          department: (assDetails.department && assDetails.department !== "-") ? assDetails.department : (inv.department && inv.department !== "-" ? inv.department : "-"),
+          department:
+            assDetails.department && assDetails.department !== "-"
+              ? assDetails.department
+              : inv.department && inv.department !== "-"
+                ? inv.department
+                : "-",
           createdAt: inv.createdAt,
           status: new Date(inv.expiredAt) < new Date() ? "Expire" : "Pending",
           assessmentStatus: assessment?.status || "Not Started",
@@ -717,23 +765,23 @@ export const getOrganizationMembers = async (req, res) => {
     const allMembers = [...activeMembers, ...pendingMembers];
 
     // 5. Catch any "ghost" members who submitted an assessment but don't have a user/invitation
-    const handledEmails = new Set(allMembers.map(m => m.email.toLowerCase()));
+    const handledEmails = new Set(allMembers.map((m) => m.email.toLowerCase()));
 
     latestAssessments.forEach((data, email) => {
       if (data.status === "Completed" && !handledEmails.has(email)) {
         const details = data.userDetails || {};
-        const fName = (details.firstName && details.firstName !== "-") ? details.firstName : "";
+        const fName = details.firstName && details.firstName !== "-" ? details.firstName : "";
         const lName = details.lastName || "";
 
         // Debug log removed
 
         allMembers.push({
           _id: data.id,
-          firstName: (fName || lName) ? fName : (details.email || email), // Fallback to email if no name at all
-          lastName: (fName || lName) ? lName : "",
+          firstName: fName || lName ? fName : details.email || email, // Fallback to email if no name at all
+          lastName: fName || lName ? lName : "",
           email: details.email || email,
           role: details.role || "employee",
-          department: (details.department && details.department !== "-") ? details.department : "-",
+          department: details.department && details.department !== "-" ? details.department : "-",
           createdAt: data.createdAt || data.date,
           status: "Accept", // They finished, so treat as accepted/active
           assessmentStatus: "Completed",
@@ -756,7 +804,6 @@ export const getOrganizationMembers = async (req, res) => {
       },
       members: allMembers
     });
-
   } catch (error) {
     console.error("getOrganizationMembers error:", error);
     res.status(500).json({ message: "Server error" });
@@ -772,11 +819,13 @@ export const getOrganizationFilters = async (req, res) => {
 
     const isSuperAdmin = req.user.role?.toLowerCase() === "superadmin";
     if (!isSuperAdmin && req.user.orgName !== orgName) {
-      return res.status(403).json({ message: "Access denied. You can only view your own organization's data." });
+      return res
+        .status(403)
+        .json({ message: "Access denied. You can only view your own organization's data." });
     }
 
     // --- REUSE LOGIC FROM getOrganizationMembers FOR CONSISTENCY ---
-    const orgRegex = new RegExp(`^${orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    const orgRegex = new RegExp(`^${orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
 
     let userQuery = { orgName: orgRegex };
     let inviteQuery = { orgName: orgRegex, used: false };
@@ -787,7 +836,10 @@ export const getOrganizationFilters = async (req, res) => {
       const missingOrgNames = [null, "", "Pending Setup", "Unnamed Org"];
       userQuery = { role: "admin", orgName: { $in: missingOrgNames } };
       inviteQuery = { role: "admin", used: false, orgName: { $in: missingOrgNames } };
-      assessmentQuery = { "userDetails.role": "admin", "userDetails.orgName": { $in: missingOrgNames } };
+      assessmentQuery = {
+        "userDetails.role": "admin",
+        "userDetails.orgName": { $in: missingOrgNames }
+      };
       orgQuery = { name: { $in: missingOrgNames } };
     }
 
@@ -795,15 +847,18 @@ export const getOrganizationFilters = async (req, res) => {
     const [users, invitations, assessments, organization] = await Promise.all([
       User.find(userQuery).select("_id firstName lastName email role department").lean(),
       Invitation.find(inviteQuery).select("email role department").lean(),
-      SubmittedAssessment.find(assessmentQuery).select("userDetails.email userDetails.firstName userDetails.lastName userDetails.role userDetails.department userId").lean(),
+      SubmittedAssessment.find(assessmentQuery)
+        .select(
+          "userDetails.email userDetails.firstName userDetails.lastName userDetails.role userDetails.department userId"
+        )
+        .lean(),
       Organization.findOne(orgQuery).select("departments").lean()
     ]);
-
 
     const membersMap = new Map();
 
     // 2. Process Registered Users
-    users.forEach(u => {
+    users.forEach((u) => {
       membersMap.set(u.email.toLowerCase(), {
         _id: u._id,
         name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
@@ -814,7 +869,7 @@ export const getOrganizationFilters = async (req, res) => {
     });
 
     // 3. Process Pending Invitations
-    invitations.forEach(i => {
+    invitations.forEach((i) => {
       const emailLower = i.email.toLowerCase();
       if (!membersMap.has(emailLower)) {
         membersMap.set(emailLower, {
@@ -828,7 +883,7 @@ export const getOrganizationFilters = async (req, res) => {
     });
 
     // 4. Process Assessment Submissions (Catch Guests)
-    assessments.forEach(a => {
+    assessments.forEach((a) => {
       const email = a.userDetails?.email;
       if (!email) return;
       const emailLower = email.toLowerCase();
@@ -848,7 +903,7 @@ export const getOrganizationFilters = async (req, res) => {
     const allDepts = new Set(organization?.departments || []);
     const allRoles = new Set();
 
-    Array.from(membersMap.values()).forEach(m => {
+    Array.from(membersMap.values()).forEach((m) => {
       if (m.department && m.department !== "-" && m.department.trim() !== "") {
         allDepts.add(m.department);
       }

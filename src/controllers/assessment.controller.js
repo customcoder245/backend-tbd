@@ -3,12 +3,18 @@ import User from "../models/user.model.js";
 import SubmittedAssessment from "../models/submittedAssessment.model.js";
 import Response from "../models/response.model.js";
 import mongoose from "mongoose";
-import { createNotification, notifySuperAdmins, notifyHierarchy } from "../utils/notification.utils.js";
+import {
+  createNotification,
+  notifySuperAdmins,
+  notifyHierarchy
+} from "../utils/notification.utils.js";
 import Invitation from "../models/invitation.model.js";
-import { ASSESSMENT_CYCLE_MONTHS, getAssessmentCycleStartDate } from "../config/assessment.config.js";
+import {
+  ASSESSMENT_CYCLE_MONTHS,
+  getAssessmentCycleStartDate
+} from "../config/assessment.config.js";
 import { calculateAssessmentScores } from "../utils/scoring.utils.js";
 import { getSubdomainFeedback } from "../utils/feedback.utils.js";
-
 
 /**
  * START ASSESSMENT
@@ -46,7 +52,8 @@ export const startAssessment = async (req, res) => {
     }).sort({ submittedAt: -1 });
 
     const cycleStart = getAssessmentCycleStartDate();
-    const cycleIsActive = latestCompletedAssessment &&
+    const cycleIsActive =
+      latestCompletedAssessment &&
       latestCompletedAssessment.submittedAt &&
       new Date(latestCompletedAssessment.submittedAt).getTime() > cycleStart.getTime();
 
@@ -73,8 +80,12 @@ export const startAssessment = async (req, res) => {
     }).sort({ createdAt: -1 });
 
     if (incompleteAssessment) {
-      const latestSubAt = latestCompletedAssessment?.submittedAt ? new Date(latestCompletedAssessment.submittedAt).getTime() : 0;
-      const incompleteCreatedDate = incompleteAssessment.createdAt ? new Date(incompleteAssessment.createdAt).getTime() : 0;
+      const latestSubAt = latestCompletedAssessment?.submittedAt
+        ? new Date(latestCompletedAssessment.submittedAt).getTime()
+        : 0;
+      const incompleteCreatedDate = incompleteAssessment.createdAt
+        ? new Date(incompleteAssessment.createdAt).getTime()
+        : 0;
 
       const isFromCurrentCycle = incompleteCreatedDate > latestSubAt;
 
@@ -135,7 +146,9 @@ export const submitAssessment = async (req, res) => {
     const { userId } = req.user;
     const { firstName, lastName, department } = req.body;
 
-    console.log(`[Assessment Submission] Attempting to submit assessment ${assessmentId} by user ${userId}`);
+    console.log(
+      `[Assessment Submission] Attempting to submit assessment ${assessmentId} by user ${userId}`
+    );
 
     // Update User Profile with provided data (if any)
     const user = await User.findById(userId);
@@ -172,9 +185,11 @@ export const submitAssessment = async (req, res) => {
       console.warn(`[Assessment Submission] No responses found for assessment ${assessmentId}.`);
       return res.status(400).json({ message: "No responses provided" });
     }
-    console.log(`[Assessment Submission] Found ${responses.length} responses for assessment ${assessmentId}.`);
+    console.log(
+      `[Assessment Submission] Found ${responses.length} responses for assessment ${assessmentId}.`
+    );
 
-    const fullResponses = responses.map(r => {
+    const fullResponses = responses.map((r) => {
       const obj = r.toObject();
       delete obj.__v;
       return obj;
@@ -182,7 +197,9 @@ export const submitAssessment = async (req, res) => {
 
     // 3️⃣ Reuse user for snapshot
     const userObj = user.toObject();
-    console.log(`[Assessment Submission] User ${userObj.email} found for assessment ${assessmentId}.`);
+    console.log(
+      `[Assessment Submission] User ${userObj.email} found for assessment ${assessmentId}.`
+    );
 
     const cleanedUserDetails = {
       _id: userObj._id,
@@ -202,7 +219,9 @@ export const submitAssessment = async (req, res) => {
 
     // 🏆 Calculate scores (Phase 1 Logic)
     const { scores, classification } = calculateAssessmentScores(responses);
-    console.log(`[Assessment Submission] Scores calculated for assessment ${assessmentId}. Classification: ${classification}`);
+    console.log(
+      `[Assessment Submission] Scores calculated for assessment ${assessmentId}. Classification: ${classification}`
+    );
 
     // 💡 Add feedback BEFORE assigning to model
     let fbCount = 0;
@@ -240,25 +259,28 @@ export const submitAssessment = async (req, res) => {
           const availableSubs = Object.keys(domainObj.subdomainFeedback);
           if (availableSubs.length > 0) {
             domainFb = domainObj.subdomainFeedback[availableSubs[0]];
-            console.log(`[Feedback Fallback] Used "${availableSubs[0]}" insight for domain "${domainName}" because "${minSubName}" was missing.`);
+            console.log(
+              `[Feedback Fallback] Used "${availableSubs[0]}" insight for domain "${domainName}" because "${minSubName}" was missing.`
+            );
           }
         }
         domainObj.feedback = domainFb || null;
       }
     }
-    console.log(`[Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: ${stakeholderRole}`);
+    console.log(
+      `[Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: ${stakeholderRole}`
+    );
 
     // 🔥 4.5 Link to User record for easier access from dashboard
     user.lastAssessmentScore = scores.overall;
     user.lastAssessmentClassification = classification;
-
 
     // Assign the fully-built scores object (with feedback already included)
     assessment.scores = scores;
     assessment.classification = classification;
 
     // ⚠️ Tell Mongoose the nested Map changed so it persists correctly
-    assessment.markModified('scores');
+    assessment.markModified("scores");
 
     // 🔥 5️⃣ SAVE ASSESSMENT & SNAPSHOT & USER (In parallel for speed)
     const [, submittedAssessment] = await Promise.all([
@@ -275,7 +297,9 @@ export const submitAssessment = async (req, res) => {
       }),
       user.save()
     ]);
-    console.log(`[Assessment Submission] Assessment ${assessmentId} saved and snapshot created. Linked to userId: ${userId}`);
+    console.log(
+      `[Assessment Submission] Assessment ${assessmentId} saved and snapshot created. Linked to userId: ${userId}`
+    );
 
     // --- DYNAMIC NOTIFICATIONS (Fire & Forget to make API fast) ---
     // 1. Notify the user
@@ -284,7 +308,7 @@ export const submitAssessment = async (req, res) => {
       title: "Assessment Submitted",
       message: "Your assessment has been successfully submitted.",
       type: "success"
-    }).catch(err => console.error("[Notification Error]", err));
+    }).catch((err) => console.error("[Notification Error]", err));
 
     // 2. Hierarchical Notification (Manager -> Leader -> Admin)
     notifyHierarchy({
@@ -292,8 +316,7 @@ export const submitAssessment = async (req, res) => {
       title: "Assessment Submitted",
       message: `${user.firstName} ${user.lastName} (${user.role}) has completed their assessment.`,
       type: "success"
-    }).catch(err => console.error("[Hierarchy Notification Error]", err));
-
+    }).catch((err) => console.error("[Hierarchy Notification Error]", err));
 
     // 3. Notify Super Admins
     notifySuperAdmins({
@@ -301,9 +324,11 @@ export const submitAssessment = async (req, res) => {
       message: `${user.firstName} ${user.lastName} from ${user.orgName || "Unknown Org"} has submitted an assessment.`,
       type: "info",
       excludeUser: userId
-    }).catch(err => console.error("[Super Admin Notification Error]", err));
+    }).catch((err) => console.error("[Super Admin Notification Error]", err));
 
-    console.log(`[Assessment Submission] Triggered background notifications for assessment ${assessmentId}.`);
+    console.log(
+      `[Assessment Submission] Triggered background notifications for assessment ${assessmentId}.`
+    );
 
     return res.status(200).json({
       message: "Assessment submitted successfully",
@@ -364,9 +389,7 @@ export const getSuperAdminStats = async (req, res) => {
     // 2. Aggregate Invitations (Emails per org)
     // 3. Aggregate Users (Emails per org) - All roles
     const [inviteStats, assessableInviteStats, userStats, assessableUserStats] = await Promise.all([
-      Invitation.aggregate([
-        { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
-      ]),
+      Invitation.aggregate([{ $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }]),
       Invitation.aggregate([
         { $match: { role: { $ne: "admin" } } },
         { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
@@ -385,50 +408,62 @@ export const getSuperAdminStats = async (req, res) => {
     const statsMap = {};
 
     const getOrg = (name) => {
-      if (!statsMap[name]) statsMap[name] = { orgName: name, emailSet: new Set(), assessableEmailSet: new Set(), completed: 0 };
+      if (!statsMap[name])
+        statsMap[name] = {
+          orgName: name,
+          emailSet: new Set(),
+          assessableEmailSet: new Set(),
+          completed: 0
+        };
       return statsMap[name];
     };
 
     // Add Invites
-    inviteStats.forEach(i => {
+    inviteStats.forEach((i) => {
       if (!i._id) return;
       const org = getOrg(i._id);
-      if (i.emails && Array.isArray(i.emails)) i.emails.forEach(e => e && org.emailSet.add(e.toLowerCase()));
+      if (i.emails && Array.isArray(i.emails))
+        i.emails.forEach((e) => e && org.emailSet.add(e.toLowerCase()));
     });
 
-    assessableInviteStats.forEach(i => {
+    assessableInviteStats.forEach((i) => {
       if (!i._id) return;
       const org = getOrg(i._id);
-      if (i.emails && Array.isArray(i.emails)) i.emails.forEach(e => e && org.assessableEmailSet.add(e.toLowerCase()));
+      if (i.emails && Array.isArray(i.emails))
+        i.emails.forEach((e) => e && org.assessableEmailSet.add(e.toLowerCase()));
     });
 
     // Add Users
-    userStats.forEach(a => {
+    userStats.forEach((a) => {
       if (!a._id) return;
       const org = getOrg(a._id);
-      if (a.emails && Array.isArray(a.emails)) a.emails.forEach(e => e && org.emailSet.add(e.toLowerCase()));
+      if (a.emails && Array.isArray(a.emails))
+        a.emails.forEach((e) => e && org.emailSet.add(e.toLowerCase()));
     });
 
-    assessableUserStats.forEach(a => {
+    assessableUserStats.forEach((a) => {
       if (!a._id) return;
       const org = getOrg(a._id);
-      if (a.emails && Array.isArray(a.emails)) a.emails.forEach(e => e && org.assessableEmailSet.add(e.toLowerCase()));
+      if (a.emails && Array.isArray(a.emails))
+        a.emails.forEach((e) => e && org.assessableEmailSet.add(e.toLowerCase()));
     });
 
     // Add Assessments
-    assessmentStats.forEach(a => {
+    assessmentStats.forEach((a) => {
       if (!a._id) return;
       const org = getOrg(a._id);
       org.completed = a.completedCount;
     });
 
     // Transform to final array
-    const result = Object.values(statsMap).map(org => ({
-      orgName: org.orgName,
-      users: org.emailSet.size, // Unique count for ALL roles
-      assessableUsers: org.assessableEmailSet.size, // Unique count for EXCLUDING admins
-      completed: org.completed
-    })).sort((a, b) => b.completed - a.completed);
+    const result = Object.values(statsMap)
+      .map((org) => ({
+        orgName: org.orgName,
+        users: org.emailSet.size, // Unique count for ALL roles
+        assessableUsers: org.assessableEmailSet.size, // Unique count for EXCLUDING admins
+        completed: org.completed
+      }))
+      .sort((a, b) => b.completed - a.completed);
 
     res.status(200).json(result);
   } catch (error) {
@@ -448,10 +483,26 @@ export const getSuperAdminIntelligence = async (req, res) => {
     const selectedQuarter = quarter ? parseInt(quarter) : Math.floor(now.getMonth() / 3) + 1;
 
     const cycleMap = {
-      1: { start: new Date(selectedYear, 0, 1), end: new Date(selectedYear, 2, 31, 23, 59, 59), label: "Q1" },
-      2: { start: new Date(selectedYear, 3, 1), end: new Date(selectedYear, 5, 30, 23, 59, 59), label: "Q2" },
-      3: { start: new Date(selectedYear, 6, 1), end: new Date(selectedYear, 8, 30, 23, 59, 59), label: "Q3" },
-      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59), label: "Q4" },
+      1: {
+        start: new Date(selectedYear, 0, 1),
+        end: new Date(selectedYear, 2, 31, 23, 59, 59),
+        label: "Q1"
+      },
+      2: {
+        start: new Date(selectedYear, 3, 1),
+        end: new Date(selectedYear, 5, 30, 23, 59, 59),
+        label: "Q2"
+      },
+      3: {
+        start: new Date(selectedYear, 6, 1),
+        end: new Date(selectedYear, 8, 30, 23, 59, 59),
+        label: "Q3"
+      },
+      4: {
+        start: new Date(selectedYear, 9, 1),
+        end: new Date(selectedYear, 11, 31, 23, 59, 59),
+        label: "Q4"
+      }
     };
 
     const period = cycleMap[selectedQuarter];
@@ -479,7 +530,11 @@ export const getSuperAdminIntelligence = async (req, res) => {
       Invitation.distinct("orgName"),
       User.distinct("orgName"),
       Assessment.distinct("orgName", { isDeleted: { $ne: true } }),
-      Assessment.distinct("orgName", { isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter }),
+      Assessment.distinct("orgName", {
+        isCompleted: true,
+        isDeleted: { $ne: true },
+        ...assessmentDateFilter
+      }),
       User.aggregate([
         { $match: { role: { $ne: "superAdmin" } } },
         { $group: { _id: "$role", count: { $sum: 1 } } }
@@ -492,32 +547,38 @@ export const getSuperAdminIntelligence = async (req, res) => {
         { $match: { isCompleted: true, isDeleted: { $ne: true } } },
         { $group: { _id: "$userDetails.role", count: { $sum: 1 } } }
       ]),
-      Assessment.find({ isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter }).sort({ submittedAt: -1 }).limit(3).lean(),
+      Assessment.find({ isCompleted: true, isDeleted: { $ne: true }, ...assessmentDateFilter })
+        .sort({ submittedAt: -1 })
+        .limit(3)
+        .lean(),
       Invitation.find(dateFilter).sort({ createdAt: -1 }).limit(3).lean(),
-      Assessment.distinct("userDetails.email", { "userDetails.role": { $regex: /employee/i }, isDeleted: { $ne: true } }),
-      Invitation.aggregate([
-        { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
-      ]),
+      Assessment.distinct("userDetails.email", {
+        "userDetails.role": { $regex: /employee/i },
+        isDeleted: { $ne: true }
+      }),
+      Invitation.aggregate([{ $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }]),
       User.aggregate([
         { $match: { orgName: { $exists: true, $ne: null } } },
         { $group: { _id: "$orgName", emails: { $addToSet: "$email" } } }
       ])
     ]);
 
-    const allOrgNames = new Set([
-      ...orgsFromInvites,
-      ...orgsFromAdmins,
-      ...orgsFromAssessments
-    ].filter(name => name && typeof name === "string"));
+    const allOrgNames = new Set(
+      [...orgsFromInvites, ...orgsFromAdmins, ...orgsFromAssessments].filter(
+        (name) => name && typeof name === "string"
+      )
+    );
 
     const totalOrgs = allOrgNames.size;
     const healthRate = totalOrgs > 0 ? Math.round((activeOrgCount.length / totalOrgs) * 100) : 0;
 
     const roleStats = {
-      admin: usersByRole.find(r => r._id === "admin")?.count || 0,
-      manager: usersByRole.find(r => r._id === "manager")?.count || 0,
-      leader: (usersByRole.find(r => r._id === "leader")?.count || 0) + (usersByRole.find(r => r._id === "senior-leader")?.count || 0),
-      employee: acceptedEmployeeEmails.length,
+      admin: usersByRole.find((r) => r._id === "admin")?.count || 0,
+      manager: usersByRole.find((r) => r._id === "manager")?.count || 0,
+      leader:
+        (usersByRole.find((r) => r._id === "leader")?.count || 0) +
+        (usersByRole.find((r) => r._id === "senior-leader")?.count || 0),
+      employee: acceptedEmployeeEmails.length
     };
     const totalUsers = Object.values(roleStats).reduce((a, b) => a + b, 0);
 
@@ -526,48 +587,82 @@ export const getSuperAdminIntelligence = async (req, res) => {
 
     // Total Assigned is the UNION of everyone invited + everyone who completed
     const allAssignedParticipants = new Set([
-      ...invitedEmailsList.map(e => e.toLowerCase()),
-      ...completedEmailsList.map(e => e.toLowerCase())
+      ...invitedEmailsList.map((e) => e.toLowerCase()),
+      ...completedEmailsList.map((e) => e.toLowerCase())
     ]);
 
     const totalAssigned = allAssignedParticipants.size;
-    const totalCompletedDisplay = totalCompletedCount; 
-    const totalPending = totalAssigned > totalCompletedUnique ? totalAssigned - totalCompletedUnique : 0;
+    const totalCompletedDisplay = totalCompletedCount;
+    const totalPending =
+      totalAssigned > totalCompletedUnique ? totalAssigned - totalCompletedUnique : 0;
 
     // Compute total participants matching the organizations stats sum
     const totalParticipantsMap = {};
     if (inviteStatsForTotal && Array.isArray(inviteStatsForTotal)) {
-      inviteStatsForTotal.forEach(i => {
+      inviteStatsForTotal.forEach((i) => {
         if (!i._id) return;
         if (!totalParticipantsMap[i._id]) totalParticipantsMap[i._id] = new Set();
         if (i.emails && Array.isArray(i.emails)) {
-          i.emails.forEach(e => e && totalParticipantsMap[i._id].add(e.toLowerCase()));
+          i.emails.forEach((e) => e && totalParticipantsMap[i._id].add(e.toLowerCase()));
         }
       });
     }
 
     if (userStatsForTotal && Array.isArray(userStatsForTotal)) {
-      userStatsForTotal.forEach(u => {
+      userStatsForTotal.forEach((u) => {
         if (!u._id) return;
         if (!totalParticipantsMap[u._id]) totalParticipantsMap[u._id] = new Set();
         if (u.emails && Array.isArray(u.emails)) {
-          u.emails.forEach(e => e && totalParticipantsMap[u._id].add(e.toLowerCase()));
+          u.emails.forEach((e) => e && totalParticipantsMap[u._id].add(e.toLowerCase()));
         }
       });
     }
 
-    const totalParticipantsCount = Object.values(totalParticipantsMap).reduce((acc, set) => acc + set.size, 0);
+    const totalParticipantsCount = Object.values(totalParticipantsMap).reduce(
+      (acc, set) => acc + set.size,
+      0
+    );
 
     const roleCompletionRates = {
-      admin: roleStats.admin > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "admin")?.count || 0) / roleStats.admin) * 100) : 0,
-      manager: roleStats.manager > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "manager")?.count || 0) / roleStats.manager) * 100) : 0,
-      leader: roleStats.leader > 0 ? Math.round((((completionByRole.find(r => r._id?.toLowerCase() === "leader")?.count || 0) + (completionByRole.find(r => r._id?.toLowerCase() === "senior-leader")?.count || 0)) / roleStats.leader) * 100) : 0,
-      employee: roleStats.employee > 0 ? Math.round(((completionByRole.find(r => r._id?.toLowerCase() === "employee")?.count || 0) / roleStats.employee) * 100) : 0,
+      admin:
+        roleStats.admin > 0
+          ? Math.round(
+              ((completionByRole.find((r) => r._id?.toLowerCase() === "admin")?.count || 0) /
+                roleStats.admin) *
+                100
+            )
+          : 0,
+      manager:
+        roleStats.manager > 0
+          ? Math.round(
+              ((completionByRole.find((r) => r._id?.toLowerCase() === "manager")?.count || 0) /
+                roleStats.manager) *
+                100
+            )
+          : 0,
+      leader:
+        roleStats.leader > 0
+          ? Math.round(
+              (((completionByRole.find((r) => r._id?.toLowerCase() === "leader")?.count || 0) +
+                (completionByRole.find((r) => r._id?.toLowerCase() === "senior-leader")?.count ||
+                  0)) /
+                roleStats.leader) *
+                100
+            )
+          : 0,
+      employee:
+        roleStats.employee > 0
+          ? Math.round(
+              ((completionByRole.find((r) => r._id?.toLowerCase() === "employee")?.count || 0) /
+                roleStats.employee) *
+                100
+            )
+          : 0
     };
 
     // 5. Recent Activity
     const activity = [
-      ...recentAssessments.map(a => ({
+      ...recentAssessments.map((a) => ({
         id: a._id,
         org: a.orgName || "Direct User",
         action: "Assessment Completed",
@@ -575,7 +670,7 @@ export const getSuperAdminIntelligence = async (req, res) => {
         type: "submission",
         status: "Success"
       })),
-      ...recentInvites.map(i => ({
+      ...recentInvites.map((i) => ({
         id: i._id,
         org: i.orgName || "External",
         action: `Invite Sent to ${i.name || i.email}`,
@@ -583,12 +678,14 @@ export const getSuperAdminIntelligence = async (req, res) => {
         type: "invitation",
         status: "Success"
       }))
-    ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5);
+    ]
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, 5);
 
     // 6. Current Cycle Info
     const currentCycle = {
       label: `${period.label} ${selectedYear} Growth Cycle`,
-      period: `${period.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${period.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+      period: `${period.start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${period.end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
       daysLeft: Math.max(0, Math.ceil((period.end - now) / (1000 * 60 * 60 * 24))),
       healthRate
     };
@@ -597,26 +694,56 @@ export const getSuperAdminIntelligence = async (req, res) => {
     const aiInsights = [
       {
         title: "Platform Growth",
-        desc: totalOrgs > 0
-          ? `Currently managing ${totalOrgs} organizations with ${totalUsers} total users across all sectors.`
-          : "Platform onboarding is ready for new organizations.",
-        type: "positive",
+        desc:
+          totalOrgs > 0
+            ? `Currently managing ${totalOrgs} organizations with ${totalUsers} total users across all sectors.`
+            : "Platform onboarding is ready for new organizations.",
+        type: "positive"
       },
       {
         title: "Data Integrity",
-        desc: healthRate > 80
-          ? `High data integrity: ${healthRate}% of organizations have active, verified assessment cycles.`
-          : `Data collection in progress: ${healthRate}% of organizations have completed recent assessments.`,
-        type: "info",
-      },
+        desc:
+          healthRate > 80
+            ? `High data integrity: ${healthRate}% of organizations have active, verified assessment cycles.`
+            : `Data collection in progress: ${healthRate}% of organizations have completed recent assessments.`,
+        type: "info"
+      }
     ];
 
     res.status(200).json({
       stats: [
-        { label: "Onboarded Organizations", value: totalOrgs, icon: "solar:buildings-2-bold-duotone", color: "#448CD2", growth: "+4%", path: "/dashboard/org-assessments" },
-        { label: "Client Base Users", value: totalUsers, icon: "solar:users-group-rounded-bold-duotone", color: "#8E54E9", growth: "+12%", path: "/dashboard/users" },
-        { label: "Verified Assessments", value: totalCompletedDisplay, icon: "solar:checklist-minimalistic-bold-duotone", color: "#4776E6", growth: "+18%", path: "/dashboard/assessment-history" },
-        { label: "Onboarding Health", value: `${healthRate}%`, icon: "solar:shield-check-bold-duotone", color: "#10b981", growth: "Stable", path: "/dashboard/org-assessments" },
+        {
+          label: "Onboarded Organizations",
+          value: totalOrgs,
+          icon: "solar:buildings-2-bold-duotone",
+          color: "#448CD2",
+          growth: "+4%",
+          path: "/dashboard/org-assessments"
+        },
+        {
+          label: "Client Base Users",
+          value: totalUsers,
+          icon: "solar:users-group-rounded-bold-duotone",
+          color: "#8E54E9",
+          growth: "+12%",
+          path: "/dashboard/users"
+        },
+        {
+          label: "Verified Assessments",
+          value: totalCompletedDisplay,
+          icon: "solar:checklist-minimalistic-bold-duotone",
+          color: "#4776E6",
+          growth: "+18%",
+          path: "/dashboard/assessment-history"
+        },
+        {
+          label: "Onboarding Health",
+          value: `${healthRate}%`,
+          icon: "solar:shield-check-bold-duotone",
+          color: "#10b981",
+          growth: "Stable",
+          path: "/dashboard/org-assessments"
+        }
       ],
       totalParticipants: totalParticipantsCount,
       userBreakdown: roleStats,
@@ -624,7 +751,10 @@ export const getSuperAdminIntelligence = async (req, res) => {
         assigned: totalAssigned,
         completed: totalCompletedDisplay,
         pending: totalPending,
-        rate: totalAssigned > 0 ? Math.min(100, Math.round((completedEmailsList.length / totalAssigned) * 100)) : 0
+        rate:
+          totalAssigned > 0
+            ? Math.min(100, Math.round((completedEmailsList.length / totalAssigned) * 100))
+            : 0
       },
       completionByRole: roleCompletionRates,
       recentActivities: activity,
@@ -663,36 +793,57 @@ export const getAdminIntelligence = async (req, res) => {
       1: { start: new Date(selectedYear, 0, 1), end: new Date(selectedYear, 2, 31, 23, 59, 59) },
       2: { start: new Date(selectedYear, 3, 1), end: new Date(selectedYear, 5, 30, 23, 59, 59) },
       3: { start: new Date(selectedYear, 6, 1), end: new Date(selectedYear, 8, 30, 23, 59, 59) },
-      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59) },
+      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59) }
     };
 
     const period = cycleMap[selectedQuarter];
-    let dateFilter = { $or: [{ createdAt: { $gte: period.start, $lte: period.end } }, { submittedAt: { $gte: period.start, $lte: period.end } }] };
+    let dateFilter = {
+      $or: [
+        { createdAt: { $gte: period.start, $lte: period.end } },
+        { submittedAt: { $gte: period.start, $lte: period.end } }
+      ]
+    };
 
-    const escapedName = orgName.trim().replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-    const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, 'i');
+    const escapedName = orgName.trim().replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");
+    const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, "i");
 
     // Run independent queries in parallel
-    const [assessments, registeredUsers, allRegisteredEmails, assessmentEmails, activeInviteEmails, recentInvites] = await Promise.all([
+    const [
+      assessments,
+      registeredUsers,
+      allRegisteredEmails,
+      assessmentEmails,
+      activeInviteEmails,
+      recentInvites
+    ] = await Promise.all([
       Assessment.find({ orgName: orgRegex, isDeleted: { $ne: true } }).lean(),
       User.find({ orgName: orgRegex, role: { $ne: "admin" } }).lean(),
       User.distinct("email", { orgName: orgRegex }),
       Assessment.distinct("employeeEmail", { orgName: orgRegex, isDeleted: { $ne: true } }),
-      Invitation.distinct("email", { orgName: orgRegex, role: { $ne: "admin" }, used: false, expiredAt: { $gte: new Date() }, isDeleted: { $ne: true } }),
-      Invitation.find({ orgName: orgRegex, role: { $ne: "admin" }, ...dateFilter }).sort({ createdAt: -1 }).limit(5).lean()
+      Invitation.distinct("email", {
+        orgName: orgRegex,
+        role: { $ne: "admin" },
+        used: false,
+        expiredAt: { $gte: new Date() },
+        isDeleted: { $ne: true }
+      }),
+      Invitation.find({ orgName: orgRegex, role: { $ne: "admin" }, ...dateFilter })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean()
     ]);
 
     const regSet = new Set([
-      ...allRegisteredEmails.filter(e => e).map(e => e.toLowerCase()),
-      ...assessmentEmails.filter(e => e).map(e => e.toLowerCase())
+      ...allRegisteredEmails.filter((e) => e).map((e) => e.toLowerCase()),
+      ...assessmentEmails.filter((e) => e).map((e) => e.toLowerCase())
     ]);
-    const normalizedInvites = (activeInviteEmails || []).map(e => e.toLowerCase());
-    const activeInviteCount = normalizedInvites.filter(e => !regSet.has(e)).length;
+    const normalizedInvites = (activeInviteEmails || []).map((e) => e.toLowerCase());
+    const activeInviteCount = normalizedInvites.filter((e) => !regSet.has(e)).length;
 
     // 3. Unique People Discovery
     const peopleMap = new Map();
 
-    registeredUsers.forEach(u => {
+    registeredUsers.forEach((u) => {
       const email = u.email.toLowerCase();
       peopleMap.set(email, {
         email,
@@ -705,12 +856,14 @@ export const getAdminIntelligence = async (req, res) => {
       });
     });
 
-    assessments.forEach(a => {
+    assessments.forEach((a) => {
       const email = a.employeeEmail?.toLowerCase() || a.userDetails?.email?.toLowerCase();
       if (!email) return;
 
       const existing = peopleMap.get(email);
-      const name = a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : (existing?.name || email);
+      const name = a.userDetails?.firstName
+        ? `${a.userDetails.firstName} ${a.userDetails.lastName}`
+        : existing?.name || email;
 
       peopleMap.set(email, {
         email,
@@ -719,13 +872,13 @@ export const getAdminIntelligence = async (req, res) => {
         status: a.isCompleted ? "Completed" : "Active",
         assessmentStatus: a.isCompleted ? "Completed" : "In Progress",
         lastActivity: a.submittedAt || a.updatedAt || a.createdAt,
-        lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : (existing?.lastScore || 0),
-        classification: a.isCompleted ? a.classification : (existing?.classification || null)
+        lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : existing?.lastScore || 0,
+        classification: a.isCompleted ? a.classification : existing?.classification || null
       });
     });
 
     // Add pending invitations that haven't registered or started yet
-    normalizedInvites.forEach(email => {
+    normalizedInvites.forEach((email) => {
       if (!peopleMap.has(email)) {
         peopleMap.set(email, {
           email,
@@ -740,11 +893,12 @@ export const getAdminIntelligence = async (req, res) => {
     });
 
     const uniquePeople = Array.from(peopleMap.values());
-    const completedCount = uniquePeople.filter(p => p.assessmentStatus === "Completed").length;
-    const inProgressCount = uniquePeople.filter(p => p.assessmentStatus === "In Progress").length;
-    const notStartedCount = uniquePeople.filter(p => p.assessmentStatus === "Not Started").length;
+    const completedCount = uniquePeople.filter((p) => p.assessmentStatus === "Completed").length;
+    const inProgressCount = uniquePeople.filter((p) => p.assessmentStatus === "In Progress").length;
+    const notStartedCount = uniquePeople.filter((p) => p.assessmentStatus === "Not Started").length;
 
-    const participationRate = uniquePeople.length > 0 ? Math.round((completedCount / uniquePeople.length) * 100) : 0;
+    const participationRate =
+      uniquePeople.length > 0 ? Math.round((completedCount / uniquePeople.length) * 100) : 0;
 
     const stats = {
       totalMembers: uniquePeople.length,
@@ -758,22 +912,26 @@ export const getAdminIntelligence = async (req, res) => {
 
     // 4. Role Breakdown
     const roleStats = {
-      manager: uniquePeople.filter(p => p.role?.toLowerCase() === "manager").length,
-      leader: uniquePeople.filter(p => p.role?.toLowerCase() === "leader" || p.role?.toLowerCase() === "senior-leader").length,
-      employee: uniquePeople.filter(p => p.role?.toLowerCase() === "employee").length,
+      manager: uniquePeople.filter((p) => p.role?.toLowerCase() === "manager").length,
+      leader: uniquePeople.filter(
+        (p) => p.role?.toLowerCase() === "leader" || p.role?.toLowerCase() === "senior-leader"
+      ).length,
+      employee: uniquePeople.filter((p) => p.role?.toLowerCase() === "employee").length
     };
 
     // 5. Activity Stream (Assessments + Invitations) - Weighted by Time Range
     const activityStream = [
-      ...assessments.map(a => ({
+      ...assessments.map((a) => ({
         id: a._id,
-        user: a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : a.employeeEmail,
+        user: a.userDetails?.firstName
+          ? `${a.userDetails.firstName} ${a.userDetails.lastName}`
+          : a.employeeEmail,
         action: a.isCompleted ? "Completed assessment" : "Started assessment",
         time: a.submittedAt || a.createdAt,
         type: a.isCompleted ? "completion" : "start",
         role: a.userDetails?.role || "Participant"
       })),
-      ...recentInvites.map(i => ({
+      ...recentInvites.map((i) => ({
         id: i._id,
         user: i.name || i.email,
         action: "Invitation sent",
@@ -781,14 +939,19 @@ export const getAdminIntelligence = async (req, res) => {
         type: "invitation",
         role: i.role
       }))
-    ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5);
+    ]
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, 5);
 
     // 6. Strategic Insight Logic
-    let insight = "Assessment phase initiated. Encourage team members to participate for better organizational clarity.";
+    let insight =
+      "Assessment phase initiated. Encourage team members to participate for better organizational clarity.";
     if (participationRate > 75) {
-      insight = "Excellent engagement! Your team shows strong 'Strategic Alignment'. Results indicate high readiness for growth.";
+      insight =
+        "Excellent engagement! Your team shows strong 'Strategic Alignment'. Results indicate high readiness for growth.";
     } else if (participationRate > 40) {
-      insight = "Steady progress. Early data suggests strength in 'Operational Flow'. Focus on remaining participants to reach critical mass.";
+      insight =
+        "Steady progress. Early data suggests strength in 'Operational Flow'. Focus on remaining participants to reach critical mass.";
     }
 
     res.status(200).json({
@@ -825,11 +988,16 @@ export const getLeaderIntelligence = async (req, res) => {
       1: { start: new Date(selectedYear, 0, 1), end: new Date(selectedYear, 2, 31, 23, 59, 59) },
       2: { start: new Date(selectedYear, 3, 1), end: new Date(selectedYear, 5, 30, 23, 59, 59) },
       3: { start: new Date(selectedYear, 6, 1), end: new Date(selectedYear, 8, 30, 23, 59, 59) },
-      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59) },
+      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59) }
     };
 
     const period = cycleMap[selectedQuarter];
-    let dateFilter = { $or: [{ createdAt: { $gte: period.start, $lte: period.end } }, { submittedAt: { $gte: period.start, $lte: period.end } }] };
+    let dateFilter = {
+      $or: [
+        { createdAt: { $gte: period.start, $lte: period.end } },
+        { submittedAt: { $gte: period.start, $lte: period.end } }
+      ]
+    };
 
     // Fallback if department is empty (meaning they shouldn't see anyone if they aren't assigned a department properly, except maybe if the data is messy, but let's be strict or lenient?)
     // Let's rely on JavaScript filtering to be safe, so we fetch broadly and filter
@@ -839,17 +1007,29 @@ export const getLeaderIntelligence = async (req, res) => {
     const [assessments, registeredUsers, activeInviteCount, recentInvites] = await Promise.all([
       Assessment.find({ ...assessmentFilter, isDeleted: { $ne: true } }).lean(),
       User.find(broadFilter).lean(),
-      Invitation.distinct("email", { ...broadFilter, used: false, department: requesterDept, expiredAt: { $gte: new Date() }, isDeleted: { $ne: true } }).then(async emails => {
-        const registered = await User.distinct("email", { ...broadFilter, department: requesterDept });
-        const regSet = new Set(registered.map(e => e.toLowerCase()));
-        return emails.filter(e => !regSet.has(e.toLowerCase())).length;
+      Invitation.distinct("email", {
+        ...broadFilter,
+        used: false,
+        department: requesterDept,
+        expiredAt: { $gte: new Date() },
+        isDeleted: { $ne: true }
+      }).then(async (emails) => {
+        const registered = await User.distinct("email", {
+          ...broadFilter,
+          department: requesterDept
+        });
+        const regSet = new Set(registered.map((e) => e.toLowerCase()));
+        return emails.filter((e) => !regSet.has(e.toLowerCase())).length;
       }),
-      Invitation.find({ ...broadFilter, ...dateFilter }).sort({ createdAt: -1 }).limit(20).lean() // fetch more, filter later
+      Invitation.find({ ...broadFilter, ...dateFilter })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean() // fetch more, filter later
     ]);
 
     const peopleMap = new Map();
 
-    registeredUsers.forEach(u => {
+    registeredUsers.forEach((u) => {
       // Apply strict dept matching
       if (requesterDept && u.department && u.department !== requesterDept) return;
 
@@ -865,7 +1045,7 @@ export const getLeaderIntelligence = async (req, res) => {
       });
     });
 
-    assessments.forEach(a => {
+    assessments.forEach((a) => {
       const email = a.employeeEmail?.toLowerCase() || a.userDetails?.email?.toLowerCase();
       const role = (a.userDetails?.role || a.stakeholder || "").toLowerCase();
       const dept = a.userDetails?.department || "";
@@ -878,7 +1058,9 @@ export const getLeaderIntelligence = async (req, res) => {
       // If strict filter removed them, and we only have them in assessment, check dept
       if (!existing && requesterDept && dept !== requesterDept) return;
 
-      const name = a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : (existing?.name || email);
+      const name = a.userDetails?.firstName
+        ? `${a.userDetails.firstName} ${a.userDetails.lastName}`
+        : existing?.name || email;
 
       peopleMap.set(email, {
         email,
@@ -887,17 +1069,18 @@ export const getLeaderIntelligence = async (req, res) => {
         status: a.isCompleted ? "Completed" : "Active",
         assessmentStatus: a.isCompleted ? "Completed" : "In Progress",
         lastActivity: a.submittedAt || a.updatedAt || a.createdAt,
-        lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : (existing?.lastScore || 0),
-        classification: a.isCompleted ? a.classification : (existing?.classification || null)
+        lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : existing?.lastScore || 0,
+        classification: a.isCompleted ? a.classification : existing?.classification || null
       });
     });
 
     const uniquePeople = Array.from(peopleMap.values());
-    const completedCount = uniquePeople.filter(p => p.assessmentStatus === "Completed").length;
-    const inProgressCount = uniquePeople.filter(p => p.assessmentStatus === "In Progress").length;
-    const notStartedCount = uniquePeople.filter(p => p.assessmentStatus === "Not Started").length;
+    const completedCount = uniquePeople.filter((p) => p.assessmentStatus === "Completed").length;
+    const inProgressCount = uniquePeople.filter((p) => p.assessmentStatus === "In Progress").length;
+    const notStartedCount = uniquePeople.filter((p) => p.assessmentStatus === "Not Started").length;
 
-    const participationRate = uniquePeople.length > 0 ? Math.round((completedCount / uniquePeople.length) * 100) : 0;
+    const participationRate =
+      uniquePeople.length > 0 ? Math.round((completedCount / uniquePeople.length) * 100) : 0;
 
     const stats = {
       totalMembers: uniquePeople.length,
@@ -910,29 +1093,35 @@ export const getLeaderIntelligence = async (req, res) => {
     };
 
     const roleStats = {
-      manager: uniquePeople.filter(p => p.role?.toLowerCase() === "manager").length,
-      employee: uniquePeople.filter(p => p.role?.toLowerCase() === "employee").length,
+      manager: uniquePeople.filter((p) => p.role?.toLowerCase() === "manager").length,
+      employee: uniquePeople.filter((p) => p.role?.toLowerCase() === "employee").length
     };
 
     // Filter invites strictly now
-    const filteredInvites = recentInvites.filter(i => !requesterDept || i.department === requesterDept).slice(0, 5);
+    const filteredInvites = recentInvites
+      .filter((i) => !requesterDept || i.department === requesterDept)
+      .slice(0, 5);
 
     const activityStream = [
       ...assessments
-        .filter(a => {
+        .filter((a) => {
           const role = (a.userDetails?.role || a.stakeholder || "").toLowerCase();
           const dept = a.userDetails?.department;
-          return ["manager", "employee"].includes(role) && (!requesterDept || dept === requesterDept);
+          return (
+            ["manager", "employee"].includes(role) && (!requesterDept || dept === requesterDept)
+          );
         })
-        .map(a => ({
+        .map((a) => ({
           id: a._id,
-          user: a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : a.employeeEmail,
+          user: a.userDetails?.firstName
+            ? `${a.userDetails.firstName} ${a.userDetails.lastName}`
+            : a.employeeEmail,
           action: a.isCompleted ? "Completed assessment" : "Started assessment",
           time: a.submittedAt || a.createdAt,
           type: a.isCompleted ? "completion" : "start",
           role: a.userDetails?.role || "Participant"
         })),
-      ...filteredInvites.map(i => ({
+      ...filteredInvites.map((i) => ({
         id: i._id,
         user: i.name || i.email,
         action: "Invitation sent",
@@ -940,11 +1129,14 @@ export const getLeaderIntelligence = async (req, res) => {
         type: "invitation",
         role: i.role
       }))
-    ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5);
+    ]
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, 5);
 
     let insight = "Assessment phase initiated for your department.";
     if (participationRate > 75) {
-      insight = "Excellent engagement within your department! Ready to review specific operational feedback.";
+      insight =
+        "Excellent engagement within your department! Ready to review specific operational feedback.";
     } else if (participationRate > 40) {
       insight = "Steady departmental progress. Follow up with pending members.";
     }
@@ -984,11 +1176,16 @@ export const getManagerIntelligence = async (req, res) => {
       1: { start: new Date(selectedYear, 0, 1), end: new Date(selectedYear, 2, 31, 23, 59, 59) },
       2: { start: new Date(selectedYear, 3, 1), end: new Date(selectedYear, 5, 30, 23, 59, 59) },
       3: { start: new Date(selectedYear, 6, 1), end: new Date(selectedYear, 8, 30, 23, 59, 59) },
-      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59) },
+      4: { start: new Date(selectedYear, 9, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59) }
     };
 
     const period = cycleMap[selectedQuarter];
-    let dateFilter = { $or: [{ createdAt: { $gte: period.start, $lte: period.end } }, { submittedAt: { $gte: period.start, $lte: period.end } }] };
+    let dateFilter = {
+      $or: [
+        { createdAt: { $gte: period.start, $lte: period.end } },
+        { submittedAt: { $gte: period.start, $lte: period.end } }
+      ]
+    };
 
     // Manager sees ONLY employees in their department
     const broadFilter = { orgName, role: "employee" };
@@ -998,12 +1195,15 @@ export const getManagerIntelligence = async (req, res) => {
       Assessment.find({ ...assessmentFilter, isDeleted: { $ne: true } }).lean(),
       User.find(broadFilter).lean(),
       Invitation.countDocuments({ ...broadFilter, used: false, department: requesterDept }),
-      Invitation.find({ ...broadFilter, ...dateFilter }).sort({ createdAt: -1 }).limit(20).lean()
+      Invitation.find({ ...broadFilter, ...dateFilter })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean()
     ]);
 
     const peopleMap = new Map();
 
-    registeredUsers.forEach(u => {
+    registeredUsers.forEach((u) => {
       if (requesterDept && u.department && u.department !== requesterDept) return;
 
       const email = u.email.toLowerCase();
@@ -1018,7 +1218,7 @@ export const getManagerIntelligence = async (req, res) => {
       });
     });
 
-    assessments.forEach(a => {
+    assessments.forEach((a) => {
       const email = a.employeeEmail?.toLowerCase() || a.userDetails?.email?.toLowerCase();
       const role = (a.userDetails?.role || a.stakeholder || "").toLowerCase();
       const dept = a.userDetails?.department || "";
@@ -1029,7 +1229,9 @@ export const getManagerIntelligence = async (req, res) => {
       const existing = peopleMap.get(email);
       if (!existing && requesterDept && dept !== requesterDept) return;
 
-      const name = a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : (existing?.name || email);
+      const name = a.userDetails?.firstName
+        ? `${a.userDetails.firstName} ${a.userDetails.lastName}`
+        : existing?.name || email;
 
       peopleMap.set(email, {
         email,
@@ -1038,17 +1240,18 @@ export const getManagerIntelligence = async (req, res) => {
         status: a.isCompleted ? "Completed" : "Active",
         assessmentStatus: a.isCompleted ? "Completed" : "In Progress",
         lastActivity: a.submittedAt || a.updatedAt || a.createdAt,
-        lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : (existing?.lastScore || 0),
-        classification: a.isCompleted ? a.classification : (existing?.classification || null)
+        lastScore: a.isCompleted ? Math.round(a.scores?.overall || 0) : existing?.lastScore || 0,
+        classification: a.isCompleted ? a.classification : existing?.classification || null
       });
     });
 
     const uniquePeople = Array.from(peopleMap.values());
-    const completedCount = uniquePeople.filter(p => p.assessmentStatus === "Completed").length;
-    const inProgressCount = uniquePeople.filter(p => p.assessmentStatus === "In Progress").length;
-    const notStartedCount = uniquePeople.filter(p => p.assessmentStatus === "Not Started").length;
+    const completedCount = uniquePeople.filter((p) => p.assessmentStatus === "Completed").length;
+    const inProgressCount = uniquePeople.filter((p) => p.assessmentStatus === "In Progress").length;
+    const notStartedCount = uniquePeople.filter((p) => p.assessmentStatus === "Not Started").length;
 
-    const participationRate = uniquePeople.length > 0 ? Math.round((completedCount / uniquePeople.length) * 100) : 0;
+    const participationRate =
+      uniquePeople.length > 0 ? Math.round((completedCount / uniquePeople.length) * 100) : 0;
 
     const stats = {
       totalMembers: uniquePeople.length,
@@ -1061,27 +1264,31 @@ export const getManagerIntelligence = async (req, res) => {
     };
 
     const roleStats = {
-      employee: uniquePeople.length,
+      employee: uniquePeople.length
     };
 
-    const filteredInvites = recentInvites.filter(i => !requesterDept || i.department === requesterDept).slice(0, 5);
+    const filteredInvites = recentInvites
+      .filter((i) => !requesterDept || i.department === requesterDept)
+      .slice(0, 5);
 
     const activityStream = [
       ...assessments
-        .filter(a => {
+        .filter((a) => {
           const role = (a.userDetails?.role || a.stakeholder || "").toLowerCase();
           const dept = a.userDetails?.department;
           return role === "employee" && (!requesterDept || dept === requesterDept);
         })
-        .map(a => ({
+        .map((a) => ({
           id: a._id,
-          user: a.userDetails?.firstName ? `${a.userDetails.firstName} ${a.userDetails.lastName}` : a.employeeEmail,
+          user: a.userDetails?.firstName
+            ? `${a.userDetails.firstName} ${a.userDetails.lastName}`
+            : a.employeeEmail,
           action: a.isCompleted ? "Completed assessment" : "Started assessment",
           time: a.submittedAt || a.createdAt,
           type: a.isCompleted ? "completion" : "start",
           role: a.userDetails?.role || "Participant"
         })),
-      ...filteredInvites.map(i => ({
+      ...filteredInvites.map((i) => ({
         id: i._id,
         user: i.name || i.email,
         action: "Invitation sent",
@@ -1089,11 +1296,14 @@ export const getManagerIntelligence = async (req, res) => {
         type: "invitation",
         role: i.role
       }))
-    ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5);
+    ]
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, 5);
 
     let insight = "Team assessment phase initiated.";
     if (participationRate > 75) {
-      insight = "Your immediate team is fully engaged! Review individual feedback for specific guidance.";
+      insight =
+        "Your immediate team is fully engaged! Review individual feedback for specific guidance.";
     } else if (participationRate > 40) {
       insight = "Team progress is underway. A quick reminder to your direct reports could help.";
     }

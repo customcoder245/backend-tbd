@@ -1,90 +1,93 @@
 import mongoose, { Schema } from "mongoose";
 
-const assessmentSchema = new Schema({
-  stakeholder: {
-    type: String,
-    required: true
-  },
+const assessmentSchema = new Schema(
+  {
+    stakeholder: {
+      type: String,
+      required: true
+    },
 
-  userId: {
-    type: Schema.Types.ObjectId,
-    ref: "User"
-  },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User"
+    },
 
-  employeeEmail: {
-    type: String
-  },
+    employeeEmail: {
+      type: String
+    },
 
-  invitedBy: {
-    type: Schema.Types.ObjectId,        
-    ref: "User"
-  },
+    invitedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User"
+    },
 
-  orgName: {
-    type: String
-  },
+    orgName: {
+      type: String
+    },
 
-  invitationId: {
-    type: Schema.Types.ObjectId,
-    ref: "Invitation",
-    required: false
-  },
+    invitationId: {
+      type: Schema.Types.ObjectId,
+      ref: "Invitation",
+      required: false
+    },
 
-  // person snapshot
-  userDetails: {
-    type: Object,
-    default: null
-  },
+    // person snapshot
+    userDetails: {
+      type: Object,
+      default: null
+    },
 
-  isCompleted: {
-    type: Boolean,
-    default: false
-  },
+    isCompleted: {
+      type: Boolean,
+      default: false
+    },
 
-  submittedAt: {
-    type: Date
-  },
+    submittedAt: {
+      type: Date
+    },
 
-  responses: [
-    {
-      questionId: {
-        type: Schema.Types.ObjectId,
-        ref: "Question"
-      },
-      questionCode: String,
-      answer: Schema.Types.Mixed,
-      comment: String
+    responses: [
+      {
+        questionId: {
+          type: Schema.Types.ObjectId,
+          ref: "Question"
+        },
+        questionCode: String,
+        answer: Schema.Types.Mixed,
+        comment: String
+      }
+    ],
+
+    scores: {
+      overall: { type: Number, default: 0 },
+      domains: {
+        type: Schema.Types.Mixed,
+        default: {}
+      }
+    },
+
+    classification: {
+      type: String,
+      enum: ["Low", "Medium", "High"],
+      default: "Low"
+    },
+
+    // Soft-delete fields (for admin reset — data preserved for future use)
+    isDeleted: {
+      type: Boolean,
+      default: false
+    },
+    deletedAt: {
+      type: Date,
+      default: null
+    },
+    deletedReason: {
+      type: String,
+      default: null
     }
-  ],
-
-  scores: {
-    overall: { type: Number, default: 0 },
-    domains: {
-      type: Schema.Types.Mixed,
-      default: {}
-    }
   },
-
-  classification: {
-    type: String,
-    enum: ["Low", "Medium", "High"],
-    default: "Low"
-  },
-
-  // Soft-delete fields (for admin reset — data preserved for future use)
-  isDeleted: {
-    type: Boolean,
-    default: false
-  },
-  deletedAt: {
-    type: Date,
-    default: null
-  },
-  deletedReason: {
-    type: String,
-    default: null
-  }
-}, { timestamps: true });
+  { timestamps: true }
+);
 
 assessmentSchema.index({ userId: 1 });
 assessmentSchema.index({ invitationId: 1 });

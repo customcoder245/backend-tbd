@@ -7,100 +7,128 @@ console.log(`[Feedback Utils] Data loaded. Total roles: ${Object.keys(feedbackDa
  * Maps a numeric score (0-100) to the corresponding feedback level
  */
 export const getLevelFromScore = (score) => {
-    if (score < 50) return "Low";
-    if (score < 75) return "Medium";
-    return "High";
+  if (score < 50) return "Low";
+  if (score < 75) return "Medium";
+  return "High";
 };
 
 /**
  * Normalizes a string for robust comparison (lowercase, alphanumeric only)
  */
 const robustNormalize = (str) => {
-    if (str === null || str === undefined) return "";
-    return str.toString().toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+  if (str === null || str === undefined) return "";
+  return str
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]/g, "");
 };
 
 /**
  * Retrieves the matching insight for a given subdomain, score, and role
  */
 export const getSubdomainFeedback = (subdomainName, score, role) => {
-    if (!subdomainName || !feedbackData) return null;
+  if (!subdomainName || !feedbackData) return null;
 
-    const level = getLevelFromScore(score);
-    const normSubdomain = robustNormalize(subdomainName);
+  const level = getLevelFromScore(score);
+  const normSubdomain = robustNormalize(subdomainName);
 
-    // Map roles correctly
-    let normalizedRoleStr = (role || 'leader').toLowerCase().trim();
-    if (normalizedRoleStr === 'superadmin') normalizedRoleStr = 'admin';
-    const normRole = robustNormalize(normalizedRoleStr);
+  // Map roles correctly
+  let normalizedRoleStr = (role || "leader").toLowerCase().trim();
+  if (normalizedRoleStr === "superadmin") normalizedRoleStr = "admin";
+  const normRole = robustNormalize(normalizedRoleStr);
 
-    // 1. Role Lookup
-    const targetRoleKey = Object.keys(feedbackData).find(k => robustNormalize(k) === normRole) ||
-        Object.keys(feedbackData).find(k => robustNormalize(k) === 'leader') ||
-        Object.keys(feedbackData)[0];
+  // 1. Role Lookup
+  const targetRoleKey =
+    Object.keys(feedbackData).find((k) => robustNormalize(k) === normRole) ||
+    Object.keys(feedbackData).find((k) => robustNormalize(k) === "leader") ||
+    Object.keys(feedbackData)[0];
 
-    const roleData = feedbackData[targetRoleKey];
-    if (!roleData) {
-        console.warn(`[Feedback] No role data for "${normRole}" or fallback "leader"`);
-        return null;
+  const roleData = feedbackData[targetRoleKey];
+  if (!roleData) {
+    console.warn(`[Feedback] No role data for "${normRole}" or fallback "leader"`);
+    return null;
+  }
+
+  // 🔗 Alias Mapping for inconsistent naming (Question vs Feedback Sheet)
+  const aliases = {
+    mindsetadaptability: [
+      "mindsetconfidenceandchangereadiness",
+      "mindsetconfidenceandchangereadiness",
+      "mindsetconfidencechangereadiness",
+      "adaptability"
+    ],
+    mindsetconfidenceandchangereadiness: [
+      "mindsetadaptability",
+      "mindsetconfidenceandchangereadiness",
+      "mindsetconfidencechangereadiness",
+      "adaptability"
+    ],
+    mindsetconfidencechangereadiness: [
+      "mindsetadaptability",
+      "mindsetconfidenceandchangereadiness",
+      "mindsetconfidencechangereadiness",
+      "adaptability"
+    ],
+    effectiveresourcemanagement: ["workflowclarity", "prioritization", "resourceefficiency"],
+    datacentriccultureandaiadoption: ["dataaiandautomationreadiness", "datareadiness"],
+    dataaiandautomationreadiness: ["datacentriccultureandaiadoption", "datareadiness"]
+  };
+
+  // 2. Subdomain Lookup
+  let subdomainKey = Object.keys(roleData).find((k) => robustNormalize(k) === normSubdomain);
+
+  // Try aliases if not found direct
+  if (!subdomainKey && aliases[normSubdomain]) {
+    for (const alias of aliases[normSubdomain]) {
+      subdomainKey = Object.keys(roleData).find((k) => robustNormalize(k) === alias);
+      if (subdomainKey) break;
     }
+  }
 
-    // 🔗 Alias Mapping for inconsistent naming (Question vs Feedback Sheet)
-    const aliases = {
-        "mindsetadaptability": ["mindsetconfidenceandchangereadiness", "mindsetconfidenceandchangereadiness", "mindsetconfidencechangereadiness", "adaptability"],
-        "mindsetconfidenceandchangereadiness": ["mindsetadaptability", "mindsetconfidenceandchangereadiness", "mindsetconfidencechangereadiness", "adaptability"],
-        "mindsetconfidencechangereadiness": ["mindsetadaptability", "mindsetconfidenceandchangereadiness", "mindsetconfidencechangereadiness", "adaptability"],
-        "effectiveresourcemanagement": ["workflowclarity", "prioritization", "resourceefficiency"],
-        "datacentriccultureandaiadoption": ["dataaiandautomationreadiness", "datareadiness"],
-        "dataaiandautomationreadiness": ["datacentriccultureandaiadoption", "datareadiness"]
-    };
-
-    // 2. Subdomain Lookup
-    let subdomainKey = Object.keys(roleData).find(k => robustNormalize(k) === normSubdomain);
-
-    // Try aliases if not found direct
-    if (!subdomainKey && aliases[normSubdomain]) {
-        for (const alias of aliases[normSubdomain]) {
-            subdomainKey = Object.keys(roleData).find(k => robustNormalize(k) === alias);
-            if (subdomainKey) break;
-        }
+  // 3. Global Fallback: If not found in current role, try in 'leader' role (it has most subdomains)
+  if (!subdomainKey && targetRoleKey !== "leader") {
+    const leaderData = feedbackData["leader"] || {};
+    subdomainKey = Object.keys(leaderData).find((k) => robustNormalize(k) === normSubdomain);
+    if (subdomainKey) {
+      console.log(
+        `[Feedback] Fallback used leader data for sub: "${subdomainName}" for role: "${targetRoleKey}"`
+      );
+      const fb = leaderData[subdomainKey]?.[level];
+      return fb || null;
     }
+  }
 
-    // 3. Global Fallback: If not found in current role, try in 'leader' role (it has most subdomains)
-    if (!subdomainKey && targetRoleKey !== 'leader') {
-        const leaderData = feedbackData['leader'] || {};
-        subdomainKey = Object.keys(leaderData).find(k => robustNormalize(k) === normSubdomain);
-        if (subdomainKey) {
-            console.log(`[Feedback] Fallback used leader data for sub: "${subdomainName}" for role: "${targetRoleKey}"`);
-            const fb = leaderData[subdomainKey]?.[level];
-            return fb || null;
-        }
+  let subdomainData = roleData[subdomainKey];
+
+  // 4. Robust Level Fallback: If the specific level (Low/Medium/High) is missing,
+  // we try are available levels to ensure something is always returned.
+  if (!subdomainData) {
+    console.warn(
+      `[Feedback] Missing: Role[${targetRoleKey}] Sub[${subdomainName}] (Norm: ${normSubdomain})`
+    );
+    return null;
+  }
+
+  let result = subdomainData[level];
+  if (!result) {
+    const fallbacks = ["Medium", "High", "Low"]; // Preferred sequence
+    for (const fbLevel of fallbacks) {
+      if (subdomainData[fbLevel]) {
+        result = subdomainData[fbLevel];
+        console.log(
+          `[Feedback] Level Fallback: Used "${fbLevel}" for "${subdomainName}" (Role: ${targetRoleKey}) because "${level}" was missing.`
+        );
+        break;
+      }
     }
+  }
 
-    let subdomainData = roleData[subdomainKey];
+  if (!result) {
+    console.warn(
+      `[Feedback] Total missing: Role[${targetRoleKey}] Sub[${subdomainKey}] - No levels available.`
+    );
+  }
 
-    // 4. Robust Level Fallback: If the specific level (Low/Medium/High) is missing,
-    // we try are available levels to ensure something is always returned.
-    if (!subdomainData) {
-        console.warn(`[Feedback] Missing: Role[${targetRoleKey}] Sub[${subdomainName}] (Norm: ${normSubdomain})`);
-        return null;
-    }
-
-    let result = subdomainData[level];
-    if (!result) {
-        const fallbacks = ["Medium", "High", "Low"]; // Preferred sequence
-        for (const fbLevel of fallbacks) {
-            if (subdomainData[fbLevel]) {
-                result = subdomainData[fbLevel];
-                console.log(`[Feedback] Level Fallback: Used "${fbLevel}" for "${subdomainName}" (Role: ${targetRoleKey}) because "${level}" was missing.`);
-                break;
-            }
-        }
-    }
-
-    if (!result) {
-        console.warn(`[Feedback] Total missing: Role[${targetRoleKey}] Sub[${subdomainKey}] - No levels available.`);
-    }
-
-    return result;
+  return result;
 };

@@ -1,5 +1,3 @@
-
-
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 
@@ -11,7 +9,7 @@ const userSchema = new Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Invalid Email address"],
+      match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Invalid Email address"]
     },
 
     password: {

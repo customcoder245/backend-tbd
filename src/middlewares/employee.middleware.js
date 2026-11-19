@@ -2,10 +2,7 @@ import jwt from "jsonwebtoken";
 import Invitation from "../models/invitation.model.js";
 
 export const employeeAccess = async (req, res, next) => {
-  const token =
-    req.headers["x-invite-token"] ||
-    req.params.token ||
-    req.query.token;
+  const token = req.headers["x-invite-token"] || req.params.token || req.query.token;
 
   if (!token) {
     return res.status(401).json({ message: "Invitation token required" });
@@ -22,7 +19,9 @@ export const employeeAccess = async (req, res, next) => {
     });
 
     if (!invitation) {
-      return res.status(401).json({ message: "Invitation not found. It may have been deleted or is invalid." });
+      return res
+        .status(401)
+        .json({ message: "Invitation not found. It may have been deleted or is invalid." });
     }
 
     if (invitation.used === true) {
@@ -30,7 +29,9 @@ export const employeeAccess = async (req, res, next) => {
     }
 
     if (!invitation.expiredAt || new Date(invitation.expiredAt).getTime() < Date.now()) {
-      return res.status(400).json({ message: "Invitation link has expired. Please ask your admin to resend." });
+      return res
+        .status(400)
+        .json({ message: "Invitation link has expired. Please ask your admin to resend." });
     }
 
     // 3️⃣ Attach employee info to the request
@@ -45,7 +46,9 @@ export const employeeAccess = async (req, res, next) => {
   } catch (err) {
     console.error("employeeAccess middleware error:", err.message);
     if (err.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "Invitation token expired. Please ask your admin to resend the invite." });
+      return res
+        .status(401)
+        .json({ message: "Invitation token expired. Please ask your admin to resend the invite." });
     }
     return res.status(401).json({ message: "Invalid invitation token." });
   }

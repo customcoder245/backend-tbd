@@ -10,17 +10,17 @@ export const ROLE_DOMAIN_SUBDOMAINS = {
     "Operational Steadiness": [
       "Prioritization",
       "Workflow Clarity",
-      "Effective Resource Management",
+      "Effective Resource Management"
     ],
     "Digital Fluency": [
       "Data, AI & Automation Readiness",
       "Digital Communication & Collaboration",
       "Mindset, Confidence and Change Readiness",
-      "Tool & System Proficiency",
-    ],
+      "Tool & System Proficiency"
+    ]
   },
   leader: {
-     "People Potential": [
+    "People Potential": [
       "Psychological Health & Safety",
       "Mindset & Adaptability",
       "Relational & Emotional Intelligence"
@@ -28,51 +28,51 @@ export const ROLE_DOMAIN_SUBDOMAINS = {
     "Operational Steadiness": [
       "Prioritization",
       "Workflow Clarity",
-      "Effective Resource Management",
+      "Effective Resource Management"
     ],
     "Digital Fluency": [
       "Data, AI & Automation Readiness",
       "Digital Communication & Collaboration",
       "Mindset, Confidence and Change Readiness",
-      "Tool & System Proficiency",
-    ],
+      "Tool & System Proficiency"
+    ]
   },
 
   manager: {
     "People Potential": [
       "Mindset & Adaptability",
       "Psychological Health & Safety",
-      "Relational & Emotional Intelligence",
+      "Relational & Emotional Intelligence"
     ],
     "Operational Steadiness": [
       "Prioritization",
       "Workflow Clarity",
-      "Effective Resource Management",
+      "Effective Resource Management"
     ],
     "Digital Fluency": [
       "Data, AI & Automation Readiness",
       "Digital Communication & Collaboration",
       "Mindset, Confidence and Change Readiness",
-      "Tool & System Proficiency",
-    ],
+      "Tool & System Proficiency"
+    ]
   },
 
   employee: {
     "People Potential": [
       "Mindset & Adaptability",
       "Psychological Health & Safety",
-      "Relational & Emotional Intelligence",
+      "Relational & Emotional Intelligence"
     ],
     "Operational Steadiness": [
       "Prioritization",
       "Workflow Clarity",
-      "Effective Resource Management",
+      "Effective Resource Management"
     ],
     "Digital Fluency": [
       "Data, AI & Automation Readiness",
       "Digital Communication & Collaboration",
       "Mindset, Confidence and Change Readiness",
-      "Tool & System Proficiency",
-    ],
-  },
+      "Tool & System Proficiency"
+    ]
+  }
 };

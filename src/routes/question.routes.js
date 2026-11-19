@@ -17,7 +17,6 @@ import { excelUpload } from "../middlewares/multer.middleware.js";
 
 const router = express.Router();
 
-
 // Admin CRUD routes (Protected)
 
 /**

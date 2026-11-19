@@ -2,7 +2,6 @@ import Response from "../models/response.model.js";
 import Question from "../models/question.model.js";
 import ExcelJS from "exceljs";
 
-
 /**
  * SAVE RESPONSE (Autosave) - Optimized with batch fetching
  */
@@ -15,10 +14,12 @@ export const saveResponse = async (req, res) => {
     }
 
     // Batch fetch all questions at once instead of one-by-one
-    const questionIds = [...new Set(responses.map(r => r.questionId))];
+    const questionIds = [...new Set(responses.map((r) => r.questionId))];
     const questions = await Question.find({ _id: { $in: questionIds } }).lean();
     const questionMap = {};
-    questions.forEach(q => { questionMap[q._id.toString()] = q; });
+    questions.forEach((q) => {
+      questionMap[q._id.toString()] = q;
+    });
 
     const bulkOps = [];
     for (let response of responses) {
@@ -37,12 +38,13 @@ export const saveResponse = async (req, res) => {
 
       if (question.scale === "SCALE_1_5" || question.questionType === "Calibration") {
         if (answer <= 2 && !comment?.trim()) {
-          return res.status(400).json({ message: "Comment is required for 'Never' or 'Rarely' answers." });
+          return res
+            .status(400)
+            .json({ message: "Comment is required for 'Never' or 'Rarely' answers." });
         } else if (answer > 2) {
           finalComment = null;
         }
-      }
-      else if (question.scale === "FORCED_CHOICE") {
+      } else if (question.scale === "FORCED_CHOICE") {
         if (!comment?.trim()) {
           return res.status(400).json({
             message: `Comment is required for chosen option`
@@ -69,9 +71,12 @@ export const saveResponse = async (req, res) => {
             : "LOWER"
           : null,
         comment: finalComment,
-        insightPrompt: (question.scale === "FORCED_CHOICE" && question.forcedChoice)
-          ? (answer === "A" ? question.forcedChoice.optionA?.insightPrompt : question.forcedChoice.optionB?.insightPrompt) || question.insightPrompt
-          : question.insightPrompt,
+        insightPrompt:
+          question.scale === "FORCED_CHOICE" && question.forcedChoice
+            ? (answer === "A"
+                ? question.forcedChoice.optionA?.insightPrompt
+                : question.forcedChoice.optionB?.insightPrompt) || question.insightPrompt
+            : question.insightPrompt,
         subdomainWeight: question.subdomainWeight
       };
 
@@ -89,7 +94,7 @@ export const saveResponse = async (req, res) => {
     }
 
     // Return the saved docs
-    const assessmentIds = [...new Set(responses.map(r => r.assessmentId))];
+    const assessmentIds = [...new Set(responses.map((r) => r.assessmentId))];
     const savedResponses = await Response.find({
       assessmentId: { $in: assessmentIds },
       questionId: { $in: questionIds }
@@ -103,7 +108,6 @@ export const saveResponse = async (req, res) => {
     });
   }
 };
-
 
 /**
  * GET RESPONSES BY ASSESSMENT
@@ -121,7 +125,9 @@ export const getResponsesByAssessment = async (req, res) => {
     const submitted = await SubmittedAssessment.findOne({ assessmentId });
 
     if (submitted) {
-      console.log(`[ResponseController] Returning snapshotted data from SubmittedAssessment for ${assessmentId}`);
+      console.log(
+        `[ResponseController] Returning snapshotted data from SubmittedAssessment for ${assessmentId}`
+      );
       return res.status(200).json(submitted);
     }
 
@@ -170,18 +176,22 @@ export const exportIndividualReportExcel = async (req, res) => {
         return res.status(404).json({ message: "Assessment not found" });
       }
       const rawResponses = await ResponseModel.find({ assessmentId });
-      responses = rawResponses.map(r => r.toObject());
+      responses = rawResponses.map((r) => r.toObject());
       userDetails = assessment.userDetails || {};
       scores = assessment.scores || {};
       submittedAt = assessment.submittedAt || assessment.createdAt || new Date();
     }
 
     // 2. Format details
-    const empName = userDetails.firstName ? `${userDetails.firstName} ${userDetails.lastName || ""}`.trim() : "Participant";
+    const empName = userDetails.firstName
+      ? `${userDetails.firstName} ${userDetails.lastName || ""}`.trim()
+      : "Participant";
     const empDept = userDetails.department || "N/A";
     const empRole = userDetails.role || "N/A";
     const completedDate = new Date(submittedAt).toLocaleDateString("en-US", {
-      day: "2-digit", month: "short", year: "numeric"
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
     });
     // 3. Setup workbook
     const workbook = new ExcelJS.Workbook();
@@ -190,20 +200,26 @@ export const exportIndividualReportExcel = async (req, res) => {
 
     const ws = workbook.addWorksheet("Response Report", {
       views: [{ showGridLines: true, zoomScale: 90 }],
-      pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      pageSetup: {
+        paperSize: 9,
+        orientation: "landscape",
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0
+      }
     });
 
     // Column widths (9 cols: A-I)
     ws.columns = [
-      { key: "col1", width: 26 },   // A  Domain
-      { key: "col2", width: 28 },   // B  Subdomain
-      { key: "col3", width: 16 },   // C  Question Code
-      { key: "col4", width: 62 },   // D  Question
-      { key: "col5", width: 18 },   // E  Question Type
-      { key: "col6", width: 13 },   // F  Your Score
-      { key: "col7", width: 13 },   // G  Max Score
-      { key: "col8", width: 13 },   // H  % Score
-      { key: "col9", width: 42 },   // I  Comments
+      { key: "col1", width: 26 }, // A  Domain
+      { key: "col2", width: 28 }, // B  Subdomain
+      { key: "col3", width: 16 }, // C  Question Code
+      { key: "col4", width: 62 }, // D  Question
+      { key: "col5", width: 18 }, // E  Question Type
+      { key: "col6", width: 13 }, // F  Your Score
+      { key: "col7", width: 13 }, // G  Max Score
+      { key: "col8", width: 13 }, // H  % Score
+      { key: "col9", width: 42 } // I  Comments
     ];
 
     // ── Colour palette ───────────────────────────────────────────────────────
@@ -219,27 +235,47 @@ export const exportIndividualReportExcel = async (req, res) => {
       altRow: "FFF4F6FA",
 
       // Domain themes
-      blue1: "FFE8F0FE", blue2: "FF1A56DB", blue3: "FF1E3A8A",
-      green1: "FFE6F9EE", green2: "FF0E9F6E", green3: "FF065F46",
-      purple1: "FFF5F0FF", purple2: "FF7C3AED", purple3: "FF4C1D95",
+      blue1: "FFE8F0FE",
+      blue2: "FF1A56DB",
+      blue3: "FF1E3A8A",
+      green1: "FFE6F9EE",
+      green2: "FF0E9F6E",
+      green3: "FF065F46",
+      purple1: "FFF5F0FF",
+      purple2: "FF7C3AED",
+      purple3: "FF4C1D95",
 
       // Score colours  1=red, 2=orange, 3=amber, 4=green, 5=dark green
-      s1bg: "FFFEE2E2", s1fg: "FFDC2626",
-      s2bg: "FFFEF0E0", s2fg: "FFEA580C",
-      s3bg: "FFFEF9C3", s3fg: "FFB45309",
-      s4bg: "FFE6F9EE", s4fg: "FF059669",
-      s5bg: "FFD1FAE5", s5fg: "FF047857",
+      s1bg: "FFFEE2E2",
+      s1fg: "FFDC2626",
+      s2bg: "FFFEF0E0",
+      s2fg: "FFEA580C",
+      s3bg: "FFFEF9C3",
+      s3fg: "FFB45309",
+      s4bg: "FFE6F9EE",
+      s4fg: "FF059669",
+      s5bg: "FFD1FAE5",
+      s5fg: "FF047857"
     };
 
     // ── Helper factories ─────────────────────────────────────────────────────
     const mkFill = (argb) => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
-    const mkFont = (argb, sz, bold = false) => ({ name: "Segoe UI", size: sz, bold, color: { argb } });
-    const mkAlign = (h, v = "middle", wrap = false) => ({ horizontal: h, vertical: v, wrapText: wrap });
+    const mkFont = (argb, sz, bold = false) => ({
+      name: "Segoe UI",
+      size: sz,
+      bold,
+      color: { argb }
+    });
+    const mkAlign = (h, v = "middle", wrap = false) => ({
+      horizontal: h,
+      vertical: v,
+      wrapText: wrap
+    });
     const mkBorder = (clr = "FFD0D8E4", style = "thin") => ({
       top: { style, color: { argb: clr } },
       left: { style, color: { argb: clr } },
       bottom: { style, color: { argb: clr } },
-      right: { style, color: { argb: clr } },
+      right: { style, color: { argb: clr } }
     });
 
     const applyCell = (cell, opts = {}) => {
@@ -254,7 +290,12 @@ export const exportIndividualReportExcel = async (req, res) => {
       const n = name.toLowerCase();
       if (n.includes("people") || n.includes("potential"))
         return { bg: C.blue1, accent: C.blue2, text: C.blue3 };
-      if (n.includes("operation") || n.includes("leader") || n.includes("steady") || n.includes("effect"))
+      if (
+        n.includes("operation") ||
+        n.includes("leader") ||
+        n.includes("steady") ||
+        n.includes("effect")
+      )
         return { bg: C.green1, accent: C.green2, text: C.green3 };
       return { bg: C.purple1, accent: C.purple2, text: C.purple3 };
     };
@@ -265,7 +306,7 @@ export const exportIndividualReportExcel = async (req, res) => {
         2: { bg: C.s2bg, fg: C.s2fg },
         3: { bg: C.s3bg, fg: C.s3fg },
         4: { bg: C.s4bg, fg: C.s4fg },
-        5: { bg: C.s5bg, fg: C.s5fg },
+        5: { bg: C.s5bg, fg: C.s5fg }
       };
       return map[Math.round(val)] || { bg: C.offWhite, fg: C.darkText };
     };
@@ -274,7 +315,9 @@ export const exportIndividualReportExcel = async (req, res) => {
       if (r2 > r1 || c2 > c1) ws.mergeCells(r1, c1, r2, c2);
     };
 
-    const setHeight = (rowNum, pts) => { ws.getRow(rowNum).height = pts; };
+    const setHeight = (rowNum, pts) => {
+      ws.getRow(rowNum).height = pts;
+    };
 
     const thinBorder = mkBorder();
     const medBorder = mkBorder("FFAAB8CC", "medium");
@@ -310,7 +353,7 @@ export const exportIndividualReportExcel = async (req, res) => {
         top: { style: "medium", color: { argb: "FFD4AF37" } },
         left: { style: "medium", color: { argb: "FFD4AF37" } },
         bottom: { style: "medium", color: { argb: "FFD4AF37" } },
-        right: { style: "medium", color: { argb: "FFD4AF37" } },
+        right: { style: "medium", color: { argb: "FFD4AF37" } }
       }
     });
 
@@ -343,24 +386,20 @@ export const exportIndividualReportExcel = async (req, res) => {
       border: thinBorder
     });
 
-
-
     // ===== RIGHT METADATA PANEL =====
 
     // Background panel
     for (let r = 1; r <= 4; r++) {
       for (let c = 6; c <= 9; c++) {
-
         applyCell(ws.getCell(r, c), {
           fill: "FFF8FAFC",
           border: {
             top: { style: "thin", color: { argb: "FFE2E8F0" } },
             left: { style: "thin", color: { argb: "FFE2E8F0" } },
             bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
-            right: { style: "thin", color: { argb: "FFE2E8F0" } },
+            right: { style: "thin", color: { argb: "FFE2E8F0" } }
           }
         });
-
       }
     }
 
@@ -368,11 +407,10 @@ export const exportIndividualReportExcel = async (req, res) => {
       ["NAME", empName],
       ["DEPARTMENT", empDept],
       ["ROLE", empRole],
-      ["COMPLETED", completedDate],
+      ["COMPLETED", completedDate]
     ];
 
     metaRows.forEach(([label, val], i) => {
-
       const row = i + 1;
 
       // Label
@@ -413,7 +451,6 @@ export const exportIndividualReportExcel = async (req, res) => {
         },
         border: thinBorder
       });
-
     });
 
     // Row Heights
@@ -425,8 +462,6 @@ export const exportIndividualReportExcel = async (req, res) => {
     // Spacer row
     setHeight(5, 8);
 
-
-
     // ════════════════════════════════════════════════════════════════════════
     // SECTION 2 - SPACER ROW 5
     // ════════════════════════════════════════════════════════════════════════
@@ -435,15 +470,16 @@ export const exportIndividualReportExcel = async (req, res) => {
     // ════════════════════════════════════════════════════════════════════════
     // SECTION 3 - SUMMARY CARDS  (rows 6-9)
     // ════════════════════════════════════════════════════════════════════════
-    const ratingResponses = responses.filter(r => r.value !== null && r.value !== undefined);
+    const ratingResponses = responses.filter((r) => r.value !== null && r.value !== undefined);
 
     let overallAvgVal = 0;
     if (scores.overall && scores.overall > 0) {
       overallAvgVal = scores.overall / 20;
     } else {
-      overallAvgVal = ratingResponses.length > 0
-        ? ratingResponses.reduce((s, r) => s + r.value, 0) / ratingResponses.length
-        : 0;
+      overallAvgVal =
+        ratingResponses.length > 0
+          ? ratingResponses.reduce((s, r) => s + r.value, 0) / ratingResponses.length
+          : 0;
     }
     const overallAvg = overallAvgVal > 0 ? overallAvgVal.toFixed(2) : "0.00";
 
@@ -453,14 +489,13 @@ export const exportIndividualReportExcel = async (req, res) => {
     //   if (v >= 1 && v <= 5) scoreDistribution[v]++;
     // });
 
-
     // Card header
     mergeCells(6, 1, 6, 9);
     applyCell(ws.getCell(6, 1), {
       value: "ASSESSMENT SUMMARY",
       fill: C.navy,
       font: mkFont(C.white, 9, true),
-      align: mkAlign("center", "middle"),
+      align: mkAlign("center", "middle")
     });
     setHeight(6, 18);
 
@@ -472,14 +507,13 @@ export const exportIndividualReportExcel = async (req, res) => {
         cols: [5, 9],
         label: "Performance Scale",
         val: "LOW | NEUTRAL | HIGH"
-      },
+      }
 
       // { cols: [5, 6], label: "Self-Rating Questions", val: `${selfCount}` },
       // { cols: [7, 9], label: "Behavioural Questions", val: `${behavCount}` },
     ];
 
     cards.forEach(({ cols, label, val }) => {
-
       // ======================================================
       // TOP LABEL ROW
       // ======================================================
@@ -491,7 +525,7 @@ export const exportIndividualReportExcel = async (req, res) => {
         fill: C.offWhite,
         font: mkFont(C.mutedText, 8, true),
         align: mkAlign("center", "middle"),
-        border: thinBorder,
+        border: thinBorder
       });
 
       // ======================================================
@@ -499,7 +533,6 @@ export const exportIndividualReportExcel = async (req, res) => {
       // ======================================================
 
       if (label === "Performance Scale") {
-
         // LOW
         mergeCells(8, 5, 8, 6);
 
@@ -513,7 +546,7 @@ export const exportIndividualReportExcel = async (req, res) => {
             color: { argb: "FFDC2626" }
           },
           align: mkAlign("center", "middle"),
-          border: thinBorder,
+          border: thinBorder
         });
 
         // NEUTRAL
@@ -529,7 +562,7 @@ export const exportIndividualReportExcel = async (req, res) => {
             color: { argb: "FFD97706" }
           },
           align: mkAlign("center", "middle"),
-          border: thinBorder,
+          border: thinBorder
         });
 
         // HIGH
@@ -545,17 +578,14 @@ export const exportIndividualReportExcel = async (req, res) => {
             color: { argb: "FF047857" }
           },
           align: mkAlign("center", "middle"),
-          border: thinBorder,
+          border: thinBorder
         });
-
       }
 
       // ======================================================
       // NORMAL SUMMARY CARDS
       // ======================================================
-
       else {
-
         mergeCells(8, cols[0], 8, cols[1]);
 
         applyCell(ws.getCell(8, cols[0]), {
@@ -563,11 +593,9 @@ export const exportIndividualReportExcel = async (req, res) => {
           fill: C.white,
           font: mkFont(C.navy, 14, true),
           align: mkAlign("center", "middle"),
-          border: thinBorder,
+          border: thinBorder
         });
-
       }
-
     });
 
     // Row heights
@@ -595,8 +623,15 @@ export const exportIndividualReportExcel = async (req, res) => {
     // SECTION 5 - TABLE HEADER  (row 11)
     // ════════════════════════════════════════════════════════════════════════
     const headers = [
-      "Domain", "Sub-Domain", "Question Code", "Question",
-      "Question Type", "Your Score", "Max Score", "% Score", "Comments"
+      "Domain",
+      "Sub-Domain",
+      "Question Code",
+      "Question",
+      "Question Type",
+      "Your Score",
+      "Max Score",
+      "% Score",
+      "Comments"
     ];
     headers.forEach((h, i) => {
       const cell = ws.getCell(11, i + 1);
@@ -605,7 +640,7 @@ export const exportIndividualReportExcel = async (req, res) => {
         fill: C.navy,
         font: mkFont(C.white, 10, true),
         align: mkAlign(i === 3 || i === 8 ? "left" : "center", "middle"),
-        border: medBorder,
+        border: medBorder
       });
     });
     setHeight(11, 32);
@@ -618,7 +653,7 @@ export const exportIndividualReportExcel = async (req, res) => {
       "Operational Steadiness": 2,
       "Leadership Effectiveness": 2,
       "Digital Fluency": 3,
-      "Execution Excellence": 3,
+      "Execution Excellence": 3
     };
 
     const sorted = [...responses].sort((a, b) => {
@@ -636,7 +671,7 @@ export const exportIndividualReportExcel = async (req, res) => {
     sorted.forEach((r, idx) => {
       const theme = getDomainTheme(r.domain);
       const isFc = r.questionType === "Forced-Choice" || r.scale === "FORCED_CHOICE";
-      const score = isFc ? 2.5 : ((r.value !== null && r.value !== undefined) ? Number(r.value) : null);
+      const score = isFc ? 2.5 : r.value !== null && r.value !== undefined ? Number(r.value) : null;
       const sc = score !== null ? getScorePalette(score) : null;
 
       // Col A - Domain
@@ -645,7 +680,7 @@ export const exportIndividualReportExcel = async (req, res) => {
         fill: theme.bg,
         font: { name: "Segoe UI", size: 9, bold: true, color: { argb: theme.text } },
         align: mkAlign("center", "middle", true),
-        border: thinBorder,
+        border: thinBorder
       });
 
       // Col B - Subdomain
@@ -654,7 +689,7 @@ export const exportIndividualReportExcel = async (req, res) => {
         fill: theme.bg,
         font: { name: "Segoe UI", size: 9, bold: false, color: { argb: theme.text } },
         align: mkAlign("center", "middle", true),
-        border: thinBorder,
+        border: thinBorder
       });
 
       // Col C - Question Code
@@ -663,7 +698,7 @@ export const exportIndividualReportExcel = async (req, res) => {
         fill: C.offWhite,
         font: mkFont(C.navy, 9, true),
         align: mkAlign("center", "middle"),
-        border: thinBorder,
+        border: thinBorder
       });
 
       // Col D - Question Stem
@@ -673,7 +708,7 @@ export const exportIndividualReportExcel = async (req, res) => {
         fill: isOdd ? C.altRow : C.white,
         font: mkFont(C.darkText, 9),
         align: mkAlign("left", "middle", true),
-        border: thinBorder,
+        border: thinBorder
       });
 
       // Col E - Question Type
@@ -682,42 +717,38 @@ export const exportIndividualReportExcel = async (req, res) => {
         fill: C.offWhite,
         font: mkFont(C.mutedText, 8, true),
         align: mkAlign("center", "middle", true),
-        border: thinBorder,
+        border: thinBorder
       });
 
       // Col F - Your Score
       applyCell(ws.getCell(currentRow, 6), {
-        value: isFc ? `${r.selectedOption || "—"}` : (score !== null ? score : "—"),
+        value: isFc ? `${r.selectedOption || "—"}` : score !== null ? score : "—",
         fill: sc ? sc.bg : C.offWhite,
         font: sc
           ? { name: "Segoe UI", size: 11, bold: true, color: { argb: sc.fg } }
           : mkFont(C.mutedText, 9),
         align: mkAlign("center", "middle"),
-        border: thinBorder,
+        border: thinBorder
       });
 
       // Col G - Max Score
       applyCell(ws.getCell(currentRow, 7), {
-        value: isFc ? 5 : (score !== null ? 5 : "—"),
+        value: isFc ? 5 : score !== null ? 5 : "—",
         fill: C.offWhite,
         font: mkFont(C.mutedText, 9),
         align: mkAlign("center", "middle"),
-        border: thinBorder,
+        border: thinBorder
       });
 
       // Col H - % Score
-
 
       // Col H - % Score
 
       let pctVal = "—";
 
       if (isFc) {
-
         pctVal = 50;
-
       } else if (score !== null && score !== undefined) {
-
         const percentageMap = {
           1: 20,
           2: 40,
@@ -729,21 +760,20 @@ export const exportIndividualReportExcel = async (req, res) => {
         pctVal = percentageMap[Math.round(score)] || "—";
       }
 
-
       applyCell(ws.getCell(currentRow, 8), {
         value: pctVal,
         fill: sc ? sc.bg : C.offWhite,
         font: sc
           ? {
-            name: "Segoe UI",
-            size: 9,
-            bold: true,
-            color: { argb: sc.fg }
-          }
+              name: "Segoe UI",
+              size: 9,
+              bold: true,
+              color: { argb: sc.fg }
+            }
           : mkFont(C.mutedText, 9),
 
         align: mkAlign("center", "middle"),
-        border: thinBorder,
+        border: thinBorder
       });
 
       // Col I - Comments
@@ -752,21 +782,13 @@ export const exportIndividualReportExcel = async (req, res) => {
         fill: isOdd ? C.altRow : C.white,
         font: mkFont(C.mutedText, 8, false),
         align: mkAlign("left", "middle", true),
-        border: thinBorder,
+        border: thinBorder
       });
-
-
-
-
 
       // Auto-height: estimate ~15pt per 60 chars of question stem
       const stemLen = (r.questionStem || "").length;
       const commentLen = (r.comment || "").length;
-      const neededLines = Math.max(
-        Math.ceil(stemLen / 55),
-        Math.ceil(commentLen / 35),
-        2
-      );
+      const neededLines = Math.max(Math.ceil(stemLen / 55), Math.ceil(commentLen / 35), 2);
       setHeight(currentRow, Math.max(36, neededLines * 15));
 
       currentRow++;
@@ -776,8 +798,10 @@ export const exportIndividualReportExcel = async (req, res) => {
     // SECTION 7 - VERTICAL MERGING of Domain & Subdomain columns
     // ════════════════════════════════════════════════════════════════════════
     if (sorted.length > 0) {
-      let lastDom = "", lastSub = "";
-      let domStart = DATA_START, subStart = DATA_START;
+      let lastDom = "",
+        lastSub = "";
+      let domStart = DATA_START,
+        subStart = DATA_START;
 
       sorted.forEach((r, i) => {
         const rowNum = DATA_START + i;
@@ -817,16 +841,16 @@ export const exportIndividualReportExcel = async (req, res) => {
     // PREMIUM ANALYTICS SECTION
     // ════════════════════════════════════════════════════════════════════════
 
-
-
     // ── Freeze panes: freeze header row so column labels stay visible ─────────
-    ws.views = [{
-      state: "frozen",
-      xSplit: 0,
-      ySplit: 11,
-      showGridLines: true,
-      zoomScale: 90
-    }];
+    ws.views = [
+      {
+        state: "frozen",
+        xSplit: 0,
+        ySplit: 11,
+        showGridLines: true,
+        zoomScale: 90
+      }
+    ];
 
     // ── AutoFilter on table header row ────────────────────────────────────────
     if (currentRow > DATA_START) {
@@ -837,11 +861,16 @@ export const exportIndividualReportExcel = async (req, res) => {
     }
 
     // ── Send file ────────────────────────────────────────────────────────────
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename=Individual_Response_Report_${empName.replace(/\s+/g, "_")}.xlsx`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=Individual_Response_Report_${empName.replace(/\s+/g, "_")}.xlsx`
+    );
     await workbook.xlsx.write(res);
     res.end();
-
   } catch (error) {
     console.error("Error generating Excel report:", error);
     res.status(500).json({ message: "Error generating Excel report", error: error.message });
@@ -859,8 +888,8 @@ export const exportOrganizationReportExcel = async (req, res) => {
       return res.status(400).json({ message: "Organization name is required." });
     }
 
-    const escapedName = orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, 'i');
+    const escapedName = orgName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const orgRegex = new RegExp(`^\\s*${escapedName}\\s*$`, "i");
 
     // ════════════════════════════════════════════════════════════════════════
     // 1. PRIMARY DATA SOURCE: SubmittedAssessment
@@ -875,17 +904,17 @@ export const exportOrganizationReportExcel = async (req, res) => {
     };
 
     const allOrgUsers = await User.find({ orgName: orgRegex }).lean();
-    const orgUsers = allOrgUsers.filter(u => ALLOWED_ROLES.includes((u.role || "").toLowerCase()));
+    const orgUsers = allOrgUsers.filter((u) =>
+      ALLOWED_ROLES.includes((u.role || "").toLowerCase())
+    );
 
-    const userIds = orgUsers.map(u => u._id);
-    const userEmails = orgUsers.map(u => (u.email || "").toLowerCase().trim()).filter(Boolean);
+    const userIds = orgUsers.map((u) => u._id);
+    const userEmails = orgUsers.map((u) => (u.email || "").toLowerCase().trim()).filter(Boolean);
     const adminUserIds = allOrgUsers
-      .filter(u => u.role === "admin" || u.role === "superAdmin")
-      .map(u => u._id);
+      .filter((u) => u.role === "admin" || u.role === "superAdmin")
+      .map((u) => u._id);
 
-    const submittedOrConditions = [
-      { "userDetails.orgName": orgRegex }
-    ];
+    const submittedOrConditions = [{ "userDetails.orgName": orgRegex }];
     if (userIds.length) submittedOrConditions.push({ userId: { $in: userIds } });
     if (userEmails.length) submittedOrConditions.push({ "userDetails.email": { $in: userEmails } });
     if (adminUserIds.length) submittedOrConditions.push({ adminId: { $in: adminUserIds } });
@@ -895,7 +924,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
       isDeleted: { $ne: true }
     }).lean();
 
-    console.log(`[Excel Export] Org: ${orgName} | Org Users: ${orgUsers.length} | SubmittedAssessments: ${submittedDocs.length}`);
+    console.log(
+      `[Excel Export] Org: ${orgName} | Org Users: ${orgUsers.length} | SubmittedAssessments: ${submittedDocs.length}`
+    );
 
     if (!orgUsers.length && !submittedDocs.length) {
       return res.status(404).json({ message: "No data found for this organization." });
@@ -917,7 +948,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
       return null;
     };
 
-    submittedDocs.forEach(sub => {
+    submittedDocs.forEach((sub) => {
       const userDetails = sub.userDetails || {};
       const email = (userDetails.email || "").toLowerCase().trim();
       const userId = sub.userId ? sub.userId.toString() : "";
@@ -929,13 +960,18 @@ export const exportOrganizationReportExcel = async (req, res) => {
         const existingTime = existing.submittedAt ? new Date(existing.submittedAt).getTime() : 0;
         const newTime = sub.submittedAt ? new Date(sub.submittedAt).getTime() : 0;
         if (newTime >= existingTime) {
-          existing.assessmentId = sub.assessmentId ? sub.assessmentId.toString() : (sub._id ? sub._id.toString() : "");
+          existing.assessmentId = sub.assessmentId
+            ? sub.assessmentId.toString()
+            : sub._id
+              ? sub._id.toString()
+              : "";
           existing.isCompleted = true;
           existing.submittedAt = sub.submittedAt || sub.createdAt;
           existing.responses = sub.responses || [];
           existing.scores = sub.scores || null;
           existing.stakeholder = sub.stakeholder || null;
-          if (userDetails.firstName) existing.empName = getFullName(userDetails.firstName, userDetails.lastName);
+          if (userDetails.firstName)
+            existing.empName = getFullName(userDetails.firstName, userDetails.lastName);
           if (sub.stakeholder) existing.role = sub.stakeholder;
           else if (userDetails.role) existing.role = userDetails.role;
           if (userDetails.department) existing.dept = userDetails.department;
@@ -944,7 +980,11 @@ export const exportOrganizationReportExcel = async (req, res) => {
         const key = email || userId || sub._id.toString();
         if (!key) return;
         participantMap.set(key, {
-          assessmentId: sub.assessmentId ? sub.assessmentId.toString() : (sub._id ? sub._id.toString() : ""),
+          assessmentId: sub.assessmentId
+            ? sub.assessmentId.toString()
+            : sub._id
+              ? sub._id.toString()
+              : "",
           userId: userId,
           empName: getFullName(userDetails.firstName, userDetails.lastName) || "Participant",
           email: email || "",
@@ -959,7 +999,7 @@ export const exportOrganizationReportExcel = async (req, res) => {
       }
     });
 
-    orgUsers.forEach(u => {
+    orgUsers.forEach((u) => {
       const email = (u.email || "").toLowerCase().trim();
       const userId = u._id.toString();
       const existing = findParticipant(email, userId);
@@ -988,15 +1028,18 @@ export const exportOrganizationReportExcel = async (req, res) => {
       if (!str) return "";
       const s = String(str).trim();
       if (!s || s.toLowerCase() === "n/a") return "N/A";
-      return s.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+      return s
+        .split(/\s+/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
     };
 
-    reportsData.forEach(r => {
+    reportsData.forEach((r) => {
       r.role = toTitleCase(r.role);
       r.dept = toTitleCase(r.dept);
     });
 
-    const completedCount = reportsData.filter(r => r.isCompleted).length;
+    const completedCount = reportsData.filter((r) => r.isCompleted).length;
 
     // ════════════════════════════════════════════════════════════════════════
     // 3. Build questionMap and personQuestionCodes from actual responses
@@ -1004,12 +1047,14 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const questionMap = new Map();
     const personQuestionCodes = new Map();
 
-    reportsData.forEach(report => {
+    reportsData.forEach((report) => {
       if (report.isCompleted && report.responses) {
-        report.responses.forEach(resp => {
+        report.responses.forEach((resp) => {
           const hasScore =
             (resp.value !== null && resp.value !== undefined) ||
-            (resp.selectedOption !== null && resp.selectedOption !== undefined && resp.selectedOption !== "");
+            (resp.selectedOption !== null &&
+              resp.selectedOption !== undefined &&
+              resp.selectedOption !== "");
           if (hasScore) {
             if (resp.domain && resp.subdomain && resp.questionStem) {
               questionMap.set(resp.questionCode, {
@@ -1052,10 +1097,23 @@ export const exportOrganizationReportExcel = async (req, res) => {
     workbook.created = new Date();
 
     // ------------------------- HOME SHEET -------------------------
-    const wsHome = workbook.addWorksheet("Home", { views: [{ showGridLines: true, zoomScale: 100 }] });
+    const wsHome = workbook.addWorksheet("Home", {
+      views: [{ showGridLines: true, zoomScale: 100 }]
+    });
     wsHome.columns = [
-      { width: 4 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 },
-      { width: 4 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 4 }
+      { width: 4 },
+      { width: 16 },
+      { width: 16 },
+      { width: 16 },
+      { width: 16 },
+      { width: 16 },
+      { width: 4 },
+      { width: 16 },
+      { width: 16 },
+      { width: 16 },
+      { width: 16 },
+      { width: 16 },
+      { width: 4 }
     ];
 
     wsHome.mergeCells("B2:L2");
@@ -1092,11 +1150,17 @@ export const exportOrganizationReportExcel = async (req, res) => {
     roleCell.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FF1E2A3B" } };
     roleCell.alignment = { horizontal: "center", vertical: "middle" };
     roleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
-    roleCell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    roleCell.border = {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" }
+    };
 
     wsHome.mergeCells("B9:F14");
     const roleDescCell = wsHome.getCell("B9");
-    roleDescCell.value = "✔ Roles are the top level of hierarchy.\n\n✔ Selecting a role filters available people in card 2 dynamically.";
+    roleDescCell.value =
+      "✔ Roles are the top level of hierarchy.\n\n✔ Selecting a role filters available people in card 2 dynamically.";
     roleDescCell.font = { name: "Segoe UI", size: 9.5, italic: true, color: { argb: "FF4C1D95" } };
     roleDescCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     roleDescCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F0FF" } };
@@ -1109,12 +1173,23 @@ export const exportOrganizationReportExcel = async (req, res) => {
     personCell.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FF1E2A3B" } };
     personCell.alignment = { horizontal: "center", vertical: "middle" };
     personCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
-    personCell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    personCell.border = {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" }
+    };
 
     wsHome.mergeCells("H9:L14");
     const personDescCell = wsHome.getCell("H9");
-    personDescCell.value = "✔ People lists are fully dependent on the selected role.\n\n✔ Choose a person and click below to view details!";
-    personDescCell.font = { name: "Segoe UI", size: 9.5, italic: true, color: { argb: "FF7C2D12" } };
+    personDescCell.value =
+      "✔ People lists are fully dependent on the selected role.\n\n✔ Choose a person and click below to view details!";
+    personDescCell.font = {
+      name: "Segoe UI",
+      size: 9.5,
+      italic: true,
+      color: { argb: "FF7C2D12" }
+    };
     personDescCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     personDescCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF2F8" } };
 
@@ -1128,20 +1203,26 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const wsConfig = workbook.addWorksheet("_Config", { views: [{ showGridLines: true }] });
     wsConfig.state = "hidden";
 
-    const validEntries = reportsData.filter(r => r.empName && r.empName.trim() !== "" && r.role && r.role.trim() !== "");
+    const validEntries = reportsData.filter(
+      (r) => r.empName && r.empName.trim() !== "" && r.role && r.role.trim() !== ""
+    );
     const roleToPersonMap = {};
-    validEntries.forEach(r => {
+    validEntries.forEach((r) => {
       const roleKey = r.role.trim();
       if (!roleToPersonMap[roleKey]) roleToPersonMap[roleKey] = [];
       if (!roleToPersonMap[roleKey].includes(r.empName)) roleToPersonMap[roleKey].push(r.empName);
     });
-    Object.keys(roleToPersonMap).forEach(k => roleToPersonMap[k].sort());
+    Object.keys(roleToPersonMap).forEach((k) => roleToPersonMap[k].sort());
     const uniqueRolesSorted = Object.keys(roleToPersonMap).sort();
 
     // Helper: convert 1-based column index → Excel column letter(s)
     const colLetter = (n) => {
       let s = "";
-      while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+      while (n > 0) {
+        const r = (n - 1) % 26;
+        s = String.fromCharCode(65 + r) + s;
+        n = Math.floor((n - 1) / 26);
+      }
       return s;
     };
 
@@ -1149,8 +1230,8 @@ export const exportOrganizationReportExcel = async (req, res) => {
     // Rules: starts with letter/underscore, only letters/digits/underscores, max 255 chars
     const toDefinedName = (role) =>
       role
-        .replace(/[^A-Za-z0-9_]/g, "_")   // replace spaces & specials with _
-        .replace(/^([0-9])/, "_$1")         // can't start with a digit
+        .replace(/[^A-Za-z0-9_]/g, "_") // replace spaces & specials with _
+        .replace(/^([0-9])/, "_$1") // can't start with a digit
         .substring(0, 255);
 
     const roleColMap = {};
@@ -1160,35 +1241,49 @@ export const exportOrganizationReportExcel = async (req, res) => {
       const allPeople = ["Select Person", ...people];
       roleColMap[role] = { col, count: allPeople.length };
       wsConfig.getCell(1, col).value = role;
-      allPeople.forEach((name, pi) => { wsConfig.getCell(pi + 2, col).value = name; });
+      allPeople.forEach((name, pi) => {
+        wsConfig.getCell(pi + 2, col).value = name;
+      });
 
       // Define a workbook-level named range for this role so INDIRECT(B7) resolves
       const letter = colLetter(col);
-      const endRow = allPeople.length + 1;   // row 2 .. endRow  (header in row 1)
+      const endRow = allPeople.length + 1; // row 2 .. endRow  (header in row 1)
       const definedName = toDefinedName(role);
-      workbook.definedNames.add(
-        `_Config!$${letter}$2:$${letter}$${endRow}`,
-        definedName
-      );
+      workbook.definedNames.add(`_Config!$${letter}$2:$${letter}$${endRow}`, definedName);
     });
 
     // Role dropdown — inline list is fine and works in both apps
-    const roleDropListStr = '"' + (uniqueRolesSorted.length > 0 ? uniqueRolesSorted.join(",") : "Leader,Manager,Employee") + '"';
+    const roleDropListStr =
+      '"' +
+      (uniqueRolesSorted.length > 0 ? uniqueRolesSorted.join(",") : "Leader,Manager,Employee") +
+      '"';
     wsHome.getCell("B7").dataValidation = {
-      type: "list", allowBlank: true, formulae: [roleDropListStr],
-      showErrorMessage: true, errorTitle: "Invalid Role", error: "Please select a role from the dropdown."
+      type: "list",
+      allowBlank: true,
+      formulae: [roleDropListStr],
+      showErrorMessage: true,
+      errorTitle: "Invalid Role",
+      error: "Please select a role from the dropdown."
     };
 
     // Person dropdown — INDIRECT of the named range that matches the selected role.
     // This formula works in Excel AND WPS because it resolves to a static named range.
     if (uniqueRolesSorted.length > 0) {
       wsHome.getCell("H7").dataValidation = {
-        type: "list", allowBlank: true,
-        formulae: ["INDIRECT(SUBSTITUTE(Home!$B$7,\" \",\"_\"))"],
-        showErrorMessage: true, errorTitle: "Invalid Person", error: "Please select a person from the dropdown."
+        type: "list",
+        allowBlank: true,
+        formulae: ['INDIRECT(SUBSTITUTE(Home!$B$7," ","_"))'],
+        showErrorMessage: true,
+        errorTitle: "Invalid Person",
+        error: "Please select a person from the dropdown."
       };
     } else {
-      wsHome.getCell("H7").dataValidation = { type: "list", allowBlank: true, formulae: ['"Select Person"'], showErrorMessage: false };
+      wsHome.getCell("H7").dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Select Person"'],
+        showErrorMessage: false
+      };
     }
 
     roleCell.value = uniqueRolesSorted.length > 0 ? uniqueRolesSorted[0] : "";
@@ -1203,24 +1298,50 @@ export const exportOrganizationReportExcel = async (req, res) => {
     leftSpacer8.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
     if (uniqueRolesSorted.length > 0) {
       // COUNTIF against INDIRECT(named range) — works in Excel and WPS
-      warnCell.value = { formula: `IF(OR(B7="",H7="",H7="Select Person"),"",IF(COUNTIF(INDIRECT(SUBSTITUTE(Home!$B$7," ","_")),H7)=0,"⚠  Role changed — please re-select person from the dropdown above",""))` };
-    } else { warnCell.value = ""; }
+      warnCell.value = {
+        formula: `IF(OR(B7="",H7="",H7="Select Person"),"",IF(COUNTIF(INDIRECT(SUBSTITUTE(Home!$B$7," ","_")),H7)=0,"⚠  Role changed — please re-select person from the dropdown above",""))`
+      };
+    } else {
+      warnCell.value = "";
+    }
     warnCell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFDC2626" } };
     warnCell.alignment = { horizontal: "center", vertical: "middle" };
     warnCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
     wsHome.addConditionalFormatting({
       ref: "H8:L8",
-      rules: [{ type: "expression", formulae: ['H8<>""'], style: { fill: { type: "pattern", pattern: "solid", bgColor: { argb: "FFFEE2E2" } }, font: { bold: true, color: { argb: "FFDC2626" } } } }]
+      rules: [
+        {
+          type: "expression",
+          formulae: ['H8<>""'],
+          style: {
+            fill: { type: "pattern", pattern: "solid", bgColor: { argb: "FFFEE2E2" } },
+            font: { bold: true, color: { argb: "FFDC2626" } }
+          }
+        }
+      ]
     });
 
     // ------------------------- REPORT SHEET (dynamic) -------------------------
     const wsRepReal = workbook.addWorksheet("Report", {
       views: [{ state: "frozen", xSplit: 0, ySplit: 11, showGridLines: true, zoomScale: 90 }],
-      pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      pageSetup: {
+        paperSize: 9,
+        orientation: "landscape",
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0
+      }
     });
     wsRepReal.columns = [
-      { width: 26 }, { width: 28 }, { width: 16 }, { width: 62 }, { width: 18 },
-      { width: 13 }, { width: 13 }, { width: 13 }, { width: 42 }
+      { width: 26 },
+      { width: 28 },
+      { width: 16 },
+      { width: 62 },
+      { width: 18 },
+      { width: 13 },
+      { width: 13 },
+      { width: 13 },
+      { width: 42 }
     ];
 
     // ------------------------- RAW DATA SHEET (hidden) -------------------------
@@ -1246,12 +1367,22 @@ export const exportOrganizationReportExcel = async (req, res) => {
     ];
 
     const personSeqMap = new Map();
-    reportsData.forEach(report => {
+    reportsData.forEach((report) => {
       if (report.isCompleted) {
-        const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
-        const domOrder = { "Mindset & Adaptability": 1, "Psychological Health & Safety": 2, "People Potential": 3, "Relational & Emotional Intelligence": 4 };
+        const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        });
+        const domOrder = {
+          "Mindset & Adaptability": 1,
+          "Psychological Health & Safety": 2,
+          "People Potential": 3,
+          "Relational & Emotional Intelligence": 4
+        };
         const sortedResponses = [...report.responses].sort((a, b) => {
-          const dA = domOrder[a.domain] || 99, dB = domOrder[b.domain] || 99;
+          const dA = domOrder[a.domain] || 99,
+            dB = domOrder[b.domain] || 99;
           if (dA !== dB) return dA - dB;
           if (a.domain !== b.domain) return a.domain.localeCompare(b.domain);
           if (a.subdomain !== b.subdomain) return a.subdomain.localeCompare(b.subdomain);
@@ -1259,9 +1390,13 @@ export const exportOrganizationReportExcel = async (req, res) => {
         });
         let seq = 0;
         const nameKey = report.empName.trim();
-        sortedResponses.forEach(resp => {
+        sortedResponses.forEach((resp) => {
           const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
-          const score = isFc ? resp.selectedOption : ((resp.value !== null && resp.value !== undefined) ? Number(resp.value) : "");
+          const score = isFc
+            ? resp.selectedOption
+            : resp.value !== null && resp.value !== undefined
+              ? Number(resp.value)
+              : "";
           if (score === "" || score === null || score === undefined) return;
           seq++;
           wsRaw.addRow({
@@ -1286,33 +1421,72 @@ export const exportOrganizationReportExcel = async (req, res) => {
         personSeqMap.set(nameKey, seq);
       } else {
         wsRaw.addRow({
-          lookupKey: `${report.empName}_NO_CODE`, personName: report.empName, email: report.email,
-          role: report.role, department: report.dept, completedDate: "Not Completed",
-          questionCode: "", yourScore: "", comment: "No assessment submitted", questionStem: "",
-          domain: "", subdomain: "", questionType: "", maxScore: "", seqNum: "", personSeqKey: ""
+          lookupKey: `${report.empName}_NO_CODE`,
+          personName: report.empName,
+          email: report.email,
+          role: report.role,
+          department: report.dept,
+          completedDate: "Not Completed",
+          questionCode: "",
+          yourScore: "",
+          comment: "No assessment submitted",
+          questionStem: "",
+          domain: "",
+          subdomain: "",
+          questionType: "",
+          maxScore: "",
+          seqNum: "",
+          personSeqKey: ""
         });
       }
     });
 
-    const maxQuestionsPerPerson = personSeqMap.size > 0 ? Math.max(...Array.from(personSeqMap.values())) : sortedQuestions.length;
+    const maxQuestionsPerPerson =
+      personSeqMap.size > 0
+        ? Math.max(...Array.from(personSeqMap.values()))
+        : sortedQuestions.length;
 
     // Colour palette
     const C = {
-      navy: "FF0F2547", navyLight: "FF1A3A6B", white: "FFFFFFFF", offWhite: "FFF8FAFC",
-      lightGrey: "FFE8EDF4", midGrey: "FFD0D8E4", darkText: "FF1E2A3B", mutedText: "FF6B7A90",
+      navy: "FF0F2547",
+      navyLight: "FF1A3A6B",
+      white: "FFFFFFFF",
+      offWhite: "FFF8FAFC",
+      lightGrey: "FFE8EDF4",
+      midGrey: "FFD0D8E4",
+      darkText: "FF1E2A3B",
+      mutedText: "FF6B7A90",
       altRow: "FFF4F6FA",
-      s1bg: "FFFEE2E2", s1fg: "FFDC2626", s2bg: "FFFEF0E0", s2fg: "FFEA580C",
-      s3bg: "FFFEF9C3", s3fg: "FFB45309", s4bg: "FFE6F9EE", s4fg: "FF059669",
-      s5bg: "FFD1FAE5", s5fg: "FF047857"
+      s1bg: "FFFEE2E2",
+      s1fg: "FFDC2626",
+      s2bg: "FFFEF0E0",
+      s2fg: "FFEA580C",
+      s3bg: "FFFEF9C3",
+      s3fg: "FFB45309",
+      s4bg: "FFE6F9EE",
+      s4fg: "FF059669",
+      s5bg: "FFD1FAE5",
+      s5fg: "FF047857"
     };
 
     const wsRep = wsRepReal;
     const mkFill = (argb) => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
-    const mkFont = (argb, sz, bold = false) => ({ name: "Segoe UI", size: sz, bold, color: { argb } });
-    const mkAlign = (h, v = "middle", wrap = false) => ({ horizontal: h, vertical: v, wrapText: wrap });
+    const mkFont = (argb, sz, bold = false) => ({
+      name: "Segoe UI",
+      size: sz,
+      bold,
+      color: { argb }
+    });
+    const mkAlign = (h, v = "middle", wrap = false) => ({
+      horizontal: h,
+      vertical: v,
+      wrapText: wrap
+    });
     const mkBorder = (clr = "FFD0D8E4", style = "thin") => ({
-      top: { style, color: { argb: clr } }, left: { style, color: { argb: clr } },
-      bottom: { style, color: { argb: clr } }, right: { style, color: { argb: clr } }
+      top: { style, color: { argb: clr } },
+      left: { style, color: { argb: clr } },
+      bottom: { style, color: { argb: clr } },
+      right: { style, color: { argb: clr } }
     });
     const applyCell = (cell, opts = {}) => {
       if (opts.value !== undefined) cell.value = opts.value;
@@ -1321,66 +1495,190 @@ export const exportOrganizationReportExcel = async (req, res) => {
       if (opts.align) cell.alignment = opts.align;
       if (opts.border) cell.border = opts.border;
     };
-    const mergeCells = (r1, c1, r2, c2) => { if (r2 > r1 || c2 > c1) wsRep.mergeCells(r1, c1, r2, c2); };
-    const setHeight = (rowNum, pts) => { wsRep.getRow(rowNum).height = pts; };
+    const mergeCells = (r1, c1, r2, c2) => {
+      if (r2 > r1 || c2 > c1) wsRep.mergeCells(r1, c1, r2, c2);
+    };
+    const setHeight = (rowNum, pts) => {
+      wsRep.getRow(rowNum).height = pts;
+    };
     const thinBorder = mkBorder();
     const medBorder = mkBorder("FFAAB8CC", "medium");
 
     // Header
     mergeCells(1, 1, 3, 5);
     applyCell(wsRep.getCell(1, 1), {
-      value: "INDIVIDUAL RESPONSE REPORT", fill: C.navy,
+      value: "INDIVIDUAL RESPONSE REPORT",
+      fill: C.navy,
       font: { name: "Segoe UI", size: 20, bold: true, color: { argb: C.white } },
       align: { horizontal: "left", vertical: "middle", indent: 1 },
-      border: { top: { style: "medium", color: { argb: "FFD4AF37" } }, left: { style: "medium", color: { argb: "FFD4AF37" } }, bottom: { style: "medium", color: { argb: "FFD4AF37" } }, right: { style: "medium", color: { argb: "FFD4AF37" } } }
+      border: {
+        top: { style: "medium", color: { argb: "FFD4AF37" } },
+        left: { style: "medium", color: { argb: "FFD4AF37" } },
+        bottom: { style: "medium", color: { argb: "FFD4AF37" } },
+        right: { style: "medium", color: { argb: "FFD4AF37" } }
+      }
     });
-    for (let c = 1; c <= 5; c++) applyCell(wsRep.getCell(1, c), { border: { top: { style: "thick", color: { argb: "FFD4AF37" } } } });
+    for (let c = 1; c <= 5; c++)
+      applyCell(wsRep.getCell(1, c), {
+        border: { top: { style: "thick", color: { argb: "FFD4AF37" } } }
+      });
     mergeCells(4, 1, 4, 5);
-    applyCell(wsRep.getCell(4, 1), { value: "Detailed response analysis by domain, sub-domain and question performance", fill: C.navyLight, font: mkFont(C.white, 9, false), align: mkAlign("left", "middle", false), border: thinBorder });
-    for (let r = 1; r <= 4; r++) for (let c = 6; c <= 9; c++) applyCell(wsRep.getCell(r, c), { fill: "FFF8FAFC", border: { top: { style: "thin", color: { argb: "FFE2E8F0" } }, left: { style: "thin", color: { argb: "FFE2E8F0" } }, bottom: { style: "thin", color: { argb: "FFE2E8F0" } }, right: { style: "thin", color: { argb: "FFE2E8F0" } } } });
+    applyCell(wsRep.getCell(4, 1), {
+      value: "Detailed response analysis by domain, sub-domain and question performance",
+      fill: C.navyLight,
+      font: mkFont(C.white, 9, false),
+      align: mkAlign("left", "middle", false),
+      border: thinBorder
+    });
+    for (let r = 1; r <= 4; r++)
+      for (let c = 6; c <= 9; c++)
+        applyCell(wsRep.getCell(r, c), {
+          fill: "FFF8FAFC",
+          border: {
+            top: { style: "thin", color: { argb: "FFE2E8F0" } },
+            left: { style: "thin", color: { argb: "FFE2E8F0" } },
+            bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+            right: { style: "thin", color: { argb: "FFE2E8F0" } }
+          }
+        });
     const metaRows = [
       ["NAME", { formula: "Home!$H$7" }],
-      ["DEPARTMENT", { formula: 'IFERROR(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$E:$E),"N/A")' }],
+      [
+        "DEPARTMENT",
+        { formula: 'IFERROR(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$E:$E),"N/A")' }
+      ],
       ["ROLE", { formula: 'IFERROR(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$D:$D),"N/A")' }],
-      ["COMPLETED", { formula: 'IFERROR(TEXT(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$F:$F),"DD-MMM-YYYY"),"—")' }]
+      [
+        "COMPLETED",
+        {
+          formula:
+            'IFERROR(TEXT(XLOOKUP(Home!$H$7,Raw_Data!$B:$B,Raw_Data!$F:$F),"DD-MMM-YYYY"),"—")'
+        }
+      ]
     ];
     metaRows.forEach(([label, val], i) => {
       const row = i + 1;
       mergeCells(row, 6, row, 7);
-      applyCell(wsRep.getCell(row, 6), { value: label, fill: "FFF1F5F9", font: mkFont(C.mutedText, 8, true), align: { horizontal: "right", vertical: "middle" }, border: thinBorder });
+      applyCell(wsRep.getCell(row, 6), {
+        value: label,
+        fill: "FFF1F5F9",
+        font: mkFont(C.mutedText, 8, true),
+        align: { horizontal: "right", vertical: "middle" },
+        border: thinBorder
+      });
       mergeCells(row, 8, row, 9);
-      applyCell(wsRep.getCell(row, 8), { value: val, fill: C.white, font: mkFont(C.darkText, 9, true), align: { horizontal: "left", vertical: "middle", indent: 1 }, border: thinBorder });
+      applyCell(wsRep.getCell(row, 8), {
+        value: val,
+        fill: C.white,
+        font: mkFont(C.darkText, 9, true),
+        align: { horizontal: "left", vertical: "middle", indent: 1 },
+        border: thinBorder
+      });
     });
-    setHeight(1, 24); setHeight(2, 24); setHeight(3, 24); setHeight(4, 18); setHeight(5, 8);
+    setHeight(1, 24);
+    setHeight(2, 24);
+    setHeight(3, 24);
+    setHeight(4, 18);
+    setHeight(5, 8);
 
     // Summary cards
     mergeCells(6, 1, 6, 9);
-    applyCell(wsRep.getCell(6, 1), { value: "ASSESSMENT SUMMARY", fill: C.navy, font: mkFont(C.white, 9, true), align: mkAlign("center", "middle") });
+    applyCell(wsRep.getCell(6, 1), {
+      value: "ASSESSMENT SUMMARY",
+      fill: C.navy,
+      font: mkFont(C.white, 9, true),
+      align: mkAlign("center", "middle")
+    });
     setHeight(6, 18);
     const repCards = [
-      { cols: [1, 2], label: "Overall Avg Score", val: { formula: 'IFERROR(TEXT(AVERAGEIF(Raw_Data!$B$2:$B$10000, Home!$H$7, Raw_Data!$H$2:$H$10000), "0.00") & " / 5.00", "— / 5.00")' } },
-      { cols: [3, 4], label: "Total Questions", val: { formula: 'COUNTIFS(Raw_Data!$B$2:$B$10000, Home!$H$7, Raw_Data!$G$2:$G$10000, "<>")' } },
+      {
+        cols: [1, 2],
+        label: "Overall Avg Score",
+        val: {
+          formula:
+            'IFERROR(TEXT(AVERAGEIF(Raw_Data!$B$2:$B$10000, Home!$H$7, Raw_Data!$H$2:$H$10000), "0.00") & " / 5.00", "— / 5.00")'
+        }
+      },
+      {
+        cols: [3, 4],
+        label: "Total Questions",
+        val: {
+          formula: 'COUNTIFS(Raw_Data!$B$2:$B$10000, Home!$H$7, Raw_Data!$G$2:$G$10000, "<>")'
+        }
+      },
       { cols: [5, 9], label: "Performance Scale", val: "LOW | NEUTRAL | HIGH" }
     ];
     repCards.forEach(({ cols, label, val }) => {
       mergeCells(7, cols[0], 7, cols[1]);
-      applyCell(wsRep.getCell(7, cols[0]), { value: label, fill: C.offWhite, font: mkFont(C.mutedText, 8, true), align: mkAlign("center", "middle"), border: thinBorder });
+      applyCell(wsRep.getCell(7, cols[0]), {
+        value: label,
+        fill: C.offWhite,
+        font: mkFont(C.mutedText, 8, true),
+        align: mkAlign("center", "middle"),
+        border: thinBorder
+      });
       if (label === "Performance Scale") {
-        mergeCells(8, 5, 8, 6); applyCell(wsRep.getCell(8, 5), { value: "1-2 LOW", fill: "FFFEE2E2", font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FFDC2626" } }, align: mkAlign("center", "middle"), border: thinBorder });
-        mergeCells(8, 7, 8, 7); applyCell(wsRep.getCell(8, 7), { value: "3 NEUTRAL", fill: "FFFEF3C7", font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FFD97706" } }, align: mkAlign("center", "middle"), border: thinBorder });
-        mergeCells(8, 8, 8, 9); applyCell(wsRep.getCell(8, 8), { value: "4-5 HIGH", fill: "FFD1FAE5", font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF047857" } }, align: mkAlign("center", "middle"), border: thinBorder });
+        mergeCells(8, 5, 8, 6);
+        applyCell(wsRep.getCell(8, 5), {
+          value: "1-2 LOW",
+          fill: "FFFEE2E2",
+          font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FFDC2626" } },
+          align: mkAlign("center", "middle"),
+          border: thinBorder
+        });
+        mergeCells(8, 7, 8, 7);
+        applyCell(wsRep.getCell(8, 7), {
+          value: "3 NEUTRAL",
+          fill: "FFFEF3C7",
+          font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FFD97706" } },
+          align: mkAlign("center", "middle"),
+          border: thinBorder
+        });
+        mergeCells(8, 8, 8, 9);
+        applyCell(wsRep.getCell(8, 8), {
+          value: "4-5 HIGH",
+          fill: "FFD1FAE5",
+          font: { name: "Segoe UI", size: 9, bold: true, color: { argb: "FF047857" } },
+          align: mkAlign("center", "middle"),
+          border: thinBorder
+        });
       } else {
         mergeCells(8, cols[0], 8, cols[1]);
-        applyCell(wsRep.getCell(8, cols[0]), { value: val, fill: C.white, font: mkFont(C.navy, 14, true), align: mkAlign("center", "middle"), border: thinBorder });
+        applyCell(wsRep.getCell(8, cols[0]), {
+          value: val,
+          fill: C.white,
+          font: mkFont(C.navy, 14, true),
+          align: mkAlign("center", "middle"),
+          border: thinBorder
+        });
       }
     });
-    setHeight(7, 18); setHeight(8, 24); setHeight(9, 0); setHeight(10, 0);
+    setHeight(7, 18);
+    setHeight(8, 24);
+    setHeight(9, 0);
+    setHeight(10, 0);
 
     // Table headers
-    const repHeaders = ["Domain", "Sub-Domain", "Question Code", "Question", "Question Type", "Your Score", "Max Score", "% Score", "Comments"];
+    const repHeaders = [
+      "Domain",
+      "Sub-Domain",
+      "Question Code",
+      "Question",
+      "Question Type",
+      "Your Score",
+      "Max Score",
+      "% Score",
+      "Comments"
+    ];
     repHeaders.forEach((h, i) => {
       const cell = wsRep.getCell(11, i + 1);
-      applyCell(cell, { value: h, fill: C.navy, font: mkFont(C.white, 10, true), align: mkAlign(i === 3 || i === 8 ? "left" : "center", "middle"), border: medBorder });
+      applyCell(cell, {
+        value: h,
+        fill: C.navy,
+        font: mkFont(C.white, 10, true),
+        align: mkAlign(i === 3 || i === 8 ? "left" : "center", "middle"),
+        border: medBorder
+      });
     });
     setHeight(11, 32);
 
@@ -1388,29 +1686,129 @@ export const exportOrganizationReportExcel = async (req, res) => {
     let currentRow = DATA_START;
 
     const noPersonSelected = `OR(Home!$H$7="",Home!$H$7="Select Person")`;
-    const rdXL = (seqN, resultCol) => `IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_${seqN}",Raw_Data!$P:$P,Raw_Data!${resultCol}:${resultCol},""),"")`;
+    const rdXL = (seqN, resultCol) =>
+      `IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_${seqN}",Raw_Data!$P:$P,Raw_Data!${resultCol}:${resultCol},""),"")`;
 
     for (let seqN = 1; seqN <= maxQuestionsPerPerson; seqN++) {
-      const isOdd = (seqN % 2) !== 0;
+      const isOdd = seqN % 2 !== 0;
       const hideRow = `OR(${noPersonSelected},${rdXL(seqN, "G")}="")`;
 
-      applyCell(wsRep.getCell(currentRow, 1), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "K")})` }, fill: C.offWhite, font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.darkText } }, align: mkAlign("center", "middle", true), border: thinBorder });
-      applyCell(wsRep.getCell(currentRow, 2), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "L")})` }, fill: C.offWhite, font: { name: "Segoe UI", size: 9, bold: false, color: { argb: C.darkText } }, align: mkAlign("center", "middle", true), border: thinBorder });
-      applyCell(wsRep.getCell(currentRow, 3), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "G")})` }, fill: C.offWhite, font: mkFont(C.navy, 9, true), align: mkAlign("center", "middle"), border: thinBorder });
-      applyCell(wsRep.getCell(currentRow, 4), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "J")})` }, fill: isOdd ? C.altRow : C.white, font: mkFont(C.darkText, 9), align: mkAlign("left", "middle", true), border: thinBorder });
-      applyCell(wsRep.getCell(currentRow, 5), { value: { formula: `IF(${hideRow},"",${rdXL(seqN, "M")})` }, fill: C.offWhite, font: mkFont(C.mutedText, 8, true), align: mkAlign("center", "middle", true), border: thinBorder });
-      applyCell(wsRep.getCell(currentRow, 6), { value: { formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN,"G")},Raw_Data!$A:$A,Raw_Data!$H:$H,"—"),"—"))` }, fill: C.offWhite, font: { name: "Segoe UI", size: 11, bold: true, color: { argb: C.darkText } }, align: mkAlign("center", "middle"), border: thinBorder });
+      applyCell(wsRep.getCell(currentRow, 1), {
+        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "K")})` },
+        fill: C.offWhite,
+        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.darkText } },
+        align: mkAlign("center", "middle", true),
+        border: thinBorder
+      });
+      applyCell(wsRep.getCell(currentRow, 2), {
+        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "L")})` },
+        fill: C.offWhite,
+        font: { name: "Segoe UI", size: 9, bold: false, color: { argb: C.darkText } },
+        align: mkAlign("center", "middle", true),
+        border: thinBorder
+      });
+      applyCell(wsRep.getCell(currentRow, 3), {
+        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "G")})` },
+        fill: C.offWhite,
+        font: mkFont(C.navy, 9, true),
+        align: mkAlign("center", "middle"),
+        border: thinBorder
+      });
+      applyCell(wsRep.getCell(currentRow, 4), {
+        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "J")})` },
+        fill: isOdd ? C.altRow : C.white,
+        font: mkFont(C.darkText, 9),
+        align: mkAlign("left", "middle", true),
+        border: thinBorder
+      });
+      applyCell(wsRep.getCell(currentRow, 5), {
+        value: { formula: `IF(${hideRow},"",${rdXL(seqN, "M")})` },
+        fill: C.offWhite,
+        font: mkFont(C.mutedText, 8, true),
+        align: mkAlign("center", "middle", true),
+        border: thinBorder
+      });
+      applyCell(wsRep.getCell(currentRow, 6), {
+        value: {
+          formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN, "G")},Raw_Data!$A:$A,Raw_Data!$H:$H,"—"),"—"))`
+        },
+        fill: C.offWhite,
+        font: { name: "Segoe UI", size: 11, bold: true, color: { argb: C.darkText } },
+        align: mkAlign("center", "middle"),
+        border: thinBorder
+      });
       const fCell = `F${currentRow}`;
-      [{ val: 1, bg: C.s1bg, fg: C.s1fg }, { val: 2, bg: C.s2bg, fg: C.s2fg }, { val: 3, bg: C.s3bg, fg: C.s3fg }, { val: 4, bg: C.s4bg, fg: C.s4fg }, { val: 5, bg: C.s5bg, fg: C.s5fg }].forEach(({ val, bg, fg }) => {
-        wsRep.addConditionalFormatting({ ref: fCell, rules: [{ type: "cellIs", operator: "equal", formulae: [val], style: { fill: mkFill(bg), font: { name: "Segoe UI", bold: true, size: 11, color: { argb: fg } } } }] });
+      [
+        { val: 1, bg: C.s1bg, fg: C.s1fg },
+        { val: 2, bg: C.s2bg, fg: C.s2fg },
+        { val: 3, bg: C.s3bg, fg: C.s3fg },
+        { val: 4, bg: C.s4bg, fg: C.s4fg },
+        { val: 5, bg: C.s5bg, fg: C.s5fg }
+      ].forEach(({ val, bg, fg }) => {
+        wsRep.addConditionalFormatting({
+          ref: fCell,
+          rules: [
+            {
+              type: "cellIs",
+              operator: "equal",
+              formulae: [val],
+              style: {
+                fill: mkFill(bg),
+                font: { name: "Segoe UI", bold: true, size: 11, color: { argb: fg } }
+              }
+            }
+          ]
+        });
       });
-      applyCell(wsRep.getCell(currentRow, 7), { value: { formula: `IF(${hideRow},"",5)` }, fill: C.offWhite, font: mkFont(C.mutedText, 9), align: mkAlign("center", "middle"), border: thinBorder });
-      applyCell(wsRep.getCell(currentRow, 8), { value: { formula: `IF(${hideRow},"",IF(F${currentRow}="—","—",IF(OR(F${currentRow}="A",F${currentRow}="B"),50,IFERROR(F${currentRow}*20,"—"))))` }, fill: C.offWhite, font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.darkText } }, align: mkAlign("center", "middle"), border: thinBorder });
+      applyCell(wsRep.getCell(currentRow, 7), {
+        value: { formula: `IF(${hideRow},"",5)` },
+        fill: C.offWhite,
+        font: mkFont(C.mutedText, 9),
+        align: mkAlign("center", "middle"),
+        border: thinBorder
+      });
+      applyCell(wsRep.getCell(currentRow, 8), {
+        value: {
+          formula: `IF(${hideRow},"",IF(F${currentRow}="—","—",IF(OR(F${currentRow}="A",F${currentRow}="B"),50,IFERROR(F${currentRow}*20,"—"))))`
+        },
+        fill: C.offWhite,
+        font: { name: "Segoe UI", size: 9, bold: true, color: { argb: C.darkText } },
+        align: mkAlign("center", "middle"),
+        border: thinBorder
+      });
       const hCell = `H${currentRow}`;
-      [{ val: 20, bg: C.s1bg, fg: C.s1fg }, { val: 40, bg: C.s2bg, fg: C.s2fg }, { val: 60, bg: C.s3bg, fg: C.s3fg }, { val: 80, bg: C.s4bg, fg: C.s4fg }, { val: 100, bg: C.s5bg, fg: C.s5fg }, { val: 50, bg: C.s3bg, fg: C.s3fg }].forEach(({ val, bg, fg }) => {
-        wsRep.addConditionalFormatting({ ref: hCell, rules: [{ type: "cellIs", operator: "equal", formulae: [val], style: { fill: mkFill(bg), font: { name: "Segoe UI", bold: true, size: 9, color: { argb: fg } } } }] });
+      [
+        { val: 20, bg: C.s1bg, fg: C.s1fg },
+        { val: 40, bg: C.s2bg, fg: C.s2fg },
+        { val: 60, bg: C.s3bg, fg: C.s3fg },
+        { val: 80, bg: C.s4bg, fg: C.s4fg },
+        { val: 100, bg: C.s5bg, fg: C.s5fg },
+        { val: 50, bg: C.s3bg, fg: C.s3fg }
+      ].forEach(({ val, bg, fg }) => {
+        wsRep.addConditionalFormatting({
+          ref: hCell,
+          rules: [
+            {
+              type: "cellIs",
+              operator: "equal",
+              formulae: [val],
+              style: {
+                fill: mkFill(bg),
+                font: { name: "Segoe UI", bold: true, size: 9, color: { argb: fg } }
+              }
+            }
+          ]
+        });
       });
-      applyCell(wsRep.getCell(currentRow, 9), { value: { formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN,"G")},Raw_Data!$A:$A,Raw_Data!$I:$I,"—"),"—"))` }, fill: isOdd ? C.altRow : C.white, font: mkFont(C.mutedText, 8, false), align: mkAlign("left", "middle", true), border: thinBorder });
+      applyCell(wsRep.getCell(currentRow, 9), {
+        value: {
+          formula: `IF(${hideRow},"",IFERROR(XLOOKUP(TRIM(Home!$H$7)&"_"&${rdXL(seqN, "G")},Raw_Data!$A:$A,Raw_Data!$I:$I,"—"),"—"))`
+        },
+        fill: isOdd ? C.altRow : C.white,
+        font: mkFont(C.mutedText, 8, false),
+        align: mkAlign("left", "middle", true),
+        border: thinBorder
+      });
       setHeight(currentRow, 36);
       currentRow++;
     }
@@ -1429,25 +1827,59 @@ export const exportOrganizationReportExcel = async (req, res) => {
       for (const [domain, theme] of Object.entries(domainThemes)) {
         wsRep.addConditionalFormatting({
           ref: domainRange,
-          rules: [{ type: "expression", formulae: [`=INDIRECT("A"&ROW())="${domain}"`], style: { fill: mkFill(theme.bg), font: { name: "Segoe UI", bold: true, size: 9, color: { argb: theme.text } } } }]
+          rules: [
+            {
+              type: "expression",
+              formulae: [`=INDIRECT("A"&ROW())="${domain}"`],
+              style: {
+                fill: mkFill(theme.bg),
+                font: { name: "Segoe UI", bold: true, size: 9, color: { argb: theme.text } }
+              }
+            }
+          ]
         });
         wsRep.addConditionalFormatting({
           ref: subdomainRange,
-          rules: [{ type: "expression", formulae: [`=INDIRECT("A"&ROW())="${domain}"`], style: { fill: mkFill(theme.bg), font: { name: "Segoe UI", bold: false, size: 9, color: { argb: theme.text } } } }]
+          rules: [
+            {
+              type: "expression",
+              formulae: [`=INDIRECT("A"&ROW())="${domain}"`],
+              style: {
+                fill: mkFill(theme.bg),
+                font: { name: "Segoe UI", bold: false, size: 9, color: { argb: theme.text } }
+              }
+            }
+          ]
         });
       }
       // Hide duplicate Domain
       for (const [domain, theme] of Object.entries(domainThemes)) {
         wsRep.addConditionalFormatting({
           ref: `A${DATA_START + 1}:A${lastDataRow}`,
-          rules: [{ type: "expression", formulae: [`=AND(INDIRECT("A"&ROW())=INDIRECT("A"&ROW()-1), INDIRECT("A"&ROW())="${domain}")`], style: { font: { color: { argb: theme.bg } } } }]
+          rules: [
+            {
+              type: "expression",
+              formulae: [
+                `=AND(INDIRECT("A"&ROW())=INDIRECT("A"&ROW()-1), INDIRECT("A"&ROW())="${domain}")`
+              ],
+              style: { font: { color: { argb: theme.bg } } }
+            }
+          ]
         });
       }
       // Hide duplicate Subdomain
       for (const [domain, theme] of Object.entries(domainThemes)) {
         wsRep.addConditionalFormatting({
           ref: `B${DATA_START + 1}:B${lastDataRow}`,
-          rules: [{ type: "expression", formulae: [`=AND(INDIRECT("B"&ROW())=INDIRECT("B"&ROW()-1), INDIRECT("A"&ROW())=INDIRECT("A"&ROW()-1), INDIRECT("A"&ROW())="${domain}")`], style: { font: { color: { argb: theme.bg } } } }]
+          rules: [
+            {
+              type: "expression",
+              formulae: [
+                `=AND(INDIRECT("B"&ROW())=INDIRECT("B"&ROW()-1), INDIRECT("A"&ROW())=INDIRECT("A"&ROW()-1), INDIRECT("A"&ROW())="${domain}")`
+              ],
+              style: { font: { color: { argb: theme.bg } } }
+            }
+          ]
         });
       }
     }
@@ -1461,14 +1893,30 @@ export const exportOrganizationReportExcel = async (req, res) => {
     // ------------------------- ALL DATA SHEET -------------------------
     const wsAll = workbook.addWorksheet("All Data", {
       views: [{ showGridLines: true, zoomScale: 85 }],
-      pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      pageSetup: {
+        paperSize: 9,
+        orientation: "landscape",
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0
+      }
     });
     wsAll.columns = [
-      { key: "sno", width: 6 }, { key: "personName", width: 24 }, { key: "email", width: 28 },
-      { key: "role", width: 14 }, { key: "department", width: 18 }, { key: "status", width: 14 },
-      { key: "completedDate", width: 16 }, { key: "domain", width: 24 }, { key: "subdomain", width: 24 },
-      { key: "questionCode", width: 14 }, { key: "questionStem", width: 55 }, { key: "questionType", width: 16 },
-      { key: "yourScore", width: 12 }, { key: "maxScore", width: 10 }, { key: "pctScore", width: 10 },
+      { key: "sno", width: 6 },
+      { key: "personName", width: 24 },
+      { key: "email", width: 28 },
+      { key: "role", width: 14 },
+      { key: "department", width: 18 },
+      { key: "status", width: 14 },
+      { key: "completedDate", width: 16 },
+      { key: "domain", width: 24 },
+      { key: "subdomain", width: 24 },
+      { key: "questionCode", width: 14 },
+      { key: "questionStem", width: 55 },
+      { key: "questionType", width: 16 },
+      { key: "yourScore", width: 12 },
+      { key: "maxScore", width: 10 },
+      { key: "pctScore", width: 10 },
       { key: "comment", width: 35 }
     ];
     wsAll.mergeCells("A1:P1");
@@ -1502,9 +1950,22 @@ export const exportOrganizationReportExcel = async (req, res) => {
     wsAll.getRow(3).height = 6;
 
     const allHeaders = [
-      "S.No", "Person Name", "Email", "Role", "Department", "Status",
-      "Completed Date", "Domain", "Sub-Domain", "Question Code",
-      "Question", "Question Type", "Score", "Max Score", "% Score", "Comments"
+      "S.No",
+      "Person Name",
+      "Email",
+      "Role",
+      "Department",
+      "Status",
+      "Completed Date",
+      "Domain",
+      "Sub-Domain",
+      "Question Code",
+      "Question",
+      "Question Type",
+      "Score",
+      "Max Score",
+      "% Score",
+      "Comments"
     ];
     allHeaders.forEach((h, i) => {
       const cell = wsAll.getCell(4, i + 1);
@@ -1519,8 +1980,15 @@ export const exportOrganizationReportExcel = async (req, res) => {
     const percentageMap = { 1: 20, 2: 40, 3: 60, 4: 80, 5: 100 };
     let allDataRow = 5;
     let sno = 1;
-    const roleColors = { leader: { bg: "FFF5F0FF", text: "FF7C3AED" }, manager: { bg: "FFE6F9EE", text: "FF0E9F6E" }, employee: { bg: "FFE8F0FE", text: "FF1A56DB" } };
-    const statusColorsAll = { completed: { bg: "FFD1FAE5", text: "FF047857" }, pending: { bg: "FFFEF3C7", text: "FFD97706" } };
+    const roleColors = {
+      leader: { bg: "FFF5F0FF", text: "FF7C3AED" },
+      manager: { bg: "FFE6F9EE", text: "FF0E9F6E" },
+      employee: { bg: "FFE8F0FE", text: "FF1A56DB" }
+    };
+    const statusColorsAll = {
+      completed: { bg: "FFD1FAE5", text: "FF047857" },
+      pending: { bg: "FFFEF3C7", text: "FFD97706" }
+    };
     const getScoreColorAll = (score) => {
       if (score === null || score === undefined || score === "" || score === "—") return null;
       const n = typeof score === "number" ? score : Number(score);
@@ -1530,22 +1998,47 @@ export const exportOrganizationReportExcel = async (req, res) => {
       return { bg: "FFFEE2E2", fg: "FFDC2626" };
     };
 
-    reportsData.forEach(report => {
+    reportsData.forEach((report) => {
       if (report.isCompleted && report.responses && report.responses.length > 0) {
-        const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
-        report.responses.forEach(resp => {
+        const completedDateStr = new Date(report.submittedAt).toLocaleDateString("en-US", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        });
+        report.responses.forEach((resp) => {
           const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
-          const rawScore = isFc ? (resp.selectedOption || "—") : ((resp.value !== null && resp.value !== undefined) ? Number(resp.value) : "—");
-          const numericScore = (typeof rawScore === "number") ? rawScore : null;
-          const pctVal = isFc ? 50 : (numericScore !== null ? (percentageMap[Math.round(numericScore)] || "—") : "—");
-          const isOdd = (allDataRow % 2) !== 0;
+          const rawScore = isFc
+            ? resp.selectedOption || "—"
+            : resp.value !== null && resp.value !== undefined
+              ? Number(resp.value)
+              : "—";
+          const numericScore = typeof rawScore === "number" ? rawScore : null;
+          const pctVal = isFc
+            ? 50
+            : numericScore !== null
+              ? percentageMap[Math.round(numericScore)] || "—"
+              : "—";
+          const isOdd = allDataRow % 2 !== 0;
           const roleLower = (report.role || "").toLowerCase();
           const roleClr = roleColors[roleLower] || { bg: "FFF8FAFC", text: "FF6B7A90" };
           const scClr = getScoreColorAll(rawScore);
           const rowValues = [
-            sno, report.empName, report.email, report.role, report.dept, "Completed",
-            completedDateStr, resp.domain, resp.subdomain, resp.questionCode,
-            resp.questionStem || "—", resp.questionType || "—", rawScore, 5, pctVal, resp.comment || "—"
+            sno,
+            report.empName,
+            report.email,
+            report.role,
+            report.dept,
+            "Completed",
+            completedDateStr,
+            resp.domain,
+            resp.subdomain,
+            resp.questionCode,
+            resp.questionStem || "—",
+            resp.questionType || "—",
+            rawScore,
+            5,
+            pctVal,
+            resp.comment || "—"
           ];
           rowValues.forEach((val, ci) => {
             const cell = wsAll.getCell(allDataRow, ci + 1);
@@ -1554,25 +2047,55 @@ export const exportOrganizationReportExcel = async (req, res) => {
             cell.font = mkFont("FF1E2A3B", 9);
             cell.fill = mkFill(isOdd ? "FFF4F6FA" : "FFFFFFFF");
             cell.alignment = mkAlign("center", "middle", ci >= 10);
-            if (ci === 1 || ci === 2) { cell.alignment = mkAlign("left", "middle"); cell.font = mkFont("FF1E2A3B", 9, ci === 1); }
-            if (ci === 3) { cell.fill = mkFill(roleClr.bg); cell.font = mkFont(roleClr.text, 9, true); }
-            if (ci === 5) { cell.fill = mkFill(statusColorsAll.completed.bg); cell.font = mkFont(statusColorsAll.completed.text, 9, true); }
+            if (ci === 1 || ci === 2) {
+              cell.alignment = mkAlign("left", "middle");
+              cell.font = mkFont("FF1E2A3B", 9, ci === 1);
+            }
+            if (ci === 3) {
+              cell.fill = mkFill(roleClr.bg);
+              cell.font = mkFont(roleClr.text, 9, true);
+            }
+            if (ci === 5) {
+              cell.fill = mkFill(statusColorsAll.completed.bg);
+              cell.font = mkFont(statusColorsAll.completed.text, 9, true);
+            }
             if (ci === 7 || ci === 8) cell.alignment = mkAlign("left", "middle", true);
             if (ci === 10) cell.alignment = mkAlign("left", "middle", true);
-            if (ci === 12 && scClr) { cell.fill = mkFill(scClr.bg); cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: scClr.fg } }; }
-            if (ci === 14 && scClr) { cell.fill = mkFill(scClr.bg); cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: scClr.fg } }; }
+            if (ci === 12 && scClr) {
+              cell.fill = mkFill(scClr.bg);
+              cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: scClr.fg } };
+            }
+            if (ci === 14 && scClr) {
+              cell.fill = mkFill(scClr.bg);
+              cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: scClr.fg } };
+            }
           });
           const stemLen = (resp.questionStem || "").length;
           wsAll.getRow(allDataRow).height = Math.max(22, Math.ceil(stemLen / 60) * 14);
-          allDataRow++; sno++;
+          allDataRow++;
+          sno++;
         });
       } else {
-        const isOdd = (allDataRow % 2) !== 0;
+        const isOdd = allDataRow % 2 !== 0;
         const roleLower = (report.role || "").toLowerCase();
         const roleClr = roleColors[roleLower] || { bg: "FFF8FAFC", text: "FF6B7A90" };
         const rowValues = [
-          sno, report.empName, report.email, report.role, report.dept, "Pending",
-          "—", "—", "—", "—", "—", "—", "—", "—", "—", "Assessment not submitted"
+          sno,
+          report.empName,
+          report.email,
+          report.role,
+          report.dept,
+          "Pending",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "—",
+          "Assessment not submitted"
         ];
         rowValues.forEach((val, ci) => {
           const cell = wsAll.getCell(allDataRow, ci + 1);
@@ -1583,25 +2106,64 @@ export const exportOrganizationReportExcel = async (req, res) => {
           cell.alignment = mkAlign("center", "middle");
           if (ci === 1 || ci === 2) cell.alignment = mkAlign("left", "middle");
           if (ci === 1) cell.font = mkFont("FF6B7A90", 9, true);
-          if (ci === 3) { cell.fill = mkFill(roleClr.bg); cell.font = mkFont(roleClr.text, 9, true); }
-          if (ci === 5) { cell.fill = mkFill(statusColorsAll.pending.bg); cell.font = mkFont(statusColorsAll.pending.text, 9, true); }
+          if (ci === 3) {
+            cell.fill = mkFill(roleClr.bg);
+            cell.font = mkFont(roleClr.text, 9, true);
+          }
+          if (ci === 5) {
+            cell.fill = mkFill(statusColorsAll.pending.bg);
+            cell.font = mkFont(statusColorsAll.pending.text, 9, true);
+          }
         });
         wsAll.getRow(allDataRow).height = 22;
-        allDataRow++; sno++;
+        allDataRow++;
+        sno++;
       }
     });
-    if (allDataRow > 5) wsAll.autoFilter = { from: { row: 4, column: 1 }, to: { row: allDataRow - 1, column: 16 } };
+    if (allDataRow > 5)
+      wsAll.autoFilter = { from: { row: 4, column: 1 }, to: { row: allDataRow - 1, column: 16 } };
     wsAll.views = [{ state: "frozen", xSplit: 2, ySplit: 4, showGridLines: true, zoomScale: 85 }];
 
     // ------------------------- SUMMARY SHEET -------------------------
     const wsSummary = workbook.addWorksheet("Summary", {
       views: [{ showGridLines: true, zoomScale: 90 }],
-      pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      pageSetup: {
+        paperSize: 9,
+        orientation: "landscape",
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0
+      }
     });
-    const allDomains = [...new Set(sortedQuestions.map(q => q.domain).filter(Boolean))];
-    const summaryFixedHeaders = ["S.No", "Person Name", "Email", "Role", "Department", "Status", "Completed Date", "Total Questions", "Avg Score", "% Avg", "Classification"];
-    const summaryHeaders = [...summaryFixedHeaders, ...allDomains.map(d => `${d} Avg`)];
-    const summaryColWidths = [6, 24, 28, 14, 18, 14, 16, 14, 12, 10, 14, ...allDomains.map(() => 18)];
+    const allDomains = [...new Set(sortedQuestions.map((q) => q.domain).filter(Boolean))];
+    const summaryFixedHeaders = [
+      "S.No",
+      "Person Name",
+      "Email",
+      "Role",
+      "Department",
+      "Status",
+      "Completed Date",
+      "Total Questions",
+      "Avg Score",
+      "% Avg",
+      "Classification"
+    ];
+    const summaryHeaders = [...summaryFixedHeaders, ...allDomains.map((d) => `${d} Avg`)];
+    const summaryColWidths = [
+      6,
+      24,
+      28,
+      14,
+      18,
+      14,
+      16,
+      14,
+      12,
+      10,
+      14,
+      ...allDomains.map(() => 18)
+    ];
     wsSummary.columns = summaryHeaders.map((_, i) => ({ width: summaryColWidths[i] || 16 }));
     const sumLastCol = summaryHeaders.length;
     wsSummary.mergeCells(1, 1, 1, sumLastCol);
@@ -1652,15 +2214,18 @@ export const exportOrganizationReportExcel = async (req, res) => {
     wsSummary.getRow(4).height = 36;
     let sumRow = 5;
     let sumSno = 1;
-    reportsData.forEach(report => {
-      const isOdd = (sumRow % 2) !== 0;
+    reportsData.forEach((report) => {
+      const isOdd = sumRow % 2 !== 0;
       const roleLower = (report.role || "").toLowerCase();
       const roleClr = roleColors[roleLower] || { bg: "FFF8FAFC", text: "FF6B7A90" };
       const domainScores = {};
-      allDomains.forEach(d => { domainScores[d] = { sum: 0, count: 0 }; });
-      let totalScore = 0, totalRated = 0;
+      allDomains.forEach((d) => {
+        domainScores[d] = { sum: 0, count: 0 };
+      });
+      let totalScore = 0,
+        totalRated = 0;
       if (report.isCompleted && report.responses) {
-        report.responses.forEach(resp => {
+        report.responses.forEach((resp) => {
           const isFc = resp.questionType === "Forced-Choice" || resp.scale === "FORCED_CHOICE";
           let score = null;
           if (isFc) score = 2.5;
@@ -1675,14 +2240,37 @@ export const exportOrganizationReportExcel = async (req, res) => {
           }
         });
       }
-      const avgScore = totalRated > 0 ? (totalScore / totalRated) : null;
+      const avgScore = totalRated > 0 ? totalScore / totalRated : null;
       const pctAvg = avgScore !== null ? Math.round((avgScore / 5) * 100) : null;
-      const classification = avgScore !== null ? (avgScore >= 4 ? "High" : avgScore >= 2.5 ? "Medium" : "Low") : "—";
-      const completedDateStr = report.isCompleted && report.submittedAt ? new Date(report.submittedAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+      const classification =
+        avgScore !== null ? (avgScore >= 4 ? "High" : avgScore >= 2.5 ? "Medium" : "Low") : "—";
+      const completedDateStr =
+        report.isCompleted && report.submittedAt
+          ? new Date(report.submittedAt).toLocaleDateString("en-US", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric"
+            })
+          : "—";
       const status = report.isCompleted ? "Completed" : "Pending";
       const totalQ = report.isCompleted ? (report.responses || []).length : 0;
-      const fixedValues = [sumSno, report.empName, report.email, report.role, report.dept, status, completedDateStr, totalQ, avgScore !== null ? Math.round(avgScore * 100) / 100 : "—", pctAvg !== null ? pctAvg : "—", classification];
-      const domainValues = allDomains.map(d => { const ds = domainScores[d]; return ds.count > 0 ? Math.round((ds.sum / ds.count) * 100) / 100 : "—"; });
+      const fixedValues = [
+        sumSno,
+        report.empName,
+        report.email,
+        report.role,
+        report.dept,
+        status,
+        completedDateStr,
+        totalQ,
+        avgScore !== null ? Math.round(avgScore * 100) / 100 : "—",
+        pctAvg !== null ? pctAvg : "—",
+        classification
+      ];
+      const domainValues = allDomains.map((d) => {
+        const ds = domainScores[d];
+        return ds.count > 0 ? Math.round((ds.sum / ds.count) * 100) / 100 : "—";
+      });
       const allValues = [...fixedValues, ...domainValues];
       allValues.forEach((val, ci) => {
         const cell = wsSummary.getCell(sumRow, ci + 1);
@@ -1691,18 +2279,51 @@ export const exportOrganizationReportExcel = async (req, res) => {
         cell.font = mkFont("FF1E2A3B", 9);
         cell.fill = mkFill(isOdd ? "FFF4F6FA" : "FFFFFFFF");
         cell.alignment = mkAlign("center", "middle", ci >= summaryFixedHeaders.length);
-        if (ci === 1 || ci === 2) { cell.alignment = mkAlign("left", "middle"); cell.font = mkFont("FF1E2A3B", 9, ci === 1); }
-        if (ci === 3) { cell.fill = mkFill(roleClr.bg); cell.font = mkFont(roleClr.text, 9, true); }
-        if (ci === 5) { const sc = status === "Completed" ? statusColorsAll.completed : statusColorsAll.pending; cell.fill = mkFill(sc.bg); cell.font = mkFont(sc.text, 9, true); }
-        if (ci === 8 || ci === 9) { const scoreClr = getScoreColorAll(val); if (scoreClr) { cell.fill = mkFill(scoreClr.bg); cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: scoreClr.fg } }; } }
-        if (ci === 10) {
-          const classClr = classification === "High" ? { bg: "FFD1FAE5", text: "FF047857" } : classification === "Medium" ? { bg: "FFFEF3C7", text: "FFD97706" } : classification === "Low" ? { bg: "FFFEE2E2", text: "FFDC2626" } : null;
-          if (classClr) { cell.fill = mkFill(classClr.bg); cell.font = mkFont(classClr.text, 9, true); }
+        if (ci === 1 || ci === 2) {
+          cell.alignment = mkAlign("left", "middle");
+          cell.font = mkFont("FF1E2A3B", 9, ci === 1);
         }
-        if (ci >= summaryFixedHeaders.length) { const scoreClr = getScoreColorAll(val); if (scoreClr) { cell.fill = mkFill(scoreClr.bg); cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: scoreClr.fg } }; } }
+        if (ci === 3) {
+          cell.fill = mkFill(roleClr.bg);
+          cell.font = mkFont(roleClr.text, 9, true);
+        }
+        if (ci === 5) {
+          const sc = status === "Completed" ? statusColorsAll.completed : statusColorsAll.pending;
+          cell.fill = mkFill(sc.bg);
+          cell.font = mkFont(sc.text, 9, true);
+        }
+        if (ci === 8 || ci === 9) {
+          const scoreClr = getScoreColorAll(val);
+          if (scoreClr) {
+            cell.fill = mkFill(scoreClr.bg);
+            cell.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: scoreClr.fg } };
+          }
+        }
+        if (ci === 10) {
+          const classClr =
+            classification === "High"
+              ? { bg: "FFD1FAE5", text: "FF047857" }
+              : classification === "Medium"
+                ? { bg: "FFFEF3C7", text: "FFD97706" }
+                : classification === "Low"
+                  ? { bg: "FFFEE2E2", text: "FFDC2626" }
+                  : null;
+          if (classClr) {
+            cell.fill = mkFill(classClr.bg);
+            cell.font = mkFont(classClr.text, 9, true);
+          }
+        }
+        if (ci >= summaryFixedHeaders.length) {
+          const scoreClr = getScoreColorAll(val);
+          if (scoreClr) {
+            cell.fill = mkFill(scoreClr.bg);
+            cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: scoreClr.fg } };
+          }
+        }
       });
       wsSummary.getRow(sumRow).height = 24;
-      sumRow++; sumSno++;
+      sumRow++;
+      sumSno++;
     });
     if (sumRow > 5) {
       const grandRow = sumRow + 1;
@@ -1713,7 +2334,11 @@ export const exportOrganizationReportExcel = async (req, res) => {
       grandCell.font = mkFont("FFFFFFFF", 10, true);
       grandCell.alignment = mkAlign("center", "middle");
       grandCell.border = mkBorder("FFAAB8CC", "medium");
-      for (let c = 3; c <= 7; c++) { const cell = wsSummary.getCell(grandRow, c); cell.fill = mkFill("FF1A3A6B"); cell.border = mkBorder("FFAAB8CC", "medium"); }
+      for (let c = 3; c <= 7; c++) {
+        const cell = wsSummary.getCell(grandRow, c);
+        cell.fill = mkFill("FF1A3A6B");
+        cell.border = mkBorder("FFAAB8CC", "medium");
+      }
       const tqCell = wsSummary.getCell(grandRow, 8);
       tqCell.value = { formula: `SUM(H5:H${sumRow - 1})` };
       tqCell.fill = mkFill("FF1A3A6B");
@@ -1738,7 +2363,9 @@ export const exportOrganizationReportExcel = async (req, res) => {
       allDomains.forEach((_, di) => {
         const colIdx = summaryFixedHeaders.length + di + 1;
         const dCell = wsSummary.getCell(grandRow, colIdx);
-        dCell.value = { formula: `IFERROR(AVERAGE(INDIRECT("R5C${colIdx}:R${sumRow - 1}C${colIdx}", FALSE)), "—")` };
+        dCell.value = {
+          formula: `IFERROR(AVERAGE(INDIRECT("R5C${colIdx}:R${sumRow - 1}C${colIdx}", FALSE)), "—")`
+        };
         dCell.fill = mkFill("FF1A3A6B");
         dCell.font = mkFont("FFFFFFFF", 9, true);
         dCell.alignment = mkAlign("center", "middle");
@@ -1746,19 +2373,31 @@ export const exportOrganizationReportExcel = async (req, res) => {
       });
       wsSummary.getRow(grandRow).height = 28;
     }
-    if (sumRow > 5) wsSummary.autoFilter = { from: { row: 4, column: 1 }, to: { row: sumRow - 1, column: summaryHeaders.length } };
-    wsSummary.views = [{ state: "frozen", xSplit: 2, ySplit: 4, showGridLines: true, zoomScale: 90 }];
+    if (sumRow > 5)
+      wsSummary.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: sumRow - 1, column: summaryHeaders.length }
+      };
+    wsSummary.views = [
+      { state: "frozen", xSplit: 2, ySplit: 4, showGridLines: true, zoomScale: 90 }
+    ];
 
     // Auto-filter on Raw_Data
     const rawLastRow = wsRaw.lastRow ? wsRaw.lastRow.number : 1;
-    if (rawLastRow > 1) wsRaw.autoFilter = { from: { row: 1, column: 1 }, to: { row: rawLastRow, column: 14 } };
+    if (rawLastRow > 1)
+      wsRaw.autoFilter = { from: { row: 1, column: 1 }, to: { row: rawLastRow, column: 14 } };
 
     // Send file
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename=Organization_Report_${orgName.replace(/\s+/g, "_")}.xlsx`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=Organization_Report_${orgName.replace(/\s+/g, "_")}.xlsx`
+    );
     await workbook.xlsx.write(res);
     res.end();
-
   } catch (error) {
     console.error("Error generating organization Excel report:", error);
     res.status(500).json({ message: "Error generating Excel report", error: error.message });

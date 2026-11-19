@@ -1,33 +1,36 @@
 import mongoose from "mongoose";
 
-const notificationSchema = new mongoose.Schema({
+const notificationSchema = new mongoose.Schema(
+  {
     recipient: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
     },
     title: {
-        type: String,
-        required: true
+      type: String,
+      required: true
     },
     message: {
-        type: String,
-        required: true
+      type: String,
+      required: true
     },
     type: {
-        type: String, // info, success, warning, error
-        default: "info"
+      type: String, // info, success, warning, error
+      default: "info"
     },
     link: {
-        type: String,
-        // info, success, warning, error
-        default: null
+      type: String,
+      // info, success, warning, error
+      default: null
     },
     isRead: {
-        type: Boolean,// info, success, warning, error
-        default: false
+      type: Boolean, // info, success, warning, error
+      default: false
     }
-}, { timestamps: true });
+  },
+  { timestamps: true }
+);
 
 notificationSchema.index({ recipient: 1, isRead: 1 });
 notificationSchema.index({ recipient: 1, createdAt: -1 });

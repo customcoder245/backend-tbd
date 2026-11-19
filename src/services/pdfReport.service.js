@@ -10,17 +10,17 @@ const REPORT_BACK_COVER_URL =
 class PDFReportService {
   constructor() {
     this.colors = {
-      primary: "#1A3652", 
-      secondary: "#448CD2", 
-      sidebar: "#EDF5FD", 
-      friction: "#FF5656", 
-      flow: "#30AD43", 
-      resistance: "#FFBF00", 
-      text: "#334155", 
+      primary: "#1A3652",
+      secondary: "#448CD2",
+      sidebar: "#EDF5FD",
+      friction: "#FF5656",
+      flow: "#30AD43",
+      resistance: "#FFBF00",
+      text: "#334155",
       lightText: "#64748B",
       border: "#E2E8F0",
       white: "#FFFFFF",
-      accent: "#F8FAFC",
+      accent: "#F8FAFC"
     };
 
     this.domainDescriptions = {
@@ -29,7 +29,7 @@ class PDFReportService {
       "Operational Steadiness":
         "Examines the internal structures, prioritization, and resource management that enable consistent execution. This domain identifies operational friction that slows down delivery.",
       "Digital Fluency":
-        "Measures the organization's readiness to leverage data, AI, and digital tools to drive productivity. This domain evaluates the technical and mental proficiency required in a digital environment.",
+        "Measures the organization's readiness to leverage data, AI, and digital tools to drive productivity. This domain evaluates the technical and mental proficiency required in a digital environment."
     };
 
     this.subdomainDescriptions = {
@@ -52,7 +52,7 @@ class PDFReportService {
       "Mindset, Confidence and Change Readiness":
         "The openness and confidence of individuals to adopt new digital tools and ways of working. It identifies where support and reinforcement are needed most.",
       "Tool & System Proficiency":
-        "The practical skill and confidence in using the organization's core systems and technological infrastructure. It measures how effectively tools are being leveraged to their full value.",
+        "The practical skill and confidence in using the organization's core systems and technological infrastructure. It measures how effectively tools are being leveraged to their full value."
     };
 
     this.synergyIntro =
@@ -62,18 +62,18 @@ class PDFReportService {
       leader: {
         name: "Senior Leader",
         description:
-          "As a Senior Leader, your responses reflect an executive-level perspective across your organization. Your inputs are analyzed across key domains to generate a comprehensive Portfolio Score. Strong alignment and balance across these domains indicate organizational health and stability, while significant gaps may signal potential burnout, misalignment, or systemic fragility.",
+          "As a Senior Leader, your responses reflect an executive-level perspective across your organization. Your inputs are analyzed across key domains to generate a comprehensive Portfolio Score. Strong alignment and balance across these domains indicate organizational health and stability, while significant gaps may signal potential burnout, misalignment, or systemic fragility."
       },
       manager: {
         name: "Manager",
         description:
-          "As a Manager, your responses reflect your perspective on how work is experienced and delivered within your team. Your inputs are analyzed across key domains to generate a Portfolio Score. Balanced results across these domains suggest a well-supported and stable team environment, while notable gaps may indicate pressure points, inefficiencies, or emerging risks.",
+          "As a Manager, your responses reflect your perspective on how work is experienced and delivered within your team. Your inputs are analyzed across key domains to generate a Portfolio Score. Balanced results across these domains suggest a well-supported and stable team environment, while notable gaps may indicate pressure points, inefficiencies, or emerging risks."
       },
       employee: {
         name: "Employee",
         description:
-          "As an Employee, your responses reflect your day-to-day experience and interactions with your work and colleagues. Your inputs are analyzed across key domains to generate a Portfolio Score. Consistency and balance across these domains point to a healthy and supportive work environment, while significant differences may highlight areas of strain, disengagement, or operational challenges.",
-      },
+          "As an Employee, your responses reflect your day-to-day experience and interactions with your work and colleagues. Your inputs are analyzed across key domains to generate a Portfolio Score. Consistency and balance across these domains point to a healthy and supportive work environment, while significant differences may highlight areas of strain, disengagement, or operational challenges."
+      }
     };
 
     this.subdomainIcons = {
@@ -96,7 +96,7 @@ class PDFReportService {
       "Mindset, Confidence and Change Readiness":
         "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735637/df-ic2_onwsxj.png",
       "Tool & System Proficiency":
-        "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735637/df-ic4_kqi22i.png",
+        "https://res.cloudinary.com/dfpkn8g8h/image/upload/v1778735637/df-ic4_kqi22i.png"
     };
 
     this._browser = null;
@@ -135,15 +135,13 @@ class PDFReportService {
         const radius = 45;
         const circumference = 2 * Math.PI * radius;
         return circumference - circumference * ((score || 0) / 100);
-      },
+      }
     };
-    Object.keys(helpers).forEach((name) =>
-      handlebars.registerHelper(name, helpers[name]),
-    );
+    Object.keys(helpers).forEach((name) => handlebars.registerHelper(name, helpers[name]));
 
     // Eagerly launch browser in the background to reduce first-request latency
     this._getBrowser().catch((err) =>
-      console.log("[PDFService] Eager browser launch failed:", err.message),
+      console.log("[PDFService] Eager browser launch failed:", err.message)
     );
   }
 
@@ -162,26 +160,20 @@ class PDFReportService {
   }
 
   _buildTriangleModelData(report) {
-    const ppScore = Math.round(
-      report?.scores?.domains?.["People Potential"]?.score || 0,
-    );
-    const osScore = Math.round(
-      report?.scores?.domains?.["Operational Steadiness"]?.score || 0,
-    );
-    const dfScore = Math.round(
-      report?.scores?.domains?.["Digital Fluency"]?.score || 0,
-    );
+    const ppScore = Math.round(report?.scores?.domains?.["People Potential"]?.score || 0);
+    const osScore = Math.round(report?.scores?.domains?.["Operational Steadiness"]?.score || 0);
+    const dfScore = Math.round(report?.scores?.domains?.["Digital Fluency"]?.score || 0);
 
     const center = { x: 150, y: 153 };
     const radius = 120;
     const P = { x: center.x, y: center.y - radius };
     const O = {
       x: center.x - radius * Math.sin(Math.PI / 3),
-      y: center.y + radius * Math.cos(Math.PI / 3),
+      y: center.y + radius * Math.cos(Math.PI / 3)
     };
     const D = {
       x: center.x + radius * Math.sin(Math.PI / 3),
-      y: center.y + radius * Math.cos(Math.PI / 3),
+      y: center.y + radius * Math.cos(Math.PI / 3)
     };
 
     const scoreTotal = ppScore + osScore + dfScore || 1;
@@ -191,7 +183,7 @@ class PDFReportService {
 
     const C = {
       x: wP * P.x + wO * O.x + wD * D.x,
-      y: wP * P.y + wO * O.y + wD * D.y,
+      y: wP * P.y + wO * O.y + wD * D.y
     };
 
     const triPoints = (a, b, c) => `${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y}`;
@@ -206,7 +198,7 @@ class PDFReportService {
       outline: triPoints(P, O, D),
       labelPP: { x: P.x, y: P.y - 22 },
       labelOS: { x: O.x - 8, y: O.y + 18 },
-      labelDF: { x: D.x + 8, y: D.y + 18 },
+      labelDF: { x: D.x + 8, y: D.y + 18 }
     };
   }
 
@@ -214,24 +206,19 @@ class PDFReportService {
     report,
     topPriorities = [],
     aiInsight = null,
-    comparisonData = null,
+    comparisonData = null
   ) {
     const overall = Math.round(report?.scores?.overall || 0);
     const cls = this._getClassification(overall);
     const domains = report?.scores?.domains || {};
 
-    const domainMatrix = [
-      "People Potential",
-      "Operational Steadiness",
-      "Digital Fluency",
-    ]
+    const domainMatrix = ["People Potential", "Operational Steadiness", "Digital Fluency"]
       .filter((name) => domains[name])
       .map((name) => {
         const d = domains[name];
         const score = Math.round(d.score || 0);
         const benchmarkRaw = comparisonData?.orgAvg?.[name]?.avgScore;
-        const benchmark =
-          benchmarkRaw != null ? Math.round(benchmarkRaw) : null;
+        const benchmark = benchmarkRaw != null ? Math.round(benchmarkRaw) : null;
         const gap = benchmark != null ? score - benchmark : null;
         return {
           name,
@@ -239,64 +226,41 @@ class PDFReportService {
           classification: this._getClassification(score),
           stateLabel: this._stateLabel(score),
           stateClass:
-            score >= 75
-              ? "state-strength"
-              : score >= 50
-                ? "state-monitor"
-                : "state-attention",
+            score >= 75 ? "state-strength" : score >= 50 ? "state-monitor" : "state-attention",
           benchmark,
           gap,
           gapLabel: gap != null ? `${gap >= 0 ? "+" : ""}${gap}%` : "—",
-          gapClass:
-            gap == null ? "" : gap >= 0 ? "gap-positive" : "gap-negative",
-          focusAction:
-            score >= 75 ? "Continue" : score >= 50 ? "Optimize" : "Accelerate",
+          gapClass: gap == null ? "" : gap >= 0 ? "gap-positive" : "gap-negative",
+          focusAction: score >= 75 ? "Continue" : score >= 50 ? "Optimize" : "Accelerate",
           focusClass:
-            score >= 75
-              ? "focus-continue"
-              : score >= 50
-                ? "focus-optimize"
-                : "focus-accelerate",
-          description: this.domainDescriptions[name] || "",
+            score >= 75 ? "focus-continue" : score >= 50 ? "focus-optimize" : "focus-accelerate",
+          description: this.domainDescriptions[name] || ""
         };
       });
 
     const buildRangeSummary = (domains, sortAsc = false) => {
       if (!domains.length) return null;
-      const sorted = [...domains].sort((a, b) =>
-        sortAsc ? a.score - b.score : b.score - a.score,
-      );
-      const avg = Math.round(
-        domains.reduce((sum, d) => sum + d.score, 0) / domains.length,
-      );
+      const sorted = [...domains].sort((a, b) => (sortAsc ? a.score - b.score : b.score - a.score));
+      const avg = Math.round(domains.reduce((sum, d) => sum + d.score, 0) / domains.length);
       return {
         avg,
         count: domains.length,
-        domainNames: sorted.map((d) => d.name),
+        domainNames: sorted.map((d) => d.name)
       };
     };
 
     const strengthDomains = domainMatrix.filter((d) => d.score >= 75);
-    const averageDomains = domainMatrix.filter(
-      (d) => d.score >= 50 && d.score < 75,
-    );
+    const averageDomains = domainMatrix.filter((d) => d.score >= 50 && d.score < 75);
     const opportunityDomains = domainMatrix.filter((d) => d.score < 50);
 
     const strengthSummary = buildRangeSummary(strengthDomains);
     const averageSummary = buildRangeSummary(averageDomains);
     const opportunitySummary = buildRangeSummary(opportunityDomains, true);
 
-    const lowCount = topPriorities.filter(
-      (p) => p.classification === "Low",
-    ).length;
-    const riskLevel =
-      lowCount >= 2 ? "HIGH" : lowCount === 1 ? "MODERATE" : "LOW";
+    const lowCount = topPriorities.filter((p) => p.classification === "Low").length;
+    const riskLevel = lowCount >= 2 ? "HIGH" : lowCount === 1 ? "MODERATE" : "LOW";
     const riskClass =
-      riskLevel === "LOW"
-        ? "risk-low"
-        : riskLevel === "MODERATE"
-          ? "risk-moderate"
-          : "risk-high";
+      riskLevel === "LOW" ? "risk-low" : riskLevel === "MODERATE" ? "risk-moderate" : "risk-high";
 
     const aiInsights = domainMatrix.map((d) => ({
       title: d.name,
@@ -304,14 +268,14 @@ class PDFReportService {
         d.score >= 75
           ? `${d.name} is performing at ${d.score}% — a relative strength to leverage across the organization.`
           : `${d.name} at ${d.score}% — targeted leadership action is recommended to prevent downstream friction.`,
-      score: d.score,
+      score: d.score
     }));
 
     const recommendations = domainMatrix.map((d) => ({
       name: d.name,
       focus: d.focusAction,
       focusClass: d.focusClass,
-      description: d.description,
+      description: d.description
     }));
 
     const roadmap = {
@@ -326,12 +290,10 @@ class PDFReportService {
       strategic: topPriorities
         .slice(2, 3)
         .map((p) => p.recommendedStep)
-        .filter(Boolean),
+        .filter(Boolean)
     };
     if (!roadmap.quick.length) {
-      roadmap.quick = [
-        "Review lowest-scoring subdomain with your leadership team within 30 days.",
-      ];
+      roadmap.quick = ["Review lowest-scoring subdomain with your leadership team within 30 days."];
     }
     if (!roadmap.shortTerm.length) {
       roadmap.shortTerm = domainMatrix
@@ -340,7 +302,7 @@ class PDFReportService {
     }
     if (!roadmap.strategic.length) {
       roadmap.strategic = [
-        "Embed POD-360 practices into quarterly planning and leadership routines.",
+        "Embed POD-360 practices into quarterly planning and leadership routines."
       ];
     }
 
@@ -349,41 +311,32 @@ class PDFReportService {
         title: "Overall Trajectory",
         text:
           aiInsight?.description ||
-          `Portfolio score of ${overall}% reflects ${cls.toLowerCase()} efficiency across assessed domains.`,
+          `Portfolio score of ${overall}% reflects ${cls.toLowerCase()} efficiency across assessed domains.`
       },
       {
         title: "Primary Strength",
         text: strengthSummary
           ? `Strength domains average ${strengthSummary.avg}% across ${strengthSummary.count} area${strengthSummary.count > 1 ? "s" : ""} — leverage this momentum for broader change.`
-          : "Establish baseline strengths by completing the recommended first steps below.",
+          : "Establish baseline strengths by completing the recommended first steps below."
       },
       {
         title: "Priority Focus",
         text:
           topPriorities[0]?.impact ||
-          "Monitor all domains and reinforce consistent leadership practices.",
+          "Monitor all domains and reinforce consistent leadership practices."
       },
       {
         title: "Immediate Action",
         text:
           topPriorities[0]?.recommendedStep ||
-          "Review the detailed domain sections that follow this summary.",
-      },
+          "Review the detailed domain sections that follow this summary."
+      }
     ];
 
     return {
-      overallHealth:
-        overall >= 75
-          ? "STRONG"
-          : overall >= 50
-            ? "MONITOR"
-            : "NEEDS ATTENTION",
+      overallHealth: overall >= 75 ? "STRONG" : overall >= 50 ? "MONITOR" : "NEEDS ATTENTION",
       healthClass:
-        overall >= 75
-          ? "health-strong"
-          : overall >= 50
-            ? "health-monitor"
-            : "health-critical",
+        overall >= 75 ? "health-strong" : overall >= 50 ? "health-monitor" : "health-critical",
       portfolioScore: overall,
       portfolioClass: cls,
       portfolioColor:
@@ -403,18 +356,8 @@ class PDFReportService {
       recommendations,
       roadmap,
       takeaways,
-      overallTrend:
-        overall >= 75
-          ? "Improving"
-          : overall >= 50
-            ? "Stable"
-            : "Needs Attention",
-      trendClass:
-        overall >= 75
-          ? "trend-up"
-          : overall >= 50
-            ? "trend-stable"
-            : "trend-down",
+      overallTrend: overall >= 75 ? "Improving" : overall >= 50 ? "Stable" : "Needs Attention",
+      trendClass: overall >= 75 ? "trend-up" : overall >= 50 ? "trend-stable" : "trend-down"
     };
   }
 
@@ -443,9 +386,7 @@ class PDFReportService {
         let browser;
         // Production / Render Environment
         if (process.env.RENDER || process.env.NODE_ENV === "production") {
-          console.log(
-            "[PDFService] Launching Puppeteer for Production/Render...",
-          );
+          console.log("[PDFService] Launching Puppeteer for Production/Render...");
           const puppeteer = (await import("puppeteer")).default;
           browser = await puppeteer.launch({
             args: [
@@ -454,9 +395,9 @@ class PDFReportService {
               "--disable-dev-shm-usage",
               "--disable-gpu",
               "--no-zygote",
-              "--single-process",
+              "--single-process"
             ],
-            headless: "new",
+            headless: "new"
           });
         }
         // Vercel Environment (Serverless)
@@ -469,7 +410,7 @@ class PDFReportService {
             defaultViewport: chromium.defaultViewport,
             executablePath: await chromium.executablePath(),
             headless: chromium.headless,
-            ignoreHTTPSErrors: true,
+            ignoreHTTPSErrors: true
           });
         }
         // Local Development (Windows/Mac)
@@ -479,12 +420,12 @@ class PDFReportService {
             const puppeteer = (await import("puppeteer")).default;
             browser = await puppeteer.launch({
               args: ["--no-sandbox"],
-              headless: true,
+              headless: true
             });
           } catch (pupErr) {
             console.log(
               "[PDFService] Default puppeteer failed, falling back to puppeteer-core with local paths...",
-              pupErr.message,
+              pupErr.message
             );
             const puppeteerCore = (await import("puppeteer-core")).default;
             const fs = await import("fs");
@@ -492,7 +433,7 @@ class PDFReportService {
               "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
               "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
               "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-              "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+              "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
             ];
 
             let executablePath = null;
@@ -504,15 +445,13 @@ class PDFReportService {
             }
 
             if (!executablePath) {
-              throw new Error(
-                "Could not find a local Chrome/Edge installation to generate PDF.",
-              );
+              throw new Error("Could not find a local Chrome/Edge installation to generate PDF.");
             }
 
             browser = await puppeteerCore.launch({
               args: ["--no-sandbox"],
               headless: true,
-              executablePath,
+              executablePath
             });
           }
         }
@@ -545,9 +484,7 @@ class PDFReportService {
     const html = this._buildHTML(data);
     const { user } = data;
     const userName =
-      `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
-      user?.email ||
-      "Participant";
+      `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "Participant";
     let page;
 
     try {
@@ -563,7 +500,7 @@ class PDFReportService {
 
       console.log("[PDFService] Rendering content...");
       await page.setContent(html, {
-        waitUntil: "load",
+        waitUntil: "load"
       });
 
       console.log("[PDFService] Printing PDF...");
@@ -572,25 +509,20 @@ class PDFReportService {
         printBackground: true,
         margin: { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" },
         displayHeaderFooter: false,
-        timeout: 30000,
+        timeout: 30000
       });
 
       return pdfBuffer;
     } catch (error) {
       console.error("PDF GENERATION ERROR:", error.message);
-      if (
-        error.message.includes("Browser closed") ||
-        error.message.includes("disconnected")
-      ) {
+      if (error.message.includes("Browser closed") || error.message.includes("disconnected")) {
         this._browser = null;
         this._launchingPromise = null;
       }
       throw error;
     } finally {
       if (page) {
-        await page
-          .close()
-          .catch((e) => console.error("Error closing page:", e));
+        await page.close().catch((e) => console.error("Error closing page:", e));
       }
     }
   }
@@ -603,13 +535,11 @@ class PDFReportService {
     const orgLogo = data.orgLogo || user?.orgLogo || "";
     const userName = isMasterReport
       ? `${orgName} Intelligence Report`
-      : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
-        user?.email ||
-        "Participant";
+      : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "Participant";
     const dateStr = new Date().toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
-      day: "numeric",
+      day: "numeric"
     });
 
     const pageHeader = `
@@ -2292,9 +2222,7 @@ class PDFReportService {
       let remainingText = text;
 
       // Extract [FOCUS] if present
-      const focusMatch = text.match(
-        /\[FOCUS\]\s*([\s\S]*?)(?:\r?\n\r?\n|\r?\n|$)/i,
-      );
+      const focusMatch = text.match(/\[FOCUS\]\s*([\s\S]*?)(?:\r?\n\r?\n|\r?\n|$)/i);
       if (focusMatch) {
         focus = focusMatch[1].trim();
         remainingText = text.replace(focusMatch[0], "").trim();
@@ -2323,9 +2251,7 @@ class PDFReportService {
 
           if (!isBullet && lines.length > 1) {
             title = firstLine;
-            keyResults = lines
-              .slice(1)
-              .map((l) => l.replace(/^[•\-\*]\s*/, ""));
+            keyResults = lines.slice(1).map((l) => l.replace(/^[•\-\*]\s*/, ""));
           } else {
             // All lines are key results
             keyResults = lines.map((l) => l.replace(/^[•\-\*]\s*/, ""));
@@ -2355,43 +2281,35 @@ class PDFReportService {
       isMasterReport,
       report,
       aiInsight,
-      synergyIntro: this.synergyIntro,
+      synergyIntro: this.synergyIntro
     };
 
-    const roleKey = (
-      report?.stakeholder ||
-      user?.role ||
-      "employee"
-    ).toLowerCase();
-    templateData.synergyRole =
-      this.roleSynergyData[roleKey] || this.roleSynergyData["employee"];
+    const roleKey = (report?.stakeholder || user?.role || "employee").toLowerCase();
+    templateData.synergyRole = this.roleSynergyData[roleKey] || this.roleSynergyData["employee"];
 
     if (!isMasterReport) {
       const domainStructure = {
         "People Potential": [
           "Mindset & Adaptability",
           "Psychological Health & Safety",
-          "Relational & Emotional Intelligence",
+          "Relational & Emotional Intelligence"
         ],
         "Operational Steadiness": [
           "Prioritization",
           "Workflow Clarity",
-          "Effective Resource Management",
+          "Effective Resource Management"
         ],
         "Digital Fluency": [
           "Data, AI & Automation Readiness",
           "Digital Communication & Collaboration",
           "Mindset, Confidence and Change Readiness",
-          "Tool & System Proficiency",
-        ],
+          "Tool & System Proficiency"
+        ]
       };
 
       // POD-360 model data: keyed by role, then subdomain name, then classification
       const pod360RoleData =
-        feedbackData[roleKey] ||
-        feedbackData["leader"] ||
-        feedbackData["admin"] ||
-        {};
+        feedbackData[roleKey] || feedbackData["leader"] || feedbackData["admin"] || {};
 
       // Normalize subdomain name for lookup — handles minor naming variants
       // e.g. "Mindset, Confidence and Change Readiness" vs "Mindset, Confidence, and Change Readiness"
@@ -2403,19 +2321,14 @@ class PDFReportService {
             .replace(/,\s*and\s+/g, " and ")
             .replace(/\s+/g, " ")
             .trim();
-        return (
-          Object.keys(pod360RoleData).find(
-            (k) => normalise(k) === normalise(name),
-          ) || null
-        );
+        return Object.keys(pod360RoleData).find((k) => normalise(k) === normalise(name)) || null;
       };
 
       templateData.triangle = this._buildTriangleModelData(report);
 
       const resolvePriorityRole = (key) => {
         const normalized = (key || "employee").toLowerCase();
-        if (normalized === "superadmin" || normalized === "super_admin")
-          return "admin";
+        if (normalized === "superadmin" || normalized === "super_admin") return "admin";
         if (feedbackData[normalized]) return normalized;
         return "leader";
       };
@@ -2423,11 +2336,10 @@ class PDFReportService {
       templateData.topPriorities = computeTopPriorities({
         scores: report.scores,
         role: resolvePriorityRole(roleKey),
-        limit: 3,
+        limit: 3
       }).map((p) => {
         const perf = (p.classification || "Low").toLowerCase();
-        const urgency =
-          perf === "low" ? "high" : perf === "medium" ? "medium" : "low";
+        const urgency = perf === "low" ? "high" : perf === "medium" ? "medium" : "low";
         const urgencyLabel = urgency.charAt(0).toUpperCase() + urgency.slice(1);
         return {
           ...p,
@@ -2440,26 +2352,21 @@ class PDFReportService {
               : urgency === "medium"
                 ? "score-medium"
                 : "score-mild",
-          badgeClass: `badge-${urgency}`,
+          badgeClass: `badge-${urgency}`
         };
       });
       templateData.prioritiesPageOne = templateData.topPriorities.slice(0, 2);
       templateData.prioritiesPageTwo = templateData.topPriorities.slice(2);
-      templateData.hasPrioritiesContinued =
-        templateData.prioritiesPageTwo.length > 0;
+      templateData.hasPrioritiesContinued = templateData.prioritiesPageTwo.length > 0;
 
       templateData.dashboard = this._buildExecutiveDashboardData(
         report,
         templateData.topPriorities,
         aiInsight,
-        comparisonData,
+        comparisonData
       );
 
-      templateData.domainPages = [
-        "People Potential",
-        "Operational Steadiness",
-        "Digital Fluency",
-      ]
+      templateData.domainPages = ["People Potential", "Operational Steadiness", "Digital Fluency"]
         .map((dName) => {
           const dData = report.scores?.domains?.[dName];
           if (!dData) return null;
@@ -2467,39 +2374,27 @@ class PDFReportService {
 
           const subdomains = domainStructure[dName].map((sName) => {
             const subData = dData.subdomains?.[sName];
-            const subScore =
-              typeof subData === "object" ? subData.score : subData || 60;
+            const subScore = typeof subData === "object" ? subData.score : subData || 60;
             const subFb = dData.subdomainFeedback?.[sName] || {};
 
             // Resolve the POD-360 model entry for this subdomain + classification
             const classification = this._getClassification(subScore); // "Low" | "Medium" | "High"
             const pod360Key = resolvePod360Key(sName);
-            const pod360 =
-              (pod360Key
-                ? pod360RoleData[pod360Key]?.[classification]
-                : null) || {};
+            const pod360 = (pod360Key ? pod360RoleData[pod360Key]?.[classification] : null) || {};
 
             const fallback = {
-              insight:
-                pod360.insight ||
-                "Consistency in this area varies across teams.",
+              insight: pod360.insight || "Consistency in this area varies across teams.",
               okrs: [],
-              coaching: pod360.coachingTips
-                ? getBulletedLines(pod360.coachingTips, 5)
-                : [],
+              coaching: pod360.coachingTips ? getBulletedLines(pod360.coachingTips, 5) : [],
               model:
                 pod360.modelDescription ||
                 "The POD-360 model emphasizes consistent leadership application and data-driven feedback loops.",
               programs: pod360.recommendedPrograms
                 ? getBulletedLines(pod360.recommendedPrograms, 4)
-                : [
-                    "Leadership Excellence Labs",
-                    "Executive Performance Toolkit",
-                  ],
+                : ["Leadership Excellence Labs", "Executive Performance Toolkit"]
             };
 
-            let rawInsight =
-              subFb.insight || subFb.description || fallback.insight;
+            let rawInsight = subFb.insight || subFb.description || fallback.insight;
             let rawModel = subFb.modelDescription || fallback.model;
             let defaultOkrs = fallback.okrs;
             let defaultCoaching = fallback.coaching;
@@ -2537,12 +2432,9 @@ class PDFReportService {
               coaching: getBulletedLines(subFb.coachingTips || "", 5)
                 .concat(defaultCoaching)
                 .slice(0, 5),
-              recommendedPrograms: getBulletedLines(
-                subFb.recommendedPrograms || "",
-                4,
-              )
+              recommendedPrograms: getBulletedLines(subFb.recommendedPrograms || "", 4)
                 .concat(defaultPrograms)
-                .slice(0, 4),
+                .slice(0, 4)
             };
           });
 
@@ -2556,19 +2448,16 @@ class PDFReportService {
             score: Math.round(dData.score),
             state: this._getClassification(dData.score),
             description: this.domainDescriptions[dName] || "",
-            insights: getBulletedLines(
-              fb.insight || fb.modelDescription || "",
-              5,
-            ),
+            insights: getBulletedLines(fb.insight || fb.modelDescription || "", 5),
             okrs: parseStructuredOKRs(fb.objectives || ""),
             coaching: getBulletedLines(fb.coachingTips || "", 5),
             subdomainPages: chunkedSubdomains,
             aggregatedOKRs: subdomains
               .map((s) => ({
                 subdomainName: s.name,
-                okrs: s.okrs,
+                okrs: s.okrs
               }))
-              .filter((s) => s.okrs.list.length > 0 || s.okrs.focus),
+              .filter((s) => s.okrs.list.length > 0 || s.okrs.focus)
           };
         })
         .filter((p) => p !== null);

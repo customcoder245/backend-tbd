@@ -1,8 +1,8 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import swaggerUi from "swagger-ui-express"
-import swaggerSpec from "../swagger.js"
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "../swagger.js";
 
 import connectDB from "./db/index.js";
 
@@ -34,7 +34,13 @@ app.use(cookieParser());
 
 // Support multiple allowed origins via comma-separated CORS_ORIGIN (e.g. "http://localhost:5173,https://talent-by-design.vercel.app")
 const rawOrigins = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "*";
-const allowedOrigins = rawOrigins === "*" ? "*" : rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
+const allowedOrigins =
+  rawOrigins === "*"
+    ? "*"
+    : rawOrigins
+        .split(",")
+        .map((o) => o.trim())
+        .filter(Boolean);
 
 app.use(
   cors({
@@ -51,7 +57,6 @@ app.use(
 );
 
 app.set("trust proxy", 1);
-
 
 // Health check route
 app.get("/", (req, res) => {

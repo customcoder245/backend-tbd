@@ -1,4 +1,4 @@
-// if you have to add new user just use command "node .\src\scripts\seedAdmin.js" that will push the data to the mongodb databse 
+// if you have to add new user just use command "node .\src\scripts\seedAdmin.js" that will push the data to the mongodb databse
 
 import mongoose from "mongoose";
 import dotenv from "dotenv";

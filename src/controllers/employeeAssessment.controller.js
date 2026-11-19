@@ -6,9 +6,11 @@ import Invitation from "../models/invitation.model.js";
 import mongoose from "mongoose";
 import { calculateAssessmentScores } from "../utils/scoring.utils.js";
 import { getSubdomainFeedback } from "../utils/feedback.utils.js";
-import { createNotification, notifySuperAdmins, notifyHierarchy } from "../utils/notification.utils.js";
-
-
+import {
+  createNotification,
+  notifySuperAdmins,
+  notifyHierarchy
+} from "../utils/notification.utils.js";
 
 export const startEmployeeAssessment = async (req, res) => {
   try {
@@ -19,8 +21,7 @@ export const startEmployeeAssessment = async (req, res) => {
     }
 
     // 1️⃣ Extract raw invitationId
-    const rawInvitationId =
-      req.employee.invitationId || req.employee.invitedId;
+    const rawInvitationId = req.employee.invitationId || req.employee.invitedId;
 
     if (!rawInvitationId || !mongoose.Types.ObjectId.isValid(rawInvitationId)) {
       return res.status(400).json({
@@ -66,17 +67,10 @@ export const startEmployeeAssessment = async (req, res) => {
   }
 };
 
-
-
 export const submitEmployeeAssessment = async (req, res) => {
   try {
     const { assessmentId } = req.params;
-    const {
-      firstName,
-      lastName,
-      email,
-      department
-    } = req.body;
+    const { firstName, lastName, email, department } = req.body;
 
     // 1️⃣ Validate final form (matches UI)
     if (!firstName || !lastName || !email || !department) {
@@ -118,11 +112,15 @@ export const submitEmployeeAssessment = async (req, res) => {
     assessment.isCompleted = true;
     assessment.submittedAt = new Date();
 
-    console.log(`[Employee Assessment Submission] Processing assessment ${assessmentId} for employee ${email}. Found ${responses.length} responses.`);
+    console.log(
+      `[Employee Assessment Submission] Processing assessment ${assessmentId} for employee ${email}. Found ${responses.length} responses.`
+    );
 
     // 🏆 Calculate scores (Phase 1 Logic)
     const { scores, classification } = calculateAssessmentScores(responses);
-    console.log(`[Employee Assessment Submission] Scores calculated. Classification: ${classification}`);
+    console.log(
+      `[Employee Assessment Submission] Scores calculated. Classification: ${classification}`
+    );
 
     // 💡 Add feedback BEFORE assigning to model
     let fbCount = 0;
@@ -159,20 +157,24 @@ export const submitEmployeeAssessment = async (req, res) => {
           const availableSubs = Object.keys(domainObj.subdomainFeedback);
           if (availableSubs.length > 0) {
             domainFb = domainObj.subdomainFeedback[availableSubs[0]];
-            console.log(`[Feedback Fallback] Used "${availableSubs[0]}" insight for domain "${domainName}" because "${minSubName}" was missing.`);
+            console.log(
+              `[Feedback Fallback] Used "${availableSubs[0]}" insight for domain "${domainName}" because "${minSubName}" was missing.`
+            );
           }
         }
         domainObj.feedback = domainFb || null;
       }
     }
-    console.log(`[Employee Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: ${stakeholderRole}`);
+    console.log(
+      `[Employee Assessment Submission] Attached subdomain feedback. Total sub-feedbacks: ${fbCount}. Role: ${stakeholderRole}`
+    );
 
     // Assign the fully-built scores object (with feedback already included)
     assessment.scores = scores;
     assessment.classification = classification;
 
     // ⚠️ Tell Mongoose the nested object changed so it persists correctly
-    assessment.markModified('scores');
+    assessment.markModified("scores");
 
     // Find the User record for this email to link correctly to the dashboard
     const submittingUser = await User.findOne({ email: email.toLowerCase() });
@@ -198,13 +200,12 @@ export const submitEmployeeAssessment = async (req, res) => {
         classification,
         submittedAt: new Date()
       }),
-      Invitation.findOneAndUpdate(
-        { email: email.toLowerCase(), role: "employee" },
-        { used: true }
-      ),
+      Invitation.findOneAndUpdate({ email: email.toLowerCase(), role: "employee" }, { used: true }),
       submittingUser ? submittingUser.save() : Promise.resolve()
     ]);
-    console.log(`[Employee Assessment Submission] Data saved and invitation locked for ${email}. Linked to userId: ${submittingUser ? submittingUser._id : "none"}`);
+    console.log(
+      `[Employee Assessment Submission] Data saved and invitation locked for ${email}. Linked to userId: ${submittingUser ? submittingUser._id : "none"}`
+    );
 
     // --- DYNAMIC NOTIFICATIONS ---
     if (submittingUser && submittingUser._id) {
@@ -214,7 +215,7 @@ export const submitEmployeeAssessment = async (req, res) => {
         title: "Assessment Submitted",
         message: "Your assessment has been successfully submitted.",
         type: "success"
-      }).catch(err => console.error("[Notification Error]", err));
+      }).catch((err) => console.error("[Notification Error]", err));
 
       // 2. Hierarchical Notification
       notifyHierarchy({
@@ -222,7 +223,7 @@ export const submitEmployeeAssessment = async (req, res) => {
         title: "Assessment Submitted",
         message: `${firstName} ${lastName} (${employeeDetails.role}) has completed their assessment.`,
         type: "success"
-      }).catch(err => console.error("[Hierarchy Notification Error]", err));
+      }).catch((err) => console.error("[Hierarchy Notification Error]", err));
 
       // 3. Notify Super Admins
       notifySuperAdmins({
@@ -230,7 +231,7 @@ export const submitEmployeeAssessment = async (req, res) => {
         message: `${firstName} ${lastName} from ${assessment.orgName || "Unknown Org"} has submitted an assessment.`,
         type: "info",
         excludeUser: submittingUser._id
-      }).catch(err => console.error("[Super Admin Notification Error]", err));
+      }).catch((err) => console.error("[Super Admin Notification Error]", err));
     } else {
       // Notify the person who invited them
       if (assessment.invitedBy) {
@@ -239,7 +240,7 @@ export const submitEmployeeAssessment = async (req, res) => {
           title: "Employee Assessment Submitted",
           message: `${firstName} ${lastName} has completed their assessment.`,
           type: "success"
-        }).catch(err => console.error("[Notification Error]", err));
+        }).catch((err) => console.error("[Notification Error]", err));
       }
 
       // Notify Super Admins
@@ -247,14 +248,13 @@ export const submitEmployeeAssessment = async (req, res) => {
         title: "New Assessment Activity",
         message: `${firstName} ${lastName} from ${assessment.orgName || "Unknown Org"} has submitted an assessment.`,
         type: "info"
-      }).catch(err => console.error("[Super Admin Notification Error]", err));
+      }).catch((err) => console.error("[Super Admin Notification Error]", err));
     }
 
     return res.status(200).json({
       message: "Assessment submitted successfully",
       submittedAssessment
     });
-
   } catch (error) {
     res.status(500).json({
       message: "Error submitting assessment",

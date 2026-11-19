@@ -1,17 +1,17 @@
 import express from "express";
 import {
-    employeeReport,
-    managerReport,
-    LeaderReport,
-    AdminReport,
-    getDomainDetailedReport,
-    updateDomainDetailedReport,
-    releaseReport,
-    exportPdfReport,
-    previewPdfReport,
-    getManagerTeamAvg,
-    publicDownloadReport,
-    getOrgAverageReport
+  employeeReport,
+  managerReport,
+  LeaderReport,
+  AdminReport,
+  getDomainDetailedReport,
+  updateDomainDetailedReport,
+  releaseReport,
+  exportPdfReport,
+  previewPdfReport,
+  getManagerTeamAvg,
+  publicDownloadReport,
+  getOrgAverageReport
 } from "../controllers/dashboard.controller.js";
 import { getTooltips, updateTooltip } from "../controllers/tooltip.controller.js";
 import { protect, restrictTo } from "../middlewares/auth.middleware.js";

@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 
 // Controller to handle resending the verification email
 export const resendVerificationEmail = async (req, res) => {
-  const { email } = req.body;  // Get the email from the request body
+  const { email } = req.body; // Get the email from the request body
 
   try {
     // Step 1: Check if the user exists by the provided email
@@ -26,15 +26,13 @@ export const resendVerificationEmail = async (req, res) => {
       // Step 4: If the token is expired, generate a new token and set a new expiration time
       const newToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: "1h" });
       user.emailVerificationToken = newToken;
-      user.emailVerificationExpires = Date.now() + 60 * 60 * 1000;  // 1 hour expiration
+      user.emailVerificationExpires = Date.now() + 60 * 60 * 1000; // 1 hour expiration
 
-      await user.save();  // Save the updated user object
+      await user.save(); // Save the updated user object
 
       // Step 5: Send the new verification email with the new token
       const backendUrl = process.env.BACKEND_URL || "";
-      const baseUrl = backendUrl.endsWith("/")
-        ? backendUrl
-        : `${backendUrl}/`;
+      const baseUrl = backendUrl.endsWith("/") ? backendUrl : `${backendUrl}/`;
 
       const verifyLink = `${baseUrl}auth/verify-email/${newToken}`;
       await sendVerificationEmail({ email: user.email }, verifyLink);
@@ -45,10 +43,13 @@ export const resendVerificationEmail = async (req, res) => {
     }
 
     // If the token is not expired, inform the user
-    return res.status(400).json({ message: "Verification token is still valid. Please check your inbox." });
-
+    return res
+      .status(400)
+      .json({ message: "Verification token is still valid. Please check your inbox." });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: "An error occurred while resending the verification email." });
+    return res
+      .status(500)
+      .json({ message: "An error occurred while resending the verification email." });
   }
 };

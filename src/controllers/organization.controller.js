@@ -4,7 +4,7 @@ export const getOrganizationDepartments = async (req, res) => {
   try {
     const { orgName: queryOrgName } = req.query;
     const isSuperAdmin = req.user.role?.toLowerCase() === "superadmin";
-    const searchName = isSuperAdmin ? (queryOrgName || req.user.orgName) : req.user.orgName;
+    const searchName = isSuperAdmin ? queryOrgName || req.user.orgName : req.user.orgName;
 
     if (!searchName) {
       return res.status(400).json({ message: "Organization name is required." });
@@ -50,7 +50,9 @@ export const addDepartment = async (req, res) => {
     }
 
     await organization.save();
-    res.status(200).json({ message: "Department added successfully", departments: organization.departments });
+    res
+      .status(200)
+      .json({ message: "Department added successfully", departments: organization.departments });
   } catch (error) {
     console.error("Error adding department:", error);
     res.status(500).json({ message: "Internal server error: " + error.message });
@@ -78,13 +80,15 @@ export const removeDepartment = async (req, res) => {
 
     // Manual removal to mirror the behavior of addDepartment (which works)
     if (organization.departments) {
-      organization.departments = organization.departments.filter(d => d !== department);
-      
+      organization.departments = organization.departments.filter((d) => d !== department);
+
       // We use validateBeforeSave: false to bypass any strict validation on old records
       await organization.save({ validateBeforeSave: false });
     }
 
-    res.status(200).json({ message: "Department removed successfully", departments: organization.departments });
+    res
+      .status(200)
+      .json({ message: "Department removed successfully", departments: organization.departments });
   } catch (error) {
     console.error("Error removing department:", error);
     res.status(500).json({ message: "Internal server error: " + error.message });

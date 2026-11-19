@@ -3,7 +3,7 @@ import xlsx from "xlsx";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from "url";
 import Organization from "../models/organization.model.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,15 +16,15 @@ const domainAbbr = {
 };
 
 const stakeholderPrefix = {
-  "admin": "A",
-  "leader": "L",
-  "manager": "M",
-  "employee": "E"
+  admin: "A",
+  leader: "L",
+  manager: "M",
+  employee: "E"
 };
 
 const typeSuffix = {
-  "Calibration": "CAL",
-  "Behavioural": "B",
+  Calibration: "CAL",
+  Behavioural: "B",
   "Forced-Choice": "FC",
   "Self-Rating": ""
 };
@@ -33,25 +33,37 @@ const getAbbreviation = (text) => {
   if (!text) return "";
   return text
     .split(/[\s&/-]+/)
-    .filter(word => word.length > 0 && !["and", "the", "with", "or"].includes(word.toLowerCase()))
-    .map(word => word[0].toUpperCase())
+    .filter((word) => word.length > 0 && !["and", "the", "with", "or"].includes(word.toLowerCase()))
+    .map((word) => word[0].toUpperCase())
     .join("");
 };
 
-const generateQuestionCode = async (stakeholder, domain, subdomain, questionType, orgName = null, offset = 0) => {
+const generateQuestionCode = async (
+  stakeholder,
+  domain,
+  subdomain,
+  questionType,
+  orgName = null,
+  offset = 0
+) => {
   const dAbbr = domainAbbr[domain] || getAbbreviation(domain);
   const sAbbr = getAbbreviation(subdomain);
-  const rolePref = stakeholderPrefix[stakeholder.toLowerCase()] || (stakeholder ? stakeholder[0].toUpperCase() : "X");
+  const rolePref =
+    stakeholderPrefix[stakeholder.toLowerCase()] ||
+    (stakeholder ? stakeholder[0].toUpperCase() : "X");
   const tSuff = typeSuffix[questionType] || "";
 
   const prefix = `${dAbbr}-${sAbbr}-${rolePref}${tSuff}`;
 
   // Find questions with this prefix to get the next number within the organization
   const regex = new RegExp(`^${prefix}(\\d+)$`);
-  const questions = await Question.find({ questionCode: regex, orgName }, { questionCode: 1 }).lean();
+  const questions = await Question.find(
+    { questionCode: regex, orgName },
+    { questionCode: 1 }
+  ).lean();
 
   let maxNum = 0;
-  questions.forEach(q => {
+  questions.forEach((q) => {
     const match = q.questionCode.match(regex);
     if (match) {
       const num = parseInt(match[1]);
@@ -70,9 +82,10 @@ export const createMultipleQuestions = async (req, res) => {
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
     const { orgName: targetOrg, department, questions: questionsInput } = req.body;
-    let orgName = (role === "superadmin" && targetOrg !== undefined) ? targetOrg : userOrg;
+    let orgName = role === "superadmin" && targetOrg !== undefined ? targetOrg : userOrg;
     if (orgName === "") orgName = null; // Normalize empty string to null for Master Template
-    const targetDept = (department === "" || department === undefined || department === "All") ? null : department;
+    const targetDept =
+      department === "" || department === undefined || department === "All" ? null : department;
     const questions = questionsInput || req.body;
 
     // Ensure questions are provided
@@ -84,7 +97,9 @@ export const createMultipleQuestions = async (req, res) => {
 
     // Ensure that all questions belong to the same stakeholder
     const stakeholder = questions[Object.keys(questions)[0]].stakeholder; // Get the stakeholder from the first question
-    const allSameStakeholder = Object.values(questions).every((question) => question.stakeholder === stakeholder);
+    const allSameStakeholder = Object.values(questions).every(
+      (question) => question.stakeholder === stakeholder
+    );
 
     if (!allSameStakeholder) {
       return res.status(400).json({
@@ -101,15 +116,20 @@ export const createMultipleQuestions = async (req, res) => {
       const q = questions[key];
       const dAbbr = domainAbbr[q.domain] || getAbbreviation(q.domain);
       const sAbbr = getAbbreviation(q.subdomain);
-      const rolePref = stakeholderPrefix[q.stakeholder.toLowerCase()] || (q.stakeholder ? q.stakeholder[0].toUpperCase() : "X");
+      const rolePref =
+        stakeholderPrefix[q.stakeholder.toLowerCase()] ||
+        (q.stakeholder ? q.stakeholder[0].toUpperCase() : "X");
       const tSuff = typeSuffix[q.questionType] || "";
       const prefix = `${dAbbr}-${sAbbr}-${rolePref}${tSuff}`;
 
       if (prefixBaseMax[prefix] === undefined) {
         const regex = new RegExp(`^${prefix}(\\d+)$`);
-        const existingDocs = await Question.find({ questionCode: regex, orgName }, { questionCode: 1 }).lean();
+        const existingDocs = await Question.find(
+          { questionCode: regex, orgName },
+          { questionCode: 1 }
+        ).lean();
         let maxOfPrefix = 0;
-        existingDocs.forEach(doc => {
+        existingDocs.forEach((doc) => {
           const match = doc.questionCode.match(regex);
           if (match) {
             const num = parseInt(match[1]);
@@ -180,7 +200,9 @@ export const createMultipleQuestions = async (req, res) => {
         // Auto-generate unique Prefix for tracking in this batch
         const dAbbr = domainAbbr[domain] || getAbbreviation(domain);
         const sAbbr = getAbbreviation(subdomain);
-        const rolePref = stakeholderPrefix[stakeholder.toLowerCase()] || (stakeholder ? stakeholder[0].toUpperCase() : "X");
+        const rolePref =
+          stakeholderPrefix[stakeholder.toLowerCase()] ||
+          (stakeholder ? stakeholder[0].toUpperCase() : "X");
         const tSuff = typeSuffix[questionType] || "";
         const prefix = `${dAbbr}-${sAbbr}-${rolePref}${tSuff}`;
 
@@ -207,8 +229,13 @@ export const createMultipleQuestions = async (req, res) => {
             subdomain,
             orgName,
             isDeleted: false
-          }).sort('-order').lean();
-          maxOrderPerSubdomain[orderKey] = highestOrderQuestion && highestOrderQuestion.order != null ? highestOrderQuestion.order : 0;
+          })
+            .sort("-order")
+            .lean();
+          maxOrderPerSubdomain[orderKey] =
+            highestOrderQuestion && highestOrderQuestion.order != null
+              ? highestOrderQuestion.order
+              : 0;
         }
         maxOrderPerSubdomain[orderKey] += 1;
 
@@ -225,7 +252,8 @@ export const createMultipleQuestions = async (req, res) => {
           scale,
           insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
           forcedChoice: scale === "FORCED_CHOICE" ? forcedChoice : null,
-          subdomainWeight: (domain === "People Potential" ? 0.35 : (domain === "Operational Steadiness" ? 0.25 : 0.20)),
+          subdomainWeight:
+            domain === "People Potential" ? 0.35 : domain === "Operational Steadiness" ? 0.25 : 0.2,
           order: maxOrderPerSubdomain[orderKey]
         });
 
@@ -255,13 +283,14 @@ export const cloneTemplate = async (req, res) => {
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
     const { orgName: targetOrg, department } = req.body;
-    let orgName = (role === "superadmin" && targetOrg !== undefined) ? targetOrg : userOrg;
+    let orgName = role === "superadmin" && targetOrg !== undefined ? targetOrg : userOrg;
 
     if (!orgName) {
       return res.status(400).json({ success: false, message: "Organization name is required." });
     }
 
-    const targetDept = (department === "" || department === undefined || department === "All") ? null : department;
+    const targetDept =
+      department === "" || department === undefined || department === "All" ? null : department;
     const allDepartments = req.body.allDepartments === true;
 
     // 1. Context validation & collision check
@@ -273,7 +302,9 @@ export const cloneTemplate = async (req, res) => {
       const existingDocs = await Question.find({
         orgName,
         department: { $in: deptsToCheck }
-      }).select('department').lean();
+      })
+        .select("department")
+        .lean();
 
       if (existingDocs.length > 0) {
         return res.status(400).json({
@@ -309,9 +340,9 @@ export const cloneTemplate = async (req, res) => {
     const depts = org?.departments || [];
     const targetDepts = allDepartments ? [null, ...depts] : [targetDept];
 
-    targetDepts.forEach(dept => {
+    targetDepts.forEach((dept) => {
       const seen = new Set();
-      masters.forEach(mq => {
+      masters.forEach((mq) => {
         const qCode = mq.questionCode;
         const qStakeholder = mq.stakeholder || "unknown";
         const key = `${qCode}-${qStakeholder}`;
@@ -331,7 +362,9 @@ export const cloneTemplate = async (req, res) => {
     });
 
     if (tenantQuestions.length === 0) {
-      return res.status(404).json({ success: false, message: "No valid questions found to clone." });
+      return res
+        .status(404)
+        .json({ success: false, message: "No valid questions found to clone." });
     }
 
     // 4. Batch insert using Mongoose (Restored original logic pattern but made it robust)
@@ -367,9 +400,6 @@ export const cloneTemplate = async (req, res) => {
     });
   }
 };
-
-
-
 
 /**
  * UPDATE QUESTION (Admin)
@@ -435,7 +465,9 @@ export const updateQuestion = async (req, res) => {
 
     // Authorization Check
     if (!isSuperAdmin && oldQuestion.orgName && oldQuestion.orgName !== req.user.orgName) {
-      return res.status(403).json({ message: "Unauthorized: You don't have access to this organization's questions" });
+      return res
+        .status(403)
+        .json({ message: "Unauthorized: You don't have access to this organization's questions" });
     }
 
     // Re-generate questionCode if questionType changes (use question's own orgName context)
@@ -538,7 +570,8 @@ export const getQuestionsByStakeholder = async (req, res) => {
     }
     const role = user.role?.toLowerCase();
     const userOrg = user.orgName;
-    let orgName = (role === "superadmin" && req.query.orgName !== undefined) ? req.query.orgName : userOrg;
+    let orgName =
+      role === "superadmin" && req.query.orgName !== undefined ? req.query.orgName : userOrg;
     if (orgName === "") orgName = null;
     const { stakeholder } = req.query;
 
@@ -552,9 +585,11 @@ export const getQuestionsByStakeholder = async (req, res) => {
     let questions = [];
     if (orgName && orgName !== "") {
       const { stakeholder, department: queryDept } = req.query;
-      const userDept = queryDept || user.department || 'All';
+      const userDept = queryDept || user.department || "All";
 
-      console.log(`getQuestionsByStakeholder: Fetching for Org: ${orgName}, Dept: ${userDept}, Stakeholder: ${stakeholder}`);
+      console.log(
+        `getQuestionsByStakeholder: Fetching for Org: ${orgName}, Dept: ${userDept}, Stakeholder: ${stakeholder}`
+      );
 
       // Attempt 1: Specific department questions
       questions = await Question.find({
@@ -565,22 +600,28 @@ export const getQuestionsByStakeholder = async (req, res) => {
       }).sort({ order: 1 });
 
       // Attempt 2: Fallback to 'All' (Global) if no specific questions found AND user wasn't already looking for 'All'
-      if (questions.length === 0 && userDept !== 'All') {
-        console.log(`getQuestionsByStakeholder: No questions for department "${userDept}". Falling back to Global ("All").`);
+      if (questions.length === 0 && userDept !== "All") {
+        console.log(
+          `getQuestionsByStakeholder: No questions for department "${userDept}". Falling back to Global ("All").`
+        );
         questions = await Question.find({
           stakeholder,
           orgName,
-          $or: [{ department: 'All' }, { department: null }, { department: "" }],
+          $or: [{ department: "All" }, { department: null }, { department: "" }],
           isDeleted: false
         }).sort({ order: 1 });
       }
 
-      console.log(`getQuestionsByStakeholder: Found ${questions.length} questions for organization "${orgName}" (Dept Context: ${userDept})`);
+      console.log(
+        `getQuestionsByStakeholder: Found ${questions.length} questions for organization "${orgName}" (Dept Context: ${userDept})`
+      );
     }
 
     // 2. Fallback: If no organization questions found (or no orgName), fetch from Master Template
     if (questions.length === 0) {
-      console.log(`getQuestionsByStakeholder: No organization questions found. Falling back to Master Template.`);
+      console.log(
+        `getQuestionsByStakeholder: No organization questions found. Falling back to Master Template.`
+      );
       const masterFilter = {
         stakeholder,
         $or: [{ orgName: null }, { orgName: "" }, { orgName: { $exists: false } }],
@@ -609,12 +650,15 @@ export const getAllQuestions = async (req, res) => {
   try {
     if (!req.user) {
       console.error("getAllQuestions: req.user is missing! Ensure protect middleware is working.");
-      return res.status(401).json({ success: false, message: "Unauthorized: Missing user context" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized: Missing user context" });
     }
 
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
-    let orgName = (role === "superadmin" && req.query.orgName !== undefined) ? req.query.orgName : userOrg;
+    let orgName =
+      role === "superadmin" && req.query.orgName !== undefined ? req.query.orgName : userOrg;
 
     // Normalize empty strings and undefined to null for filter logic
     if (orgName === "" || orgName === undefined) orgName = null;
@@ -622,11 +666,13 @@ export const getAllQuestions = async (req, res) => {
     const { stakeholder, domain, subdomain, department } = req.query;
 
     // Normalize department: empty string or "All" leads to null (which usually means org-wide)
-    let targetDept = (department === "" || department === undefined || department === "All") ? null : department;
+    let targetDept =
+      department === "" || department === undefined || department === "All" ? null : department;
 
-    const orgFilter = (orgName === null)
-      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
-      : { orgName };
+    const orgFilter =
+      orgName === null
+        ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
+        : { orgName };
 
     // Build filter object: Strictly filter by department to ensure isolation
     const filter = {
@@ -634,7 +680,6 @@ export const getAllQuestions = async (req, res) => {
       ...orgFilter,
       department: targetDept // null matches questions with no department (Org-wide)
     };
-
 
     if (stakeholder) {
       filter.stakeholder = stakeholder;
@@ -650,7 +695,10 @@ export const getAllQuestions = async (req, res) => {
 
     const questions = await Question.find(filter).sort({ stakeholder: 1, order: 1 });
 
-    console.log(`getAllQuestions: Found ${questions.length} questions for filter:`, JSON.stringify(filter));
+    console.log(
+      `getAllQuestions: Found ${questions.length} questions for filter:`,
+      JSON.stringify(filter)
+    );
 
     return res.status(200).json({
       success: true,
@@ -721,23 +769,31 @@ export const reorderQuestions = async (req, res) => {
   try {
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
-    let orgName = (role === "superadmin" && req.body.orgName !== undefined) ? req.body.orgName : userOrg;
+    let orgName =
+      role === "superadmin" && req.body.orgName !== undefined ? req.body.orgName : userOrg;
     if (orgName === "") orgName = null;
     const updates = req.body.updates || req.body;
-    console.log(`Reorder request: received ${Array.isArray(updates) ? updates.length : "invalid"} items`);
+    console.log(
+      `Reorder request: received ${Array.isArray(updates) ? updates.length : "invalid"} items`
+    );
 
     if (!Array.isArray(updates)) {
-      return res.status(400).json({ message: "Updates must be an array of objects with id and order properties" });
+      return res
+        .status(400)
+        .json({ message: "Updates must be an array of objects with id and order properties" });
     }
 
-    const orgFilter = (orgName === null || orgName === "")
-      ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
-      : { orgName };
+    const orgFilter =
+      orgName === null || orgName === ""
+        ? { $or: [{ orgName: null }, { orgName: { $exists: false } }, { orgName: "" }] }
+        : { orgName };
 
-    console.log(`reorderQuestions: orgName=${orgName}, filter=${JSON.stringify(orgFilter)}, updatesCount=${updates.length}`);
+    console.log(
+      `reorderQuestions: orgName=${orgName}, filter=${JSON.stringify(orgFilter)}, updatesCount=${updates.length}`
+    );
     const bulkOps = updates
-      .filter(u => (u._id || u.id) && (u.order !== undefined || u.subdomain))
-      .map(u => {
+      .filter((u) => (u._id || u.id) && (u.order !== undefined || u.subdomain))
+      .map((u) => {
         const updateDoc = {};
         if (u.order !== undefined) updateDoc.order = Number(u.order);
         if (u.subdomain) updateDoc.subdomain = u.subdomain;
@@ -751,7 +807,10 @@ export const reorderQuestions = async (req, res) => {
       });
 
     if (bulkOps.length === 0) {
-      console.log("No valid bulk operations generated from updates:", JSON.stringify(updates).substring(0, 100));
+      console.log(
+        "No valid bulk operations generated from updates:",
+        JSON.stringify(updates).substring(0, 100)
+      );
       return res.status(400).json({ message: "No valid order updates provided" });
     }
 
@@ -785,14 +844,19 @@ export const uploadQuestions = async (req, res) => {
     const role = req.user.role?.toLowerCase();
     const userOrg = req.user.orgName;
     const { orgName: targetOrg, department } = req.body;
-    let orgName = (role === "superadmin" && targetOrg !== undefined) ? targetOrg : userOrg;
+    let orgName = role === "superadmin" && targetOrg !== undefined ? targetOrg : userOrg;
     if (orgName === "") orgName = null;
-    const targetDept = (department === "" || department === undefined || department === "All") ? null : department;
+    const targetDept =
+      department === "" || department === undefined || department === "All" ? null : department;
     const force = req.body.force === "true" || req.body.force === true;
 
     // 0. Collision Check
     if (!force) {
-      const existingCount = await Question.countDocuments({ orgName, department: targetDept, isDeleted: false });
+      const existingCount = await Question.countDocuments({
+        orgName,
+        department: targetDept,
+        isDeleted: false
+      });
       if (existingCount > 0) {
         return res.status(400).json({
           success: false,
@@ -827,17 +891,22 @@ export const uploadQuestions = async (req, res) => {
       const scale = row.scale?.toString().trim();
       const insightPrompt = row.insightPrompt?.toString().trim();
 
-      const forcedChoice = (scale === "FORCED_CHOICE" && row["forcedChoice.optionA.label"]) ? {
-        optionA: {
-          label: row["forcedChoice.optionA.label"]?.toString().trim(),
-          insightPrompt: row["forcedChoice.optionA.insightPrompt"]?.toString().trim() || ""
-        },
-        optionB: {
-          label: row["forcedChoice.optionB.label"]?.toString().trim(),
-          insightPrompt: row["forcedChoice.optionB.insightPrompt"]?.toString().trim() || ""
-        },
-        higherValueOption: (row["forcedChoice.higherValueOption"]?.toString().trim() || "A").toUpperCase()
-      } : null;
+      const forcedChoice =
+        scale === "FORCED_CHOICE" && row["forcedChoice.optionA.label"]
+          ? {
+              optionA: {
+                label: row["forcedChoice.optionA.label"]?.toString().trim(),
+                insightPrompt: row["forcedChoice.optionA.insightPrompt"]?.toString().trim() || ""
+              },
+              optionB: {
+                label: row["forcedChoice.optionB.label"]?.toString().trim(),
+                insightPrompt: row["forcedChoice.optionB.insightPrompt"]?.toString().trim() || ""
+              },
+              higherValueOption: (
+                row["forcedChoice.higherValueOption"]?.toString().trim() || "A"
+              ).toUpperCase()
+            }
+          : null;
 
       if (!stakeholder || !domain || !subdomain || !questionType || !questionStem || !scale) {
         console.log(`uploadQuestions: Skipping row due to missing values: ${JSON.stringify(row)}`);
@@ -859,7 +928,7 @@ export const uploadQuestions = async (req, res) => {
 
         const existingDocs = await Question.find(query, { questionCode: 1 }).lean();
         let maxOfPrefix = 0;
-        existingDocs.forEach(doc => {
+        existingDocs.forEach((doc) => {
           const match = doc.questionCode.match(regex);
           if (match) {
             const num = parseInt(match[1]);
@@ -881,8 +950,13 @@ export const uploadQuestions = async (req, res) => {
           subdomain,
           orgName,
           isDeleted: false
-        }).sort('-order').lean();
-        maxOrderPerSubdomain[orderKey] = highestOrderQuestion && highestOrderQuestion.order != null ? highestOrderQuestion.order : 0;
+        })
+          .sort("-order")
+          .lean();
+        maxOrderPerSubdomain[orderKey] =
+          highestOrderQuestion && highestOrderQuestion.order != null
+            ? highestOrderQuestion.order
+            : 0;
       }
       maxOrderPerSubdomain[orderKey] += 1;
 
@@ -898,13 +972,18 @@ export const uploadQuestions = async (req, res) => {
         scale,
         insightPrompt: scale === "FORCED_CHOICE" ? null : insightPrompt,
         forcedChoice: scale === "FORCED_CHOICE" ? forcedChoice : null,
-        subdomainWeight: (domain === "People Potential" ? 0.35 : (domain === "Operational Steadiness" ? 0.25 : 0.20)),
+        subdomainWeight:
+          domain === "People Potential" ? 0.35 : domain === "Operational Steadiness" ? 0.25 : 0.2,
         order: maxOrderPerSubdomain[orderKey]
       });
     }
 
     if (createdQuestions.length === 0) {
-      return res.status(400).json({ success: false, message: "No valid questions found in Excel file. Please check for missing mandatory columns (stakeholder, domain, subdomain, questionType, questionStem, scale)." });
+      return res.status(400).json({
+        success: false,
+        message:
+          "No valid questions found in Excel file. Please check for missing mandatory columns (stakeholder, domain, subdomain, questionType, questionStem, scale)."
+      });
     }
 
     // Clean up file
@@ -921,11 +1000,11 @@ export const uploadQuestions = async (req, res) => {
       console.error("Error inserting questions:", saveError);
       return res.status(400).json({
         success: false,
-        message: "Data validation failed during upload. Ensure all columns match the master categories exactly (including capitalization and special characters like '&').",
+        message:
+          "Data validation failed during upload. Ensure all columns match the master categories exactly (including capitalization and special characters like '&').",
         error: saveError.message
       });
     }
-
   } catch (error) {
     if (req.file) fs.unlinkSync(req.file.path);
     console.error("Upload Error:", error);
@@ -946,7 +1025,7 @@ export const deleteOrganizationQuestions = async (req, res) => {
     const userOrg = req.user.orgName;
     const { orgName: targetOrg, department } = req.body;
 
-    let orgName = (role === "superadmin" && targetOrg !== undefined) ? targetOrg : userOrg;
+    let orgName = role === "superadmin" && targetOrg !== undefined ? targetOrg : userOrg;
     if (orgName === "") orgName = null;
 
     const filter = { isDeleted: false };
@@ -999,28 +1078,28 @@ export const downloadTemplate = async (req, res) => {
       { header: "forcedChoice.optionA.insightPrompt", key: "optionAInsight", width: 35 },
       { header: "forcedChoice.optionB.label", key: "optionBLabel", width: 35 },
       { header: "forcedChoice.optionB.insightPrompt", key: "optionBInsight", width: 35 },
-      { header: "forcedChoice.higherValueOption", key: "higherValue", width: 25 },
+      { header: "forcedChoice.higherValueOption", key: "higherValue", width: 25 }
     ];
 
     // Style the Header Row
     const headerRow = worksheet.getRow(1);
     headerRow.eachCell((cell) => {
       cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF1A3652' } // Brand Navy Blue
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF1A3652" } // Brand Navy Blue
       };
       cell.font = {
-        color: { argb: 'FFFFFFFF' }, // White
+        color: { argb: "FFFFFFFF" }, // White
         bold: true,
         size: 11
       };
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
       cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' }
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" }
       };
     });
     headerRow.height = 25;
@@ -1034,7 +1113,8 @@ export const downloadTemplate = async (req, res) => {
         questionType: "Self-Rating",
         questionStem: "I’m open to changing how I work when priorities or information change.",
         scale: "SCALE_1_5",
-        insightPrompt: "What makes it difficult to adjust how you work when priorities or information change?",
+        insightPrompt:
+          "What makes it difficult to adjust how you work when priorities or information change?"
       },
       {
         stakeholder: "leader",
@@ -1055,7 +1135,7 @@ export const downloadTemplate = async (req, res) => {
     // Style Data Rows for clarity
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber > 1) {
-        row.alignment = { vertical: 'middle', wrapText: true };
+        row.alignment = { vertical: "middle", wrapText: true };
       }
     });
 
@@ -1067,7 +1147,6 @@ export const downloadTemplate = async (req, res) => {
         fs.unlinkSync(tempFilePath);
       }
     });
-
   } catch (error) {
     console.error("Download Template Error:", error);
     return res.status(500).json({

@@ -18,18 +18,21 @@ const connectDB = async () => {
     throw new Error("MONGODB_URL is not defined. Check your environment variables.");
   }
 
-  connectionPromise = mongoose.connect(mongoUri, {
-    maxPoolSize: 10,
-    serverSelectionTimeoutMS: 30000,
-    socketTimeoutMS: 45000,
-  }).then((conn) => {
-    console.log("MongoDB connected successfully");
-    return conn;
-  }).catch((error) => {
-    console.error("MongoDB connection failed:", error.message);
-    connectionPromise = null;
-    throw error;
-  });
+  connectionPromise = mongoose
+    .connect(mongoUri, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000
+    })
+    .then((conn) => {
+      console.log("MongoDB connected successfully");
+      return conn;
+    })
+    .catch((error) => {
+      console.error("MongoDB connection failed:", error.message);
+      connectionPromise = null;
+      throw error;
+    });
 
   return connectionPromise;
 };

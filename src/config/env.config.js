@@ -1,8 +1,8 @@
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 
 dotenv.config({
-    path: './.env',
-    quiet: true
+  path: "./.env",
+  quiet: true
 });
 
 console.log("[Env Config] Variables loaded.");

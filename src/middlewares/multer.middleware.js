@@ -2,7 +2,7 @@ import multer from "multer";
 
 import os from "os";
 
-const MIN_SIZE = 10 * 1024;       // 10 KB minimum
+const MIN_SIZE = 10 * 1024; // 10 KB minimum
 const MAX_SIZE = 4 * 1024 * 1024; // 4 MB maximum
 
 const storage = multer.diskStorage({
@@ -59,7 +59,6 @@ export const excelUpload = multer({
   fileFilter: excelFilter
   // No limits — no file size restriction
 });
-
 
 // ✅ LOWER LIMIT CHECK MIDDLEWARE
 export const validateImageSize = (req, res, next) => {
