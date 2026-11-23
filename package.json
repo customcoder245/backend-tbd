@@ -9,6 +9,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon -r dotenv/config src/index.js",
+    "seed:benefits": "node src/scripts/seedBenefitsRealization.js",
+    "test:benefits": "node src/scripts/testBenefitsAll.js && node src/scripts/testAdversarial.js",
     "lint": "eslint",
     "format": "prettier --write \"src/**/*.{js,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,json}\""

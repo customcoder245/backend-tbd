@@ -15,6 +15,7 @@ import responseRoutes from "./routes/response.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import organizationRoutes from "./routes/organization.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
+import benefitsRealizationRoutes from "./routes/benefitsRealization.routes.js";
 
 const app = express();
 
@@ -75,6 +76,7 @@ app.use("/api/v1/responses", responseRoutes);
 app.use("/api/v1/dashboard", dashboardRoutes);
 app.use("/api/v1/organization", organizationRoutes);
 app.use("/api/v1/contact", contactRoutes);
+app.use("/api/v1/benefits", benefitsRealizationRoutes);
 
 // SWAGGER API
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
