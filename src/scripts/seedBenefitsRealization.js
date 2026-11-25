@@ -59,23 +59,23 @@ const seedData = [
         category: "HYGIENE",
         severity: "Medium",
         healthStatus: "At Risk",
-        title: "Version-Control Maturity",
-        issue: "Version-control maturity — 'v2/final/draft' filename habits increasing (468 ➔ 607 files).",
-        impact: "Staff creating redundant file versions rather than utilizing built-in M365 version history, cluttering document search.",
-        recommendation: "Conduct OCM coaching clinic & co-authoring practice sessions (Due: Gate 2 +30d).",
+        title: "Version-Control Maturity & OneDrive Sync Friction",
+        issue: "Version-control maturity — 'v2/final/draft' filename habits increasing (468 ➔ 607 files); Site Owner noted friction syncing OneDrive with SP site resulting in manual uploads.",
+        impact: "Staff creating redundant file versions rather than utilizing built-in M365 version history, cluttering document search and slowing collaboration.",
+        recommendation: "Conduct targeted OCM coaching clinics on OneDrive sync vs. manual uploads and M365 co-authoring practice sessions (Due: Gate 2 +30d).",
         score: 60
       }
     ],
     scorecard: [
-      { driverId: "B1", name: "Improved Collaboration", score: 4.2, target: 5.0, status: "On Track", evidence: "Cloud co-authoring active, real-time sync." },
-      { driverId: "B2", name: "Enhanced Data Security", score: 3.8, target: 5.0, status: "Monitor", evidence: "Access controls in place; retention labels pending." },
-      { driverId: "B3", name: "Simplified IT Management", score: 4.0, target: 5.0, status: "On Track", evidence: "Zero path length errors; reduced support tickets." },
-      { driverId: "B4", name: "Enable Remote Work", score: 3.6, target: 5.0, status: "Monitor", evidence: "OneDrive mobile/desktop sync adoption ongoing." },
-      { driverId: "B5", name: "Improved Decision Making", score: 4.1, target: 5.0, status: "On Track", evidence: "Consolidated document repositories accessible." },
-      { driverId: "B6", name: "Streamlined Processes", score: 3.7, target: 5.0, status: "Progressing", evidence: "Approval cycle times reduced by 22%." },
-      { driverId: "B7", name: "Standardization", score: 3.5, target: 5.0, status: "On Track", evidence: "Standard library templates deployed." },
-      { driverId: "B8", name: "Improved Adoption", score: 4.5, target: 5.0, status: "On Track", evidence: "100% staff training completion (1,151 staff)." },
-      { driverId: "B9", name: "Cost Savings", score: 3.9, target: 5.0, status: "Verified", evidence: ">$70k PBX savings; $280k storage avoidance." }
+      { driverId: "B1", name: "Improved Collaboration & Productivity", score: 4.2, target: 5.0, status: "On Track", evidence: "4.5/5 version control survey, 40.2% ROT reduction (2,175 ➔ 1,300 files)." },
+      { driverId: "B2", name: "Enhanced Data Security & Compliance", score: 3.8, target: 5.0, status: "Monitor", evidence: "4.5/5 restricted access confidence, 0 'Everyone' grants; 0% retention labels (205 files unlabelled)." },
+      { driverId: "B3", name: "Simplified IT Management", score: 4.0, target: 5.0, status: "On Track", evidence: "4.5/5 support awareness, 15.1% storage reduction (3.90 ➔ 3.31 GB), 0 path length errors." },
+      { driverId: "B4", name: "Enable Remote Work & Mobility", score: 3.6, target: 5.0, status: "Monitor", evidence: "3.5/5 off-site work ease; OneDrive sync coaching required to replace manual uploads." },
+      { driverId: "B5", name: "Improved Decision-Making & BI", score: 4.1, target: 5.0, status: "On Track", evidence: "Folder depth collapsed 8 ➔ 2 (-75%), 541 ➔ 44 folders (-91.9%), metadata navigation active." },
+      { driverId: "B6", name: "Streamlined Processes", score: 3.7, target: 5.0, status: "Progressing", evidence: "4.0/5 collaboration ease; workflow transition underway across PRM libraries." },
+      { driverId: "B7", name: "Standardization", score: 3.5, target: 5.0, status: "On Track", evidence: "5.0/5 metadata confidence; generic filenames reduced 347 ➔ 41 (-88.2%)." },
+      { driverId: "B8", name: "Improved Adoption", score: 4.5, target: 5.0, status: "On Track", evidence: "4.5/5 training satisfaction, 4.5/5 team responsiveness, 100% staff trained (1,151 staff)." },
+      { driverId: "B9", name: "Cost Savings", score: 3.9, target: 5.0, status: "Verified", evidence: "15.1% storage reduction (3.90 ➔ 3.31 GB); >$70k PBX savings; $280k storage avoidance." }
     ],
     stakeholders: [
       { name: "Suzanna de Souza", role: "Organizational Change Manager & SuperAdmin", email: "sdesouza@langara.ca" },
@@ -153,23 +153,23 @@ const seedData = [
         category: "HYGIENE",
         severity: "Medium",
         healthStatus: "At Risk",
-        title: "Version-Control Maturity",
-        issue: "Version-control maturity — 'v2/final/draft' filename habits increasing (468 ➔ 607 files).",
-        impact: "Staff creating redundant file versions rather than utilizing built-in M365 version history, cluttering document search.",
-        recommendation: "Conduct OCM coaching clinic & co-authoring practice sessions (Due: Gate 2 +30d).",
+        title: "Version-Control Maturity & OneDrive Sync Friction",
+        issue: "Version-control maturity — 'v2/final/draft' filename habits increasing (468 ➔ 607 files); Site Owner noted friction syncing OneDrive with SP site resulting in manual uploads.",
+        impact: "Staff creating redundant file versions rather than utilizing built-in M365 version history, cluttering document search and slowing collaboration.",
+        recommendation: "Conduct targeted OCM coaching clinics on OneDrive sync vs. manual uploads and M365 co-authoring practice sessions (Due: Gate 2 +30d).",
         score: 60
       }
     ],
     scorecard: [
-      { driverId: "B1", name: "Improved Collaboration", score: 4.2, target: 5.0, status: "On Track", evidence: "Cloud co-authoring active, real-time sync." },
-      { driverId: "B2", name: "Enhanced Data Security", score: 3.8, target: 5.0, status: "Monitor", evidence: "Access controls in place; retention labels pending." },
-      { driverId: "B3", name: "Simplified IT Management", score: 4.0, target: 5.0, status: "On Track", evidence: "Zero path length errors; reduced support tickets." },
-      { driverId: "B4", name: "Enable Remote Work", score: 3.6, target: 5.0, status: "Monitor", evidence: "OneDrive mobile/desktop sync adoption ongoing." },
-      { driverId: "B5", name: "Improved Decision Making", score: 4.1, target: 5.0, status: "On Track", evidence: "Consolidated document repositories accessible." },
-      { driverId: "B6", name: "Streamlined Processes", score: 3.7, target: 5.0, status: "Progressing", evidence: "Approval cycle times reduced by 22%." },
-      { driverId: "B7", name: "Standardization", score: 3.5, target: 5.0, status: "On Track", evidence: "Standard library templates deployed." },
-      { driverId: "B8", name: "Improved Adoption", score: 4.5, target: 5.0, status: "On Track", evidence: "100% staff training completion (1,151 staff)." },
-      { driverId: "B9", name: "Cost Savings", score: 3.9, target: 5.0, status: "Verified", evidence: ">$70k PBX savings; $280k storage avoidance." }
+      { driverId: "B1", name: "Improved Collaboration & Productivity", score: 4.2, target: 5.0, status: "On Track", evidence: "4.5/5 version control survey, 40.2% ROT reduction (2,175 ➔ 1,300 files)." },
+      { driverId: "B2", name: "Enhanced Data Security & Compliance", score: 3.8, target: 5.0, status: "Monitor", evidence: "4.5/5 restricted access confidence, 0 'Everyone' grants; 0% retention labels (205 files unlabelled)." },
+      { driverId: "B3", name: "Simplified IT Management", score: 4.0, target: 5.0, status: "On Track", evidence: "4.5/5 support awareness, 15.1% storage reduction (3.90 ➔ 3.31 GB), 0 path length errors." },
+      { driverId: "B4", name: "Enable Remote Work & Mobility", score: 3.6, target: 5.0, status: "Monitor", evidence: "3.5/5 off-site work ease; OneDrive sync coaching required to replace manual uploads." },
+      { driverId: "B5", name: "Improved Decision-Making & BI", score: 4.1, target: 5.0, status: "On Track", evidence: "Folder depth collapsed 8 ➔ 2 (-75%), 541 ➔ 44 folders (-91.9%), metadata navigation active." },
+      { driverId: "B6", name: "Streamlined Processes", score: 3.7, target: 5.0, status: "Progressing", evidence: "4.0/5 collaboration ease; workflow transition underway across PRM libraries." },
+      { driverId: "B7", name: "Standardization", score: 3.5, target: 5.0, status: "On Track", evidence: "5.0/5 metadata confidence; generic filenames reduced 347 ➔ 41 (-88.2%)." },
+      { driverId: "B8", name: "Improved Adoption", score: 4.5, target: 5.0, status: "On Track", evidence: "4.5/5 training satisfaction, 4.5/5 team responsiveness, 100% staff trained (1,151 staff)." },
+      { driverId: "B9", name: "Cost Savings", score: 3.9, target: 5.0, status: "Verified", evidence: "15.1% storage reduction (3.90 ➔ 3.31 GB); >$70k PBX savings; $280k storage avoidance." }
     ],
     stakeholders: [
       { name: "Suzanna de Souza", role: "Organizational Change Manager & SuperAdmin", email: "sdesouza@langara.ca" },

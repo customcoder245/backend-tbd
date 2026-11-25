@@ -186,18 +186,20 @@ async function runTestSuite() {
     console.log(`   ✅ Sheet Names: ${workbook.SheetNames.join(", ")}`);
 
     const expectedSheets = [
-      "Overview",
+      "Executive Dashboard",
       "Benefits Scorecard",
-      "Checkpoints",
+      "Stage-Gate Checkpoints",
       "Hygiene & Outcomes",
       "Needs Attention",
+      "Survey Results",
+      "Technical M365 Audit",
     ];
     for (const sheetName of expectedSheets) {
       if (!workbook.SheetNames.includes(sheetName)) {
         throw new Error(`Missing expected worksheet: ${sheetName}`);
       }
     }
-    console.log("   ✅ All 5 Excel worksheets validated with complete tabular data!");
+    console.log("   ✅ All 7 Excel worksheets validated with complete tabular data matching client workbook!");
   }
 
   // TEST 6: Org Fallback (WTEC alias)

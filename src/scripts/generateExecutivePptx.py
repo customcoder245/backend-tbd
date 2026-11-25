@@ -5,8 +5,8 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
 
-def set_shape_flat(shape, fill_color, line_color=None, line_width=1):
-    """Utility to set flat solid fill and clean border."""
+def set_shape_flat(shape, fill_color, line_color=None, line_width=1, corner_radius=0.03):
+    """Utility to set flat solid fill, clean border, and modern subtle corner radius."""
     shape.fill.solid()
     shape.fill.fore_color.rgb = fill_color
     if line_color:
@@ -14,6 +14,13 @@ def set_shape_flat(shape, fill_color, line_color=None, line_width=1):
         shape.line.width = Pt(line_width)
     else:
         shape.line.fill.background()
+    
+    # Apply subtle, executive corner radius (replaces exaggerated rounded bubble corners)
+    if hasattr(shape, 'adjustments') and len(shape.adjustments) > 0 and corner_radius is not None:
+        try:
+            shape.adjustments[0] = corner_radius
+        except Exception:
+            pass
 
 def create_textbox(slide, left, top, width, height, margin=0):
     """Create a textbox with zero or specified margins to avoid text clipping."""
@@ -32,12 +39,14 @@ def add_header(slide, title_text, category_text="LANGARA COLLABORATION PLATFORM 
     top_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(0.08))
     set_shape_flat(top_bar, RGBColor(230, 81, 0))
 
-    # Dual-Name Logo at top left
-    if logo_path and os.path.exists(logo_path):
-        slide.shapes.add_picture(logo_path, Inches(0.8), Inches(0.28), height=Inches(0.42))
+    # Dual-Name Logo at top left with crisp white card background
+    header_logo = os.path.abspath('frontend/public/langara_logo_header.png')
+    target_logo = header_logo if os.path.exists(header_logo) else logo_path
+    if target_logo and os.path.exists(target_logo):
+        slide.shapes.add_picture(target_logo, Inches(0.8), Inches(0.24), height=Inches(0.50))
 
     # Category / Program breadcrumb
-    cat_box, cat_tf = create_textbox(slide, Inches(3.6), Inches(0.22), Inches(8.9), Inches(0.25))
+    cat_box, cat_tf = create_textbox(slide, Inches(2.6), Inches(0.20), Inches(9.9), Inches(0.25))
     p_cat = cat_tf.paragraphs[0]
     p_cat.text = category_text.upper()
     p_cat.font.name = "Segoe UI"
@@ -46,7 +55,7 @@ def add_header(slide, title_text, category_text="LANGARA COLLABORATION PLATFORM 
     p_cat.font.color.rgb = RGBColor(230, 81, 0)
 
     # Main Slide Title
-    title_box, title_tf = create_textbox(slide, Inches(3.6), Inches(0.44), Inches(8.9), Inches(0.45))
+    title_box, title_tf = create_textbox(slide, Inches(2.6), Inches(0.42), Inches(9.9), Inches(0.45))
     p_title = title_tf.paragraphs[0]
     p_title.text = title_text
     p_title.font.name = "Segoe UI"
@@ -90,6 +99,7 @@ def create_deck():
     c_red_border = RGBColor(252, 165, 165)
 
     logo_path = os.path.abspath('frontend/public/langara_logo.png')
+    logo_card_path = os.path.abspath('frontend/public/langara_logo_rounded.png')
 
     # =========================================================================
     # SLIDE 1: TITLE SLIDE (Dark Executive Luxury Theme)
@@ -102,14 +112,16 @@ def create_deck():
     strip = s1.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(0.35), Inches(7.5))
     set_shape_flat(strip, c_langara_orange)
 
-    # Dual-Name Logo with subtle white container card for maximum contrast
-    logo_card = s1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.15), Inches(0.95), Inches(3.8), Inches(1.2))
-    set_shape_flat(logo_card, RGBColor(255, 255, 255))
-    if os.path.exists(logo_path):
-        s1.shapes.add_picture(logo_path, Inches(1.3), Inches(1.1), width=Inches(3.5))
+    # Dual-Name Logo with dedicated rounded white container (zero clip, zero overflow)
+    logo_w = Inches(3.8)
+    logo_h = Inches(3.8 * (364 / 944))
+    if os.path.exists(logo_card_path):
+        s1.shapes.add_picture(logo_card_path, Inches(1.15), Inches(0.80), width=logo_w)
+    elif os.path.exists(logo_path):
+        s1.shapes.add_picture(logo_path, Inches(1.15), Inches(0.80), width=logo_w)
 
-    # Top program tag
-    _, tag_tf = create_textbox(s1, Inches(1.2), Inches(2.45), Inches(10.5), Inches(0.35))
+    # Top program tag with generous spacing
+    _, tag_tf = create_textbox(s1, Inches(1.15), Inches(2.65), Inches(10.5), Inches(0.35))
     p = tag_tf.paragraphs[0]
     p.text = "LANGARA COLLABORATION PLATFORM (LCP) | PID 6738"
     p.font.name = "Segoe UI"
@@ -118,7 +130,7 @@ def create_deck():
     p.font.color.rgb = RGBColor(245, 124, 0)
 
     # Title
-    _, title_tf = create_textbox(s1, Inches(1.2), Inches(2.85), Inches(11.0), Inches(1.6))
+    _, title_tf = create_textbox(s1, Inches(1.15), Inches(3.05), Inches(11.0), Inches(1.5))
     p = title_tf.paragraphs[0]
     p.text = "Privacy & Records Management (PRM)"
     p.font.name = "Segoe UI"
@@ -134,15 +146,15 @@ def create_deck():
     p2.font.color.rgb = RGBColor(254, 215, 170)
 
     # Subtitle
-    _, sub_tf = create_textbox(s1, Inches(1.2), Inches(4.7), Inches(11.0), Inches(0.5))
+    _, sub_tf = create_textbox(s1, Inches(1.15), Inches(4.75), Inches(11.0), Inches(0.45))
     p = sub_tf.paragraphs[0]
     p.text = "Wave: Admin Group 1 • 90-Day Post-Go-Live Review Gate • Stage-Gate Checkpoint 3"
     p.font.name = "Segoe UI"
-    p.font.size = Pt(14)
+    p.font.size = Pt(13.5)
     p.font.color.rgb = RGBColor(203, 213, 225)
 
     # Bottom Metadata Pill Container
-    meta_box = s1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.2), Inches(5.45), Inches(10.8), Inches(1.35))
+    meta_box = s1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.15), Inches(5.45), Inches(10.8), Inches(1.35))
     set_shape_flat(meta_box, RGBColor(18, 30, 66), RGBColor(30, 48, 100), line_width=1)
     
     # 4 Metadata Columns inside the pill box
@@ -155,7 +167,7 @@ def create_deck():
         ("GOVERNANCE MANDATE", "BC FIPPA & Records Hygiene")
     ]
     for idx, (m_label, m_val) in enumerate(meta_items):
-        mx = Inches(1.35) + idx * (col_w + gap)
+        mx = Inches(1.30) + idx * (col_w + gap)
         _, m_tf = create_textbox(s1, mx, Inches(5.65), col_w, Inches(0.95))
         p1 = m_tf.paragraphs[0]
         p1.text = m_label
@@ -427,15 +439,15 @@ def create_deck():
         p.alignment = PP_ALIGN.CENTER if c_idx in [0, 2, 3, 4] else PP_ALIGN.LEFT
 
     drivers_data = [
-        ("B1", "Improved Collaboration", "5.0", "4.2", "On Track", "227 active cloud files; multi-user co-authoring active in SharePoint.", c_green_bg, c_green_text),
-        ("B2", "Enhanced Data Security", "5.0", "3.8", "Monitor", "0 'Everyone' grants; need Purview sensitivity labels applied.", c_amber_bg, c_amber_text),
-        ("B3", "Simplified IT Management", "5.0", "4.0", "On Track", "Deprecating on-prem network shares; cloud governance standard.", c_green_bg, c_green_text),
-        ("B4", "Enable Remote Work", "5.0", "3.6", "Monitor", "Secure cloud access live; mobile device hygiene to be validated.", c_amber_bg, c_amber_text),
-        ("B5", "Improved Decision Making", "5.0", "4.1", "On Track", "Single source of truth established; duplicate files reduced 58.1%.", c_green_bg, c_green_text),
-        ("B6", "Streamlined Processes", "5.0", "3.7", "Progressing", "Navigation depth collapsed from 8 to 2 levels; user testing ongoing.", c_blue_bg, c_blue_text),
-        ("B7", "Standardization", "5.0", "3.5", "On Track", "Generic filenames reduced 88.2%; standard naming convention in place.", c_green_bg, c_green_text),
-        ("B8", "Improved Compliance", "5.0", "4.0", "On Track", "PRM records schedules aligned with BC FIPPA retention requirements.", c_green_bg, c_green_text),
-        ("B9", "Cost Efficiency", "5.0", "4.2", "On Track", "Decommissioning legacy storage servers; lower licensing overhead.", c_green_bg, c_green_text),
+        ("B1", "Improved Collaboration & Productivity", "5.0", "4.2", "On Track", "227 active cloud files; 4.5/5 version control survey, 40.2% ROT reduction (2,175 ➔ 1,300 files).", c_green_bg, c_green_text),
+        ("B2", "Enhanced Data Security & Compliance", "5.0", "3.8", "Monitor", "4.5/5 restricted access confidence; 0 'Everyone' grants; 0% Purview labels (205 files unlabelled).", c_amber_bg, c_amber_text),
+        ("B3", "Simplified IT Management", "5.0", "4.0", "On Track", "4.5/5 support awareness; 15.1% storage reduction (3.90 ➔ 3.31 GB); 0 path length errors.", c_green_bg, c_green_text),
+        ("B4", "Enable Remote Work & Mobility", "5.0", "3.6", "Monitor", "3.5/5 off-site work ease; OneDrive sync coaching required to replace manual file uploads.", c_amber_bg, c_amber_text),
+        ("B5", "Improved Decision-Making & BI", "5.0", "4.1", "On Track", "Single source of truth; folder depth 8 ➔ 2 (-75%), folders 541 ➔ 44 (-91.9%), duplicate files -58.1%.", c_green_bg, c_green_text),
+        ("B6", "Streamlined Processes", "5.0", "3.7", "Progressing", "4.0/5 collaboration ease; workflow transition underway across PRM libraries.", c_blue_bg, c_blue_text),
+        ("B7", "Standardization", "5.0", "3.5", "On Track", "5.0/5 metadata confidence; generic filenames reduced 347 ➔ 41 (-88.2%).", c_green_bg, c_green_text),
+        ("B8", "Improved Adoption", "5.0", "4.5", "On Track", "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (1,151 staff).", c_green_bg, c_green_text),
+        ("B9", "Cost Savings", "5.0", "3.9", "Verified", "15.1% storage reduction (3.90 ➔ 3.31 GB); >$70k PBX savings; $280k storage avoidance.", c_green_bg, c_green_text),
     ]
 
     for r_idx, (did, name, tgt, scr, stat, ev, bg_c, tx_c) in enumerate(drivers_data):
@@ -689,16 +701,24 @@ def create_deck():
     p_card_h = Inches(5.95)
     p_card_y = Inches(1.15)
 
+    pad_h5 = Inches(0.28)
+    inner_w5 = p_card_w - (pad_h5 * 2) # 5.16 inches
+
     # Priority 1: Records & Security Labelling (CRITICAL)
     p1_x = Inches(0.8)
     p1_card = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p1_x, p_card_y, p_card_w, p_card_h)
     set_shape_flat(p1_card, RGBColor(255, 255, 255), c_red_border, line_width=1.5)
 
     # Priority 1 Badge
-    p1_badge = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p1_x + Inches(0.25), p_card_y + Inches(0.22), Inches(1.8), Inches(0.35))
+    p1_badge = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p1_x + pad_h5, p_card_y + Inches(0.22), Inches(1.8), Inches(0.35))
     set_shape_flat(p1_badge, c_red_bg, c_red_border, line_width=1)
-    _, p1_b_tf = create_textbox(s5, p1_x + Inches(0.25), p_card_y + Inches(0.26), Inches(1.8), Inches(0.28))
-    p = p1_b_tf.paragraphs[0]
+    b_tf = p1_badge.text_frame
+    b_tf.word_wrap = True
+    b_tf.margin_left = Inches(0.05)
+    b_tf.margin_right = Inches(0.05)
+    b_tf.margin_top = Inches(0.04)
+    b_tf.margin_bottom = Inches(0.04)
+    p = b_tf.paragraphs[0]
     p.text = "PRIORITY 1: CRITICAL"
     p.alignment = PP_ALIGN.CENTER
     p.font.name = "Segoe UI"
@@ -707,7 +727,7 @@ def create_deck():
     p.font.color.rgb = c_red_text
 
     # Title
-    _, p1_t_tf = create_textbox(s5, p1_x + Inches(0.25), p_card_y + Inches(0.68), p_card_w - Inches(0.5), Inches(0.45))
+    _, p1_t_tf = create_textbox(s5, p1_x + pad_h5, p_card_y + Inches(0.68), inner_w5, Inches(0.45))
     p = p1_t_tf.paragraphs[0]
     p.text = "Records & Security Labelling"
     p.font.name = "Segoe UI"
@@ -716,64 +736,90 @@ def create_deck():
     p.font.color.rgb = c_text_dark
 
     # Box 1: Observed Issue
-    box1 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p1_x + Inches(0.25), p_card_y + Inches(1.22), p_card_w - Inches(0.5), Inches(1.25))
+    box1 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p1_x + pad_h5, p_card_y + Inches(1.22), inner_w5, Inches(1.25))
     set_shape_flat(box1, RGBColor(248, 250, 252), c_border_gray, line_width=1)
-    _, b1_tf = create_textbox(s5, p1_x + Inches(0.4), p_card_y + Inches(1.3), p_card_w - Inches(0.8), Inches(1.1))
+    b1_tf = box1.text_frame
+    b1_tf.word_wrap = True
+    b1_tf.margin_left = Inches(0.20)
+    b1_tf.margin_right = Inches(0.20)
+    b1_tf.margin_top = Inches(0.14)
+    b1_tf.margin_bottom = Inches(0.10)
     p = b1_tf.paragraphs[0]
     p.text = "OBSERVED ISSUE (SECURITY HEALTH: WEAK)"
+    p.alignment = PP_ALIGN.LEFT
     p.font.name = "Segoe UI"
     p.font.size = Pt(9.5)
     p.font.bold = True
     p.font.color.rgb = c_red_text
     p2 = b1_tf.add_paragraph()
     p2.text = "0% retention labels applied. 205 potentially sensitive administrative and student files remain unlabelled in SharePoint document libraries."
+    p2.alignment = PP_ALIGN.LEFT
     p2.font.name = "Segoe UI"
-    p2.font.size = Pt(10)
+    p2.font.size = Pt(9.5)
     p2.font.color.rgb = RGBColor(71, 85, 105)
 
     # Box 2: Regulatory Impact
-    box2 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p1_x + Inches(0.25), p_card_y + Inches(2.6), p_card_w - Inches(0.5), Inches(1.35))
+    box2 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p1_x + pad_h5, p_card_y + Inches(2.6), inner_w5, Inches(1.35))
     set_shape_flat(box2, RGBColor(248, 250, 252), c_border_gray, line_width=1)
-    _, b2_tf = create_textbox(s5, p1_x + Inches(0.4), p_card_y + Inches(2.7), p_card_w - Inches(0.8), Inches(1.15))
+    b2_tf = box2.text_frame
+    b2_tf.word_wrap = True
+    b2_tf.margin_left = Inches(0.20)
+    b2_tf.margin_right = Inches(0.20)
+    b2_tf.margin_top = Inches(0.14)
+    b2_tf.margin_bottom = Inches(0.10)
     p = b2_tf.paragraphs[0]
     p.text = "BUSINESS & COMPLIANCE IMPACT"
+    p.alignment = PP_ALIGN.LEFT
     p.font.name = "Segoe UI"
     p.font.size = Pt(9.5)
     p.font.bold = True
     p.font.color.rgb = c_text_dark
     p2 = b2_tf.add_paragraph()
     p2.text = "Leaves confidential records unclassified in SharePoint, risking compliance breach under BC Freedom of Information and Protection of Privacy Act (FIPPA)."
+    p2.alignment = PP_ALIGN.LEFT
     p2.font.name = "Segoe UI"
-    p2.font.size = Pt(10)
+    p2.font.size = Pt(9.5)
     p2.font.color.rgb = RGBColor(71, 85, 105)
 
     # Box 3: Prescribed Action
-    box3 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p1_x + Inches(0.25), p_card_y + Inches(4.1), p_card_w - Inches(0.5), Inches(1.55))
+    box3 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p1_x + pad_h5, p_card_y + Inches(4.1), inner_w5, Inches(1.55))
     set_shape_flat(box3, c_orange_light, c_orange_border, line_width=1)
-    _, b3_tf = create_textbox(s5, p1_x + Inches(0.4), p_card_y + Inches(4.2), p_card_w - Inches(0.8), Inches(1.35))
+    b3_tf = box3.text_frame
+    b3_tf.word_wrap = True
+    b3_tf.margin_left = Inches(0.20)
+    b3_tf.margin_right = Inches(0.20)
+    b3_tf.margin_top = Inches(0.14)
+    b3_tf.margin_bottom = Inches(0.10)
     p = b3_tf.paragraphs[0]
     p.text = "RECOMMENDED ACTION FOR STEERING COMMITTEE"
+    p.alignment = PP_ALIGN.LEFT
     p.font.name = "Segoe UI"
     p.font.size = Pt(9.5)
     p.font.bold = True
     p.font.color.rgb = c_langara_orange
     p2 = b3_tf.add_paragraph()
     p2.text = "Configure Microsoft Purview auto-labelling rules and security classifications across all PRM document libraries to automatically enforce retention schedules."
+    p2.alignment = PP_ALIGN.LEFT
     p2.font.name = "Segoe UI"
-    p2.font.size = Pt(10.5)
+    p2.font.size = Pt(10)
     p2.font.bold = True
     p2.font.color.rgb = c_text_dark
 
-    # Priority 2: Version-Control Maturity (MEDIUM)
+    # Priority 2: Version-Control Maturity & OneDrive Sync Friction (MEDIUM)
     p2_x = p1_x + p_card_w + Inches(0.29)
     p2_card = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p2_x, p_card_y, p_card_w, p_card_h)
     set_shape_flat(p2_card, RGBColor(255, 255, 255), c_amber_border, line_width=1.5)
 
     # Priority 2 Badge
-    p2_badge = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p2_x + Inches(0.25), p_card_y + Inches(0.22), Inches(1.8), Inches(0.35))
+    p2_badge = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p2_x + pad_h5, p_card_y + Inches(0.22), Inches(1.8), Inches(0.35))
     set_shape_flat(p2_badge, c_amber_bg, c_amber_border, line_width=1)
-    _, p2_b_tf = create_textbox(s5, p2_x + Inches(0.25), p_card_y + Inches(0.26), Inches(1.8), Inches(0.28))
-    p = p2_b_tf.paragraphs[0]
+    b_p2_tf = p2_badge.text_frame
+    b_p2_tf.word_wrap = True
+    b_p2_tf.margin_left = Inches(0.05)
+    b_p2_tf.margin_right = Inches(0.05)
+    b_p2_tf.margin_top = Inches(0.04)
+    b_p2_tf.margin_bottom = Inches(0.04)
+    p = b_p2_tf.paragraphs[0]
     p.text = "PRIORITY 2: MEDIUM"
     p.alignment = PP_ALIGN.CENTER
     p.font.name = "Segoe UI"
@@ -782,60 +828,82 @@ def create_deck():
     p.font.color.rgb = c_amber_text
 
     # Title
-    _, p2_t_tf = create_textbox(s5, p2_x + Inches(0.25), p_card_y + Inches(0.68), p_card_w - Inches(0.5), Inches(0.45))
+    _, p2_t_tf = create_textbox(s5, p2_x + pad_h5, p_card_y + Inches(0.68), inner_w5, Inches(0.45))
     p = p2_t_tf.paragraphs[0]
     p.text = "Version-Control Maturity"
+    p.alignment = PP_ALIGN.LEFT
     p.font.name = "Segoe UI"
     p.font.size = Pt(17)
     p.font.bold = True
     p.font.color.rgb = c_text_dark
 
     # Box 1: Observed Issue
-    box1_p2 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p2_x + Inches(0.25), p_card_y + Inches(1.22), p_card_w - Inches(0.5), Inches(1.25))
+    box1_p2 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p2_x + pad_h5, p_card_y + Inches(1.22), inner_w5, Inches(1.25))
     set_shape_flat(box1_p2, RGBColor(248, 250, 252), c_border_gray, line_width=1)
-    _, b1_p2_tf = create_textbox(s5, p2_x + Inches(0.4), p_card_y + Inches(1.3), p_card_w - Inches(0.8), Inches(1.1))
+    b1_p2_tf = box1_p2.text_frame
+    b1_p2_tf.word_wrap = True
+    b1_p2_tf.margin_left = Inches(0.20)
+    b1_p2_tf.margin_right = Inches(0.20)
+    b1_p2_tf.margin_top = Inches(0.14)
+    b1_p2_tf.margin_bottom = Inches(0.10)
     p = b1_p2_tf.paragraphs[0]
-    p.text = "OBSERVED ISSUE (HYGIENE HABIT)"
+    p.text = "OBSERVED ISSUE & USER FEEDBACK (HYGIENE HABIT)"
+    p.alignment = PP_ALIGN.LEFT
     p.font.name = "Segoe UI"
-    p.font.size = Pt(9.5)
+    p.font.size = Pt(9)
     p.font.bold = True
     p.font.color.rgb = c_amber_text
     p2 = b1_p2_tf.add_paragraph()
-    p2.text = "Staff creating redundant file versions rather than utilizing built-in M365 version history. Files with 'v2/final/draft' habits increased from 468 to 607."
+    p2.text = "Files with 'v2/final/draft' habits increased (468 ➔ 607). PRM Site Owner feedback: 'I still need to learn how to sync my OneDrive with our SP site so I don't need to manually upload documents.'"
+    p2.alignment = PP_ALIGN.LEFT
     p2.font.name = "Segoe UI"
-    p2.font.size = Pt(10)
+    p2.font.size = Pt(8.8)
     p2.font.color.rgb = RGBColor(71, 85, 105)
 
     # Box 2: Operational Impact
-    box2_p2 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p2_x + Inches(0.25), p_card_y + Inches(2.6), p_card_w - Inches(0.5), Inches(1.35))
+    box2_p2 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p2_x + pad_h5, p_card_y + Inches(2.6), inner_w5, Inches(1.35))
     set_shape_flat(box2_p2, RGBColor(248, 250, 252), c_border_gray, line_width=1)
-    _, b2_p2_tf = create_textbox(s5, p2_x + Inches(0.4), p_card_y + Inches(2.7), p_card_w - Inches(0.8), Inches(1.15))
+    b2_p2_tf = box2_p2.text_frame
+    b2_p2_tf.word_wrap = True
+    b2_p2_tf.margin_left = Inches(0.20)
+    b2_p2_tf.margin_right = Inches(0.20)
+    b2_p2_tf.margin_top = Inches(0.14)
+    b2_p2_tf.margin_bottom = Inches(0.10)
     p = b2_p2_tf.paragraphs[0]
     p.text = "OPERATIONAL & COLLABORATION IMPACT"
+    p.alignment = PP_ALIGN.LEFT
     p.font.name = "Segoe UI"
     p.font.size = Pt(9.5)
     p.font.bold = True
     p.font.color.rgb = c_text_dark
     p2 = b2_p2_tf.add_paragraph()
     p2.text = "Generates unnecessary document sprawl, storage overhead, and confusion over which copy represents the authorized single source of truth."
+    p2.alignment = PP_ALIGN.LEFT
     p2.font.name = "Segoe UI"
-    p2.font.size = Pt(10)
+    p2.font.size = Pt(9.5)
     p2.font.color.rgb = RGBColor(71, 85, 105)
 
     # Box 3: Prescribed Action
-    box3_p2 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p2_x + Inches(0.25), p_card_y + Inches(4.1), p_card_w - Inches(0.5), Inches(1.55))
+    box3_p2 = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, p2_x + pad_h5, p_card_y + Inches(4.1), inner_w5, Inches(1.55))
     set_shape_flat(box3_p2, c_orange_light, c_orange_border, line_width=1)
-    _, b3_p2_tf = create_textbox(s5, p2_x + Inches(0.4), p_card_y + Inches(4.2), p_card_w - Inches(0.8), Inches(1.35))
+    b3_p2_tf = box3_p2.text_frame
+    b3_p2_tf.word_wrap = True
+    b3_p2_tf.margin_left = Inches(0.20)
+    b3_p2_tf.margin_right = Inches(0.20)
+    b3_p2_tf.margin_top = Inches(0.14)
+    b3_p2_tf.margin_bottom = Inches(0.10)
     p = b3_p2_tf.paragraphs[0]
     p.text = "RECOMMENDED ACTION FOR STEERING COMMITTEE"
+    p.alignment = PP_ALIGN.LEFT
     p.font.name = "Segoe UI"
     p.font.size = Pt(9.5)
     p.font.bold = True
     p.font.color.rgb = c_langara_orange
     p2 = b3_p2_tf.add_paragraph()
-    p2.text = "Deliver targeted 15-minute micro-learning webinars for PRM staff demonstrating native version history, co-authoring etiquette, and version restore capabilities."
+    p2.text = "Deliver targeted 15-minute coaching clinics on OneDrive sync vs. manual uploads, native M365 version history, and real-time co-authoring practice sessions."
+    p2.alignment = PP_ALIGN.LEFT
     p2.font.name = "Segoe UI"
-    p2.font.size = Pt(10.5)
+    p2.font.size = Pt(9.8)
     p2.font.bold = True
     p2.font.color.rgb = c_text_dark
 
@@ -850,14 +918,17 @@ def create_deck():
     so_card_w = Inches(5.72)
     so_card_h = Inches(5.95)
     so_card_y = Inches(1.15)
+    pad_h = Inches(0.28)
+    inner_w = so_card_w - (pad_h * 2) # 5.16 inches
 
     # Left Card: Gate 2 Decision Checklist
     chk_card = s6.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), so_card_y, so_card_w, so_card_h)
     set_shape_flat(chk_card, RGBColor(255, 255, 255), c_border_gray, line_width=1)
 
-    _, chk_h_tf = create_textbox(s6, Inches(1.1), so_card_y + Inches(0.2), so_card_w - Inches(0.6), Inches(0.35))
+    _, chk_h_tf = create_textbox(s6, Inches(0.8) + pad_h, so_card_y + Inches(0.22), inner_w, Inches(0.35))
     p = chk_h_tf.paragraphs[0]
     p.text = "Gate 2 Decision Checklist"
+    p.alignment = PP_ALIGN.LEFT
     p.font.name = "Segoe UI"
     p.font.size = Pt(16)
     p.font.bold = True
@@ -870,23 +941,33 @@ def create_deck():
         ("▶ Purview Auto-Labelling Mandate Approved", "Steering committee approves immediate configuration of sensitivity rules for 205 unlabelled files.", c_amber_bg, c_amber_text),
         ("▶ Checkpoint 4 Transition Authorized", "Program authorizes progression to Checkpoint 4 (Quarterly Review - Dec 2026).", c_blue_bg, c_blue_text)
     ]
-    ch_start_y = so_card_y + Inches(0.7)
+    ch_start_y = so_card_y + Inches(0.70)
     ch_h = Inches(0.92)
+    ch_gap = Inches(0.09)
     for idx, (c_head, c_sub, ch_bg, ch_fg) in enumerate(checklist_items):
-        cy = ch_start_y + idx * (ch_h + Inches(0.08))
-        box = s6.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.05), cy, so_card_w - Inches(0.5), ch_h)
+        cy = ch_start_y + idx * (ch_h + ch_gap)
+        box = s6.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8) + pad_h, cy, inner_w, ch_h)
         set_shape_flat(box, ch_bg)
 
-        _, ch_tf = create_textbox(s6, Inches(1.2), cy + Inches(0.1), so_card_w - Inches(0.8), ch_h - Inches(0.2))
-        p = ch_tf.paragraphs[0]
+        # Write directly into box's text_frame with precise inset margins (zero floating overlap)
+        tf = box.text_frame
+        tf.word_wrap = True
+        tf.margin_left = Inches(0.20)
+        tf.margin_right = Inches(0.20)
+        tf.margin_top = Inches(0.14)
+        tf.margin_bottom = Inches(0.10)
+
+        p = tf.paragraphs[0]
         p.text = c_head
+        p.alignment = PP_ALIGN.LEFT
         p.font.name = "Segoe UI"
-        p.font.size = Pt(11)
+        p.font.size = Pt(10.5)
         p.font.bold = True
         p.font.color.rgb = ch_fg
 
-        p2 = ch_tf.add_paragraph()
+        p2 = tf.add_paragraph()
         p2.text = c_sub
+        p2.alignment = PP_ALIGN.LEFT
         p2.font.name = "Segoe UI"
         p2.font.size = Pt(9)
         p2.font.color.rgb = RGBColor(71, 85, 105)
@@ -895,9 +976,10 @@ def create_deck():
     so_card = s6.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(6.81), so_card_y, so_card_w, so_card_h)
     set_shape_flat(so_card, RGBColor(255, 255, 255), c_border_gray, line_width=1)
 
-    _, so_h_tf = create_textbox(s6, Inches(7.1), so_card_y + Inches(0.2), so_card_w - Inches(0.6), Inches(0.35))
+    _, so_h_tf = create_textbox(s6, Inches(6.81) + pad_h, so_card_y + Inches(0.22), inner_w, Inches(0.35))
     p = so_h_tf.paragraphs[0]
     p.text = "Steering Committee Formal Approvals"
+    p.alignment = PP_ALIGN.LEFT
     p.font.name = "Segoe UI"
     p.font.size = Pt(16)
     p.font.bold = True
@@ -909,31 +991,42 @@ def create_deck():
         ("Privacy & Records Officer", "PRM Lead", "Privacy & Records Management"),
         ("IT & Governance Lead", "Enterprise Information Services", "IT Operations")
     ]
-    s_start_y = so_card_y + Inches(0.7)
-    s_box_h = Inches(1.15)
+    s_start_y = so_card_y + Inches(0.70)
+    s_box_h = Inches(1.12)
+    s_gap = Inches(0.14)
     for idx, (role, name, dept) in enumerate(sign_roles):
-        sy = s_start_y + idx * (s_box_h + Inches(0.12))
-        box = s6.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(7.05), sy, so_card_w - Inches(0.5), s_box_h)
+        sy = s_start_y + idx * (s_box_h + s_gap)
+        box = s6.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(6.81) + pad_h, sy, inner_w, s_box_h)
         set_shape_flat(box, RGBColor(248, 250, 252), c_border_gray, line_width=1)
 
-        _, s_tf = create_textbox(s6, Inches(7.2), sy + Inches(0.1), so_card_w - Inches(0.8), s_box_h - Inches(0.2))
-        p = s_tf.paragraphs[0]
+        # Write directly into box's text_frame with precise inset margins (zero floating overlap)
+        tf = box.text_frame
+        tf.word_wrap = True
+        tf.margin_left = Inches(0.20)
+        tf.margin_right = Inches(0.20)
+        tf.margin_top = Inches(0.14)
+        tf.margin_bottom = Inches(0.10)
+
+        p = tf.paragraphs[0]
         p.text = f"{role}:  {name}"
+        p.alignment = PP_ALIGN.LEFT
         p.font.name = "Segoe UI"
-        p.font.size = Pt(11)
+        p.font.size = Pt(10.5)
         p.font.bold = True
         p.font.color.rgb = c_text_dark
 
-        p2 = s_tf.add_paragraph()
+        p2 = tf.add_paragraph()
         p2.text = f"Title: {dept}"
+        p2.alignment = PP_ALIGN.LEFT
         p2.font.name = "Segoe UI"
         p2.font.size = Pt(9)
         p2.font.color.rgb = c_text_muted
 
-        p3 = s_tf.add_paragraph()
+        p3 = tf.add_paragraph()
         p3.text = "Signature: ______________________      Date: _______________"
+        p3.alignment = PP_ALIGN.LEFT
         p3.font.name = "Segoe UI"
-        p3.font.size = Pt(9.5)
+        p3.font.size = Pt(9)
         p3.font.color.rgb = RGBColor(148, 163, 184)
 
     # Save to all target paths

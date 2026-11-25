@@ -7,18 +7,34 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const escapeRegex = (str) => (str || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
  * Resilient document finder with automatic alias & fallback resolution
+ * @param {string} orgTarget - Target organization name
+ * @param {boolean} lean - Whether to return plain JS object
+ * @param {boolean} allowFallback - Fallback to demo orgs (Langara/WTEC) on reads ONLY; MUST be false for mutations
  */
-const findBenefitsDoc = async (orgTarget, lean = false) => {
+const findBenefitsDoc = async (orgTarget, lean = false, allowFallback = true) => {
   const cleanTarget = (orgTarget || "").trim();
+  if (!cleanTarget) {
+    if (allowFallback) {
+      let fallbackQuery = BenefitsRealization.findOne({
+        orgName: { $in: ["Langara College", "WTEC"] }
+      });
+      if (lean) fallbackQuery = fallbackQuery.lean();
+      return await fallbackQuery;
+    }
+    return null;
+  }
+
   let query = BenefitsRealization.findOne({
-    orgName: { $regex: new RegExp(`^${cleanTarget}$`, "i") }
+    orgName: { $regex: new RegExp(`^${escapeRegex(cleanTarget)}$`, "i") }
   });
   if (lean) query = query.lean();
   let record = await query;
 
-  if (!record) {
+  if (!record && allowFallback) {
     let fallbackQuery = BenefitsRealization.findOne({
       orgName: { $in: ["Langara College", "WTEC"] }
     });
@@ -66,6 +82,14 @@ export const getBenefitsRealization = async (req, res) => {
  */
 export const updateActiveCheckpoint = async (req, res) => {
   try {
+    // Security check: Guests/invitees and unauthenticated requests cannot mutate steering committee checkpoints
+    if (!req.user || req.guest) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Only authenticated administrators can update review checkpoints."
+      });
+    }
+
     const { orgName, checkpointNumber } = req.body;
     const targetCheckpoint = Number(checkpointNumber);
 
@@ -76,8 +100,9 @@ export const updateActiveCheckpoint = async (req, res) => {
       });
     }
 
-    const orgTarget = orgName || req.user?.orgName || "Langara College";
-    const record = await findBenefitsDoc(orgTarget, false);
+    const isSuperAdmin = req.user?.role?.toLowerCase() === "superadmin";
+    const orgTarget = isSuperAdmin && orgName ? orgName : (orgName || req.user?.orgName || "Langara College");
+    const record = await findBenefitsDoc(orgTarget, false, false);
 
     if (!record) {
       return res.status(404).json({
@@ -125,6 +150,14 @@ export const updateActiveCheckpoint = async (req, res) => {
  */
 export const updateScorecardDriver = async (req, res) => {
   try {
+    // Security check: Guests/invitees and unauthenticated requests cannot mutate steering committee drivers
+    if (!req.user || req.guest) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Only authenticated administrators can update scorecard drivers."
+      });
+    }
+
     const { orgName, driverId, score, status, evidence } = req.body;
 
     if (!driverId || score === undefined) {
@@ -134,8 +167,9 @@ export const updateScorecardDriver = async (req, res) => {
       });
     }
 
-    const orgTarget = orgName || req.user?.orgName || "Langara College";
-    const record = await findBenefitsDoc(orgTarget, false);
+    const isSuperAdmin = req.user?.role?.toLowerCase() === "superadmin";
+    const orgTarget = isSuperAdmin && orgName ? orgName : (orgName || req.user?.orgName || "Langara College");
+    const record = await findBenefitsDoc(orgTarget, false, false);
 
     if (!record) {
       return res.status(404).json({
@@ -152,7 +186,7 @@ export const updateScorecardDriver = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: `Driver ID '${driverId}' not found in scorecard.`
-      });
+      }); 
     }
 
     record.scorecard[driverIndex].score = Number(score);
@@ -164,6 +198,14 @@ export const updateScorecardDriver = async (req, res) => {
     const meanScore = Number((totalScore / record.scorecard.length).toFixed(1));
     record.overallScore = meanScore;
     record.realizationPercentage = Math.round((meanScore / (record.targetScore || 5.0)) * 100);
+
+    // Keep active checkpoint score synchronized with recalculated overall score
+    const activeCp = record.checkpoints?.find(
+      (cp) => Number(cp.checkpointNumber) === Number(record.activeCheckpointNumber)
+    );
+    if (activeCp) {
+      activeCp.score = meanScore;
+    }
 
     await record.save();
 
@@ -189,6 +231,14 @@ export const updateScorecardDriver = async (req, res) => {
  */
 export const updateNeedsAttention = async (req, res) => {
   try {
+    // Security check: Guests/invitees and unauthenticated requests cannot mutate steering committee action recommendations
+    if (!req.user || req.guest) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Only authenticated administrators can update action recommendations."
+      });
+    }
+
     const { orgName, id, recommendation, severity, healthStatus } = req.body;
 
     if (!id) {
@@ -198,8 +248,9 @@ export const updateNeedsAttention = async (req, res) => {
       });
     }
 
-    const orgTarget = orgName || req.user?.orgName || "Langara College";
-    const record = await findBenefitsDoc(orgTarget, false);
+    const isSuperAdmin = req.user?.role?.toLowerCase() === "superadmin";
+    const orgTarget = isSuperAdmin && orgName ? orgName : (orgName || req.user?.orgName || "Langara College");
+    const record = await findBenefitsDoc(orgTarget, false, false);
 
     if (!record) {
       return res.status(404).json({
@@ -660,11 +711,14 @@ export const exportBenefitsExcel = async (req, res) => {
 
     const hygieneData = [
       ["Folder Architecture (Total Folders)", data.outcomes?.folderCount?.baseline || 541, data.outcomes?.folderCount?.current || 44, `${data.outcomes?.folderCount?.percentChange || -91.9}%`, "Simpler Structure", "Maximum folder depth collapsed from 8 levels to 2; drastically reduced click fatigue."],
+      ["ROT (Redundant, Obsolete, Trivial) Files", 2175, 1300, "-40.2%", "Hygiene Target", "40.2% ROT files eliminated (target: 50%); ongoing archiving in progress."],
       ["Duplicate File Hygiene", data.outcomes?.duplicateFiles?.baseline || 117, data.outcomes?.duplicateFiles?.current || 49, `${data.outcomes?.duplicateFiles?.percentChange || -58.1}%`, "Less Redundancy", "Reduces storage sprawl and eliminates confusion regarding single source of truth."],
       ["Generic / Ambiguous Filenames", data.outcomes?.genericNames?.baseline || 347, data.outcomes?.genericNames?.current || 41, `${data.outcomes?.genericNames?.percentChange || -88.2}%`, "Better Findability", "M365 enterprise search yields relevant documents instantly."],
+      ["Total Storage Footprint", "3.90 GB", "3.31 GB", "-15.1%", "Cost Efficiency", "Cloud storage footprint decreased by 15.1% through pre-migration cleanup."],
+      ["Version Token Filenames ('v2/final/draft')", 468, 607, "+29.7%", "Monitor / Habit", "Staff manual versioning habit under active monitoring; co-authoring & OneDrive sync clinics scheduled."],
       ["Everyone Access Grants", 0, data.outcomes?.everyoneGrants || 0, "0 grants", "Governance Enforced", "Zero unauthorized open grants; confidentiality baseline maintained."],
       ["Folder-Level Security Exceptions", 0, data.outcomes?.folderExceptions || 0, "0 exceptions", "Clean Permissions", "Strict site-level permission inheritance preventing accidental privilege escalation."],
-      ["Staff Training Completion", "-", `${data.outcomes?.trainedStaff || 10} / ${data.outcomes?.totalStaff || 10}`, "100%", "Full Adoption", "All PRM site owners and members fully trained on modern SharePoint practices."],
+      ["Staff Training Completion", "-", `${data.outcomes?.trainedStaff || 1151} / ${data.outcomes?.totalStaff || 1151}`, "100%", "Full Adoption", "All PRM site owners and members fully trained on modern SharePoint practices."],
       ["Active Collaboration Files in Cloud", "-", data.outcomes?.activeFiles || 227, "-", "Active Adoption", "Documents transitioned from local drives into managed Microsoft 365 cloud collaboration."]
     ];
 
@@ -772,6 +826,203 @@ export const exportBenefitsExcel = async (req, res) => {
       { width: 38 },
       { width: 38 },
       { width: 50 }
+    ];
+
+    // =========================================================================
+    // SHEET 6: SURVEY EMPIRICAL RESULTS (n=2, Nov 4, 2026)
+    // =========================================================================
+    const ws6 = wb.addWorksheet("Survey Results", {
+      views: [{ showGridLines: true, state: "frozen", ySplit: 4 }]
+    });
+
+    ws6.mergeCells("A2:G2");
+    const surTitle = ws6.getCell("A2");
+    surTitle.value = "PRM POST-IMPLEMENTATION SURVEY EMPIRICAL RESULTS (n=2, Nov 4, 2026)";
+    surTitle.font = { name: "Segoe UI", size: 13, bold: true, color: { argb: "FFFFFF" } };
+    surTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "E65100" } };
+    surTitle.alignment = { vertical: "middle", indent: 1 };
+    ws6.getRow(2).height = 30;
+
+    ws6.mergeCells("A3:G3");
+    const surSub = ws6.getCell("A3");
+    surSub.value = "One PRM Site Owner & One Site Member • Directional feedback on 1–5 Agreement scale (Floor: 3.0, Target: 4.0)";
+    surSub.font = { name: "Segoe UI", size: 9.5, italic: true, color: { argb: "475569" } };
+    surSub.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7ED" } };
+    surSub.alignment = { vertical: "middle", indent: 1 };
+    ws6.getRow(3).height = 20;
+
+    const surThRow = ws6.getRow(4);
+    surThRow.values = ["Domain", "Survey Question (Exact Wording)", "Benefit Link", "Site Owner", "Site Member", "Mean (1–5)", "Floor Status"];
+    surThRow.height = 26;
+    surThRow.eachCell((c) => {
+      c.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "0F172A" } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      applyCellBorder(c, "0F172A");
+    });
+    surThRow.getCell(2).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+
+    const surveyQuestions = [
+      ["Site ownership", "I feel confident managing access and permissions for the SharePoint site.", "B2; B8", 4, "-", 4.0, "On Target"],
+      ["Site ownership", "I feel confident maintaining the site’s document organization and metadata.", "B7; B8", 5, "-", 5.0, "Above Target"],
+      ["Support confidence", "I know where to go for help when I cannot resolve a SharePoint issue myself.", "B3; B8", 4, "-", 4.0, "On Target"],
+      ["Findability", "It is easier to find the documents and information I need.", "B5", 3, 4, 3.5, "Above Floor (3.0)"],
+      ["Storage clarity", "It is clear to me where documents should be stored.", "B7; B8", 5, 4, 4.5, "Above Target"],
+      ["Organization", "Documents are better organized than they were before.", "B7", 3, 4, 3.5, "Above Floor (3.0)"],
+      ["Metadata effectiveness", "Using metadata makes it easier to organize and find documents.", "B5; B7", 4, 4, 4.0, "On Target"],
+      ["Version control", "It is easier to identify and work with the correct version of a document.", "B1; B5", 5, 4, 4.5, "Above Target"],
+      ["Collaboration", "It is easier to share and collaborate on documents with others.", "B1; B6", 4, 4, 4.0, "On Target"],
+      ["Secure access", "I am confident that sensitive information is only accessible to the right people.", "B2", 5, 4, 4.5, "Above Target"],
+      ["Remote work", "The new SharePoint site has made my day-to-day work easier both in-office and while working off-site.", "B4; B6", 3, 4, 3.5, "Above Floor (3.0)"],
+      ["Communications", "I received the information I needed at the right time during the transition.", "B8", 4, 4, 4.0, "On Target"],
+      ["Training", "The training prepared me to use the new SharePoint site effectively.", "B8", 5, 4, 4.5, "Above Target"],
+      ["Support", "I knew where to go for help or support when I needed it.", "B3; B8", 5, 4, 4.5, "Above Target"],
+      ["Engagement", "I had opportunities to provide input during the design through to transition.", "B8", 5, 4, 4.5, "Above Target"],
+      ["Client needs", "The project team understood our department’s needs and concerns.", "B8", 5, 4, 4.5, "Above Target"]
+    ];
+
+    surveyQuestions.forEach((sq, idx) => {
+      const rNum = 5 + idx;
+      const row = ws6.getRow(rNum);
+      row.values = [sq[0], sq[1], sq[2], sq[3], sq[4], sq[5], sq[6]];
+      row.height = 22;
+      const rowBg = idx % 2 === 1 ? "F8FAFC" : "FFFFFF";
+
+      row.eachCell((c) => {
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+        c.font = { name: "Segoe UI", size: 9.5, color: { argb: "0F172A" } };
+        applyCellBorder(c);
+      });
+
+      row.getCell(1).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(2).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(3).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(4).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(5).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(6).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(6).font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "E65100" } };
+
+      const cStat = row.getCell(7);
+      styleStatusCell(cStat, sq[6]);
+    });
+
+    // Site Owner Qualitative Feedback Callout Box
+    const qualStartRow = 5 + surveyQuestions.length + 1;
+    ws6.mergeCells(`A${qualStartRow}:G${qualStartRow}`);
+    const qHeader = ws6.getCell(`A${qualStartRow}`);
+    qHeader.value = "QUALITATIVE SITE OWNER USER OBSERVATIONS & ACTION CONTEXT";
+    qHeader.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFFFFF" } };
+    qHeader.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "1E293B" } };
+    qHeader.alignment = { vertical: "middle", indent: 1 };
+    ws6.getRow(qualStartRow).height = 24;
+
+    const qualRows = [
+      ["What improved most", "Metadata has made it much easier to find documents related to a specific access to information request.", "Validation", "PRM Site Owner (Consent: Named)", "", "", ""],
+      ["What remains difficult", "I still need to learn how to sync my OneDrive with our SP site so I don't need to manually upload documents.", "Action Needed", "Root cause for v2/final/draft filename increase (468 ➔ 607)", "", "", ""],
+      ["General observation", "Because our N drive was well organized already, the main benefit of moving to SharePoint is improved search.", "Context", "M365 Enterprise search provides greatest user value", "", "", ""]
+    ];
+
+    qualRows.forEach((qr, idx) => {
+      const rNum = qualStartRow + 1 + idx;
+      const row = ws6.getRow(rNum);
+      row.values = [qr[0], qr[1], qr[2], qr[3], "", "", ""];
+      ws6.mergeCells(`B${rNum}:C${rNum}`);
+      ws6.mergeCells(`D${rNum}:G${rNum}`);
+      row.height = 24;
+
+      row.eachCell((c) => {
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: idx === 1 ? "FFF7ED" : "FFFFFF" } };
+        c.font = { name: "Segoe UI", size: 9.5, color: { argb: "0F172A" } };
+        applyCellBorder(c);
+      });
+
+      row.getCell(1).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: idx === 1 ? "D84315" : "0F172A" } };
+      row.getCell(1).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(2).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(4).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(4).font = { name: "Segoe UI", size: 9, italic: true, color: { argb: "475569" } };
+    });
+
+    ws6.columns = [
+      { width: 22 },
+      { width: 55 },
+      { width: 14 },
+      { width: 14 },
+      { width: 14 },
+      { width: 14 },
+      { width: 20 }
+    ];
+
+    // =========================================================================
+    // SHEET 7: M365 TECHNICAL AUDIT (Nov 5, 2026)
+    // =========================================================================
+    const ws7 = wb.addWorksheet("Technical M365 Audit", {
+      views: [{ showGridLines: true, state: "frozen", ySplit: 4 }]
+    });
+
+    ws7.mergeCells("A2:F2");
+    const techTitle = ws7.getCell("A2");
+    techTitle.value = "PRM SHAREPOINT & MICROSOFT 365 TECHNICAL AUDIT (Nov 5, 2026)";
+    techTitle.font = { name: "Segoe UI", size: 13, bold: true, color: { argb: "FFFFFF" } };
+    techTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "E65100" } };
+    techTitle.alignment = { vertical: "middle", indent: 1 };
+    ws7.getRow(2).height = 30;
+
+    const techThRow = ws7.getRow(4);
+    techThRow.values = ["Technical Metric Dimension", "Pre-Migration Baseline", "Post-Migration Current", "Variance / Change", "Target Goal", "Technical Governance Finding"];
+    techThRow.height = 26;
+    techThRow.eachCell((c) => {
+      c.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "0F172A" } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      applyCellBorder(c, "0F172A");
+    });
+    techThRow.getCell(1).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    techThRow.getCell(6).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+
+    const techAuditData = [
+      ["Folder Architecture (Total Folders)", 541, 44, "-91.9%", "Significant reduction", "Navigation hierarchy collapsed from 8 levels to 2; zero path length errors."],
+      ["Maximum Folder Depth", 8, 2, "-75.0%", "<= 3 levels", "Achieved optimal flat modern SharePoint structure."],
+      ["ROT Files (Redundant, Obsolete, Trivial)", 2175, 1300, "-40.2%", "50% reduction", "1,300 files remain in shared storage; secondary archiving phase in progress."],
+      ["Cloud Storage Footprint", "3.90 GB", "3.31 GB", "-15.1%", "20% reduction", "Storage footprint decreased by 0.59 GB; ongoing cleanup to reach 20%."],
+      ["Version-Token Filenames ('v2/final/draft')", 468, 607, "+29.7%", "0% growth", "Habitual naming under watch; OneDrive sync coaching clinics scheduled to stop manual uploads."],
+      ["Duplicate File Sprawl", 117, 49, "-58.1%", "Substantial reduction", "Duplicate information footprint reduced by more than half."],
+      ["Generic / Ambiguous Filenames", 347, 41, "-88.2%", "< 50 files", "High findability; document titles now conform to naming standard."],
+      ["Unlabelled Sensitive Documents", 205, 205, "0% labelled", "100% labelled", "Purview retention and sensitivity labels require automated policy deployment."],
+      ["'Everyone' Open Sharing Grants", 0, 0, "0 grants", "0 grants", "Strict boundary maintained; zero unintended external access grants."],
+      ["Folder-Level Permission Exceptions", 0, 0, "0 exceptions", "0 exceptions", "Clean site-level permission inheritance preventing privilege drift."]
+    ];
+
+    techAuditData.forEach((ta, idx) => {
+      const rNum = 5 + idx;
+      const row = ws7.getRow(rNum);
+      row.values = [ta[0], ta[1], ta[2], ta[3], ta[4], ta[5]];
+      row.height = 23;
+      const rowBg = idx % 2 === 1 ? "F8FAFC" : "FFFFFF";
+
+      row.eachCell((c) => {
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+        c.font = { name: "Segoe UI", size: 9.5, color: { argb: "0F172A" } };
+        applyCellBorder(c);
+      });
+
+      row.getCell(1).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(2).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(3).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(3).font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "0F172A" } };
+      row.getCell(4).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(4).font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "E65100" } };
+      row.getCell(5).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(6).alignment = { vertical: "middle", indent: 1 };
+    });
+
+    ws7.columns = [
+      { width: 34 },
+      { width: 22 },
+      { width: 22 },
+      { width: 20 },
+      { width: 22 },
+      { width: 55 }
     ];
 
     const buffer = await wb.xlsx.writeBuffer();
