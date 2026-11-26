@@ -49,13 +49,29 @@ app.use(
       // Allow requests with no origin (mobile apps, Postman, curl)
       if (!origin) return callback(null, true);
       if (allowedOrigins === "*") return callback(null, true);
+      
+      // Allow localhost in all development / testing
+      if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+        return callback(null, true);
+      }
+
+      // Allow all Vercel domains (*.vercel.app) so preview branches and production work seamlessly
+      if (origin.endsWith(".vercel.app") || origin.includes("talent-by-design")) {
+        return callback(null, true);
+      }
+
       if (allowedOrigins.includes(origin)) return callback(null, true);
+      
       console.warn(`[CORS] Blocked request from origin: ${origin}`);
-      callback(new Error(`CORS: origin '${origin}' is not allowed`));
+      return callback(null, false);
     },
-    credentials: true
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
   })
 );
+
+app.options("*", cors());
 
 app.set("trust proxy", 1);
 
