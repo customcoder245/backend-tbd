@@ -5,6 +5,7 @@ import {
   updateActiveCheckpoint,
   updateScorecardDriver,
   updateNeedsAttention,
+  updateGovernanceConfig,
   exportBenefitsExcel
 } from "../controllers/benefitsRealization.controller.js";
 
@@ -161,5 +162,30 @@ router.put("/scorecard", flexibleProtect, updateScorecardDriver);
  *         description: Updated needs attention action item
  */
 router.put("/needs-attention", flexibleProtect, updateNeedsAttention);
+
+/**
+ * @swagger
+ * /api/v1/benefits/governance-config:
+ *   put:
+ *     summary: Update centralized governance configuration, scoring methodology and RAG thresholds
+ *     tags: [Benefits Realization]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               orgName:
+ *                 type: string
+ *               governanceConfig:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Updated governance configuration
+ */
+router.put("/governance-config", flexibleProtect, updateGovernanceConfig);
 
 export default router;

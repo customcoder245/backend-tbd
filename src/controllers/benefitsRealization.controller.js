@@ -289,6 +289,78 @@ export const updateNeedsAttention = async (req, res) => {
 };
 
 /**
+ * @desc    Update governance configuration (scoring methodology, thresholds, RAG colors)
+ * @route   PUT /api/v1/benefits/governance-config
+ * @access  Private (SuperAdmin only)
+ */
+export const updateGovernanceConfig = async (req, res) => {
+  try {
+    const isSuperAdmin = req.user?.role?.toLowerCase() === "superadmin";
+    if (!isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Only SuperAdmin can configure governance rules and thresholds."
+      });
+    }
+
+    const { orgName, governanceConfig } = req.body;
+    if (!governanceConfig) {
+      return res.status(400).json({
+        success: false,
+        message: "governanceConfig object is required."
+      });
+    }
+
+    const orgTarget = orgName || req.user?.orgName || "Langara College";
+    const record = await findBenefitsDoc(orgTarget, false, false);
+
+    if (!record) {
+      return res.status(404).json({
+        success: false,
+        message: `Benefits Realization record for '${orgTarget}' not found.`
+      });
+    }
+
+    record.governanceConfig = {
+      ...record.governanceConfig?.toObject?.() || {},
+      ...governanceConfig
+    };
+
+    // If thresholds include driverScore, evaluate all driver statuses dynamically
+    if (Array.isArray(governanceConfig.thresholds)) {
+      const driverThresh = governanceConfig.thresholds.find(t => t.key === "driverScore");
+      if (driverThresh && Array.isArray(record.scorecard)) {
+        record.scorecard.forEach(d => {
+          const sc = Number(d.score) || 0;
+          if (sc >= (driverThresh.greenMin || 4.0)) {
+            d.status = "On Track";
+          } else if (sc >= (driverThresh.amberMin || 3.5)) {
+            d.status = "Monitor";
+          } else {
+            d.status = "Needs Attention";
+          }
+        });
+      }
+    }
+
+    await record.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Governance configuration and thresholds updated successfully.",
+      data: record
+    });
+  } catch (error) {
+    console.error("[BENEFITS GOVERNANCE CONFIG UPDATE ERROR]", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update governance configuration",
+      error: error.message
+    });
+  }
+};
+
+/**
  * Helper: Apply uniform thin border to a cell
  */
 const applyCellBorder = (cell, color = "E2E8F0") => {
@@ -1023,6 +1095,173 @@ export const exportBenefitsExcel = async (req, res) => {
       { width: 20 },
       { width: 22 },
       { width: 55 }
+    ];
+
+    // =========================================================================
+    // SHEET 8: GOVERNANCE, SCORING METHODOLOGY & RAG THRESHOLDS
+    // =========================================================================
+    const ws8 = wb.addWorksheet("RAG Thresholds & Governance", {
+      views: [{ showGridLines: true, state: "frozen", ySplit: 4 }]
+    });
+
+    ws8.mergeCells("A2:F2");
+    const govTitle = ws8.getCell("A2");
+    govTitle.value = "CENTRALIZED GOVERNANCE CONFIGURATION, SCORING METHODOLOGY & RAG THRESHOLDS";
+    govTitle.font = { name: "Segoe UI", size: 12.5, bold: true, color: { argb: "FFFFFF" } };
+    govTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F15A22" } };
+    govTitle.alignment = { vertical: "middle", indent: 1 };
+    ws8.getRow(2).height = 30;
+
+    // SECTION 1: 1-5 SCORING METHODOLOGY
+    ws8.mergeCells("A4:F4");
+    const mHead = ws8.getCell("A4");
+    mHead.value = "1. 1–5 MATURITY & SCORING METHODOLOGY SPECIFICATION";
+    mHead.font = { name: "Segoe UI", size: 10.5, bold: true, color: { argb: "FFFFFF" } };
+    mHead.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "0F172A" } };
+    mHead.alignment = { vertical: "middle", indent: 1 };
+    ws8.getRow(4).height = 24;
+
+    const mThRow = ws8.getRow(5);
+    mThRow.values = ["Level", "Maturity Stage Label", "Detailed Operational Definition & Institutional Meaning", "Benchmark Range", "Theme Color", ""];
+    mThRow.height = 24;
+    mThRow.eachCell((c) => {
+      c.font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F1F5F9" } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      applyCellBorder(c);
+    });
+    mThRow.getCell(2).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    mThRow.getCell(3).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+
+    const scoreDefs = data.governanceConfig?.scoringMethodology || [
+      { level: 1, label: "Critical Gap", description: "Not started, severe adoption resistance, or compliance failure (<2.0)", color: "#D9534F" },
+      { level: 2, label: "Emerging / Ad-hoc", description: "Early pilot adoption; manual processes persist; user coaching needed (2.0 - 2.9)", color: "#F29705" },
+      { level: 3, label: "Established (Floor Met)", description: "Acceptable baseline operating floor; core functions in place (3.0 - 3.4)", color: "#FCB511" },
+      { level: 4, label: "Advanced (Target Met)", description: "Target realized; consistent modern habits; strong compliance (3.5 - 4.4)", color: "#1E824C" },
+      { level: 5, label: "Optimized / Exceeding", description: "Full institutional maturity; automated policies active; max efficiency (4.5 - 5.0)", color: "#155724" }
+    ];
+
+    scoreDefs.forEach((sd, idx) => {
+      const rNum = 6 + idx;
+      const row = ws8.getRow(rNum);
+      const range = sd.level === 1 ? "< 2.0" : sd.level === 2 ? "2.0 – 2.9" : sd.level === 3 ? "3.0 – 3.4" : sd.level === 4 ? "3.5 – 4.4" : "4.5 – 5.0";
+      row.values = [`Level ${sd.level}`, sd.label, sd.description, range, sd.color || "", ""];
+      ws8.mergeCells(`C${rNum}:D${rNum}`);
+      row.height = 22;
+      row.eachCell((c) => {
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: idx % 2 === 1 ? "F8FAFC" : "FFFFFF" } };
+        c.font = { name: "Segoe UI", size: 9.5, color: { argb: "0F172A" } };
+        applyCellBorder(c);
+      });
+      row.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(1).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      row.getCell(2).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(2).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      row.getCell(3).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(5).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(5).font = { name: "Segoe UI", size: 9, bold: true, color: { argb: "475569" } };
+    });
+
+    // SECTION 2: RAG PERFORMANCE THRESHOLDS
+    const threshStartRow = 12;
+    ws8.mergeCells(`A${threshStartRow}:F${threshStartRow}`);
+    const tHead = ws8.getCell(`A${threshStartRow}`);
+    tHead.value = "2. RAG PERFORMANCE THRESHOLDS & TECHNICAL TARGETS (SUPERADMIN CONFIGURABLE)";
+    tHead.font = { name: "Segoe UI", size: 10.5, bold: true, color: { argb: "FFFFFF" } };
+    tHead.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "0F172A" } };
+    tHead.alignment = { vertical: "middle", indent: 1 };
+    ws8.getRow(threshStartRow).height = 24;
+
+    const tThRow = ws8.getRow(threshStartRow + 1);
+    tThRow.values = ["Governance Dimension", "Green (On Track)", "Amber (Monitor)", "Red (Needs Attention)", "Current Realized Value", "Steering Verification Status"];
+    tThRow.height = 24;
+    tThRow.eachCell((c) => {
+      c.font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F1F5F9" } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      applyCellBorder(c);
+    });
+    tThRow.getCell(1).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+
+    const thresholdsList = data.governanceConfig?.thresholds || [
+      { title: "Driver Performance (/5.0)", greenCondition: "Score >= 4.0", amberCondition: "Score 3.5 - 3.9", redCondition: "Score < 3.5", currentValue: "3.9 / 5.0 Mean" },
+      { title: "Survey Question Mean (/5.0)", greenCondition: "Mean >= 4.0 (Above Target)", amberCondition: "Mean 3.0 - 3.9 (Above Floor)", redCondition: "Mean < 3.0 (Below Floor)", currentValue: "4.1 / 5.0 Average" },
+      { title: "Folder Architecture Hygiene", greenCondition: "Reduction >= 80%", amberCondition: "Reduction 50% - 79%", redCondition: "Reduction < 50%", currentValue: "91.9% Reduction" },
+      { title: "Duplicate File Hygiene", greenCondition: "Reduction >= 50%", amberCondition: "Reduction 25% - 49%", redCondition: "Reduction < 25%", currentValue: "58.1% Reduction" },
+      { title: "Open Access ('Everyone') Grants", greenCondition: "0 Grants (Zero Trust)", amberCondition: "1 - 5 Grants with review", redCondition: "> 5 Unapproved Grants", currentValue: "0 Grants" },
+      { title: "Staff Training Enablement", greenCondition: "100% Completed", amberCondition: "80% - 99% Completed", redCondition: "< 80% Completed", currentValue: "100% Completed" },
+      { title: "Purview Retention & Labelling", greenCondition: ">= 90% Labelled", amberCondition: "50% - 89% Labelled", redCondition: "< 50% Labelled", currentValue: "0% Labelled (RED)" }
+    ];
+
+    thresholdsList.forEach((th, idx) => {
+      const rNum = threshStartRow + 2 + idx;
+      const row = ws8.getRow(rNum);
+      const isRed = (th.currentValue || "").toUpperCase().includes("RED") || (th.currentValue || "").includes("0%");
+      const statusNote = isRed ? "Remediation Required (Priority 1)" : "Benchmark Satisfied";
+      row.values = [th.title, th.greenCondition, th.amberCondition, th.redCondition, th.currentValue, statusNote];
+      row.height = 22;
+      row.eachCell((c) => {
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: idx % 2 === 1 ? "F8FAFC" : "FFFFFF" } };
+        c.font = { name: "Segoe UI", size: 9.5, color: { argb: "0F172A" } };
+        applyCellBorder(c);
+      });
+      row.getCell(1).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(1).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      row.getCell(2).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(2).font = { name: "Segoe UI", size: 9.5, color: { argb: "1E824C" } };
+      row.getCell(3).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(3).font = { name: "Segoe UI", size: 9.5, color: { argb: "D97706" } };
+      row.getCell(4).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(4).font = { name: "Segoe UI", size: 9.5, color: { argb: "DC2626" } };
+      row.getCell(5).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(5).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: isRed ? "DC2626" : "0F172A" } };
+      row.getCell(6).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(6).font = { name: "Segoe UI", size: 9, italic: true, color: { argb: isRed ? "DC2626" : "475569" } };
+    });
+
+    // SECTION 3: FORMULA & REALIZATION INDEX SPECIFICATION
+    const formStartRow = threshStartRow + 3 + thresholdsList.length;
+    ws8.mergeCells(`A${formStartRow}:F${formStartRow}`);
+    const fHead = ws8.getCell(`A${formStartRow}`);
+    fHead.value = "3. REALIZATION INDEX MATHEMATICAL FORMULA SPECIFICATION";
+    fHead.font = { name: "Segoe UI", size: 10.5, bold: true, color: { argb: "FFFFFF" } };
+    fHead.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "0F172A" } };
+    fHead.alignment = { vertical: "middle", indent: 1 };
+    ws8.getRow(formStartRow).height = 24;
+
+    const formRows = [
+      ["Arithmetic Mean Program Score (/5.0)", "= SUM(Scorecard B1:B9) / 9 = 35.3 / 9 = 3.922 ➔ 3.9 / 5.0", "Core Headline Score", "Unweighted composite across 9 drivers"],
+      ["Realization Percentage Index (%)", "= (Program Score / Scale Max 5.0) * 100% = (3.922 / 5.0) * 100% = 78.44% ➔ 78%", "Normalized %", "Allows direct cross-program benchmarking across LDR"],
+      ["Health Status Determination", "Composite evaluation across 4 pillars (Delivery, Adoption, Benefits, Risk) + active threshold rules", "Multi-Dimensional", "Ensures high average cannot mask critical compliance gaps"]
+    ];
+
+    formRows.forEach((fr, idx) => {
+      const rNum = formStartRow + 1 + idx;
+      const row = ws8.getRow(rNum);
+      row.values = [fr[0], fr[1], fr[2], fr[3], "", ""];
+      ws8.mergeCells(`B${rNum}:D${rNum}`);
+      ws8.mergeCells(`E${rNum}:F${rNum}`);
+      row.height = 23;
+      row.eachCell((c) => {
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFF" } };
+        c.font = { name: "Segoe UI", size: 9.5, color: { argb: "0F172A" } };
+        applyCellBorder(c);
+      });
+      row.getCell(1).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(1).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      row.getCell(2).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(2).font = { name: "Consolas", size: 9.5, color: { argb: "1E293B" } };
+      row.getCell(5).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(5).font = { name: "Segoe UI", size: 9, italic: true, color: { argb: "64748B" } };
+    });
+
+    ws8.columns = [
+      { width: 32 },
+      { width: 30 },
+      { width: 28 },
+      { width: 26 },
+      { width: 24 },
+      { width: 36 }
     ];
 
     const buffer = await wb.xlsx.writeBuffer();
