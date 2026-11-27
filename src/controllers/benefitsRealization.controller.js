@@ -1,5 +1,6 @@
 import BenefitsRealization from "../models/benefitsRealization.model.js";
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -205,6 +206,22 @@ export const updateScorecardDriver = async (req, res) => {
     );
     if (activeCp) {
       activeCp.score = meanScore;
+    }
+
+    // Dynamically recalculate Strategic Priority roll-up totals and averages in programRollup
+    if (record.programRollup && Array.isArray(record.programRollup.strategicPriorities)) {
+      record.programRollup.strategicPriorities.forEach((sp) => {
+        const matched = record.scorecard.filter(
+          (d) => (d.strategicPriority || "").toLowerCase() === (sp.priority || "").toLowerCase()
+        );
+        if (matched.length > 0) {
+          const sum = matched.reduce((acc, d) => acc + (Number(d.score) || 0), 0);
+          sp.totalScore = Number(sum.toFixed(1));
+          sp.maxScore = matched.length * 5.0;
+          sp.averageScore = Number((sum / matched.length).toFixed(1));
+          sp.benefitCount = matched.length;
+        }
+      });
     }
 
     await record.save();
@@ -664,7 +681,8 @@ export const exportBenefitsExcel = async (req, res) => {
     // Summary Mean Row
     const meanRowNum = 5 + (data.scorecard || []).length;
     const meanRow = ws2.getRow(meanRowNum);
-    meanRow.values = ["MEAN", "Program Score Realization Average", 5.0, data.overallScore, "78% INDEX", "Provisional Scorecard Average (Gate 2/3)"];
+    const liveMeanPct = Math.round(Number(data.realizationPercentage) || 78);
+    meanRow.values = ["MEAN", "Health Scorecard Average", 5.0, data.overallScore, `${liveMeanPct}% INDEX`, "Active Gate 2/3 Benchmark Satisfied; Transition Authorized to Checkpoint 4."];
     meanRow.height = 25;
     meanRow.eachCell((c) => {
       c.font = { name: "Segoe UI", size: 10.5, bold: true, color: { argb: "0F172A" } };
@@ -717,11 +735,13 @@ export const exportBenefitsExcel = async (req, res) => {
       const rNum = 5 + idx;
       const row = ws3.getRow(rNum);
       const isActive = Number(cp.checkpointNumber) === Number(data.activeCheckpointNumber);
+      const cpNum = Number(cp.checkpointNumber);
+      const scoreDisplay = cp.score ? `${Number(cp.score).toFixed(1)} / 5.0` : (cpNum === 1 ? "n/a / 5.0" : "TBC / 5.0");
       row.values = [
         `Checkpoint ${cp.checkpointNumber}`,
         cp.name,
         cp.targetDate,
-        cp.score ? `${cp.score} / 5.0` : "TBD",
+        scoreDisplay,
         cp.status,
         cp.notes
       ];
@@ -1264,6 +1284,152 @@ export const exportBenefitsExcel = async (req, res) => {
       { width: 36 }
     ];
 
+    // =========================================================================
+    // SHEET 9: BENEFITS MAP & STRATEGIC PRIORITY ROLL-UP
+    // =========================================================================
+    const ws9 = wb.addWorksheet("Benefits Map & Alignment", {
+      views: [{ showGridLines: true, state: "frozen", ySplit: 4 }]
+    });
+
+    ws9.mergeCells("A2:E2");
+    const bmTitle = ws9.getCell("A2");
+    bmTitle.value = "BENEFITS MAP — REVISED LANGARA STRATEGIC ALIGNMENT & PRIORITY ROLL-UP";
+    bmTitle.font = { name: "Segoe UI", size: 12.5, bold: true, color: { argb: "FFFFFF" } };
+    bmTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F15A22" } };
+    bmTitle.alignment = { vertical: "middle", indent: 1 };
+    ws9.getRow(2).height = 30;
+
+    // Roll-up Summary Table
+    ws9.mergeCells("A4:E4");
+    const prHead = ws9.getCell("A4");
+    prHead.value = "1. STRATEGIC PRIORITY ROLL-UP FOR DIAL GRAPHIC (PRIMARY ALIGNMENT — NO DOUBLE COUNTING)";
+    prHead.font = { name: "Segoe UI", size: 10.5, bold: true, color: { argb: "FFFFFF" } };
+    prHead.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "0F172A" } };
+    prHead.alignment = { vertical: "middle", indent: 1 };
+    ws9.getRow(4).height = 24;
+
+    const prThRow = ws9.getRow(5);
+    prThRow.values = ["Langara Strategic Priority", "Mapped Benefit Drivers", "Total Points", "Average Score (/ 5.0)", "Realization %"];
+    prThRow.height = 24;
+    prThRow.eachCell((c) => {
+      c.font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F1F5F9" } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      applyCellBorder(c);
+    });
+    prThRow.getCell(1).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+
+    const drivers = data.scorecard || [];
+    const calcPriorityGroup = (prioName, fallbackIds, fallbackTot, fallbackAvg) => {
+      const matched = drivers.filter((d) => (d.strategicPriority || "").toLowerCase() === prioName.toLowerCase());
+      if (matched.length > 0) {
+        const tot = matched.reduce((acc, d) => acc + (Number(d.score) || 0), 0);
+        const avg = tot / matched.length;
+        return {
+          priority: prioName,
+          driversText: `${matched.map((m) => m.driverId).join(", ")} (${matched.length} benefits)`,
+          totalText: `${tot.toFixed(1)} / ${(matched.length * 5).toFixed(1)}`,
+          avgText: `${avg.toFixed(1)} / 5.0`,
+          pctText: `${Math.round((avg / 5.0) * 100)}%`
+        };
+      }
+      return {
+        priority: prioName,
+        driversText: `${fallbackIds.join(", ")} (${fallbackIds.length} benefits)`,
+        totalText: `${fallbackTot.toFixed(1)} / ${(fallbackIds.length * 5).toFixed(1)}`,
+        avgText: `${fallbackAvg.toFixed(1)} / 5.0`,
+        pctText: `${Math.round((fallbackAvg / 5.0) * 100)}%`
+      };
+    };
+
+    const priorityRollups = [
+      calcPriorityGroup("Human Capacity", ["B1", "B4", "B6", "B8"], 16.0, 4.0),
+      calcPriorityGroup("Technology Utilization", ["B2", "B5", "B7"], 11.4, 3.8),
+      calcPriorityGroup("Campus Development", ["B3", "B9"], 7.9, 4.0)
+    ];
+
+    priorityRollups.forEach((pr, idx) => {
+      const rNum = 6 + idx;
+      const row = ws9.getRow(rNum);
+      row.values = [pr.priority, pr.driversText, pr.totalText, pr.avgText, pr.pctText];
+      row.height = 23;
+      row.eachCell((c) => {
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: idx % 2 === 1 ? "F8FAFC" : "FFFFFF" } };
+        c.font = { name: "Segoe UI", size: 9.5, color: { argb: "0F172A" } };
+        applyCellBorder(c);
+      });
+      row.getCell(1).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(1).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      row.getCell(2).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(3).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(4).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(4).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "F15A22" } };
+      row.getCell(5).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(5).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "1E824C" } };
+    });
+
+    // Detailed Benefits Map Table
+    ws9.mergeCells("A10:E10");
+    const mapHead = ws9.getCell("A10");
+    mapHead.value = "2. DETAILED BENEFITS MAP — STRATEGIC PRIORITY ALIGNMENT & MEASURABLE KPIS";
+    mapHead.font = { name: "Segoe UI", size: 10.5, bold: true, color: { argb: "FFFFFF" } };
+    mapHead.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "0F172A" } };
+    mapHead.alignment = { vertical: "middle", indent: 1 };
+    ws9.getRow(10).height = 24;
+
+    const mapThRow = ws9.getRow(11);
+    mapThRow.values = ["Supports Strategic Priority of:", "Benefit ID & Name", "PRM Score", "Measurable KPIs", "Operational Verification Evidence"];
+    mapThRow.height = 24;
+    mapThRow.eachCell((c) => {
+      c.font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F1F5F9" } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      applyCellBorder(c);
+    });
+    mapThRow.getCell(1).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    mapThRow.getCell(2).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    mapThRow.getCell(4).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    mapThRow.getCell(5).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+
+    const defaultMapOrder = ["B1", "B4", "B6", "B8", "B2", "B5", "B7", "B3", "B9"];
+    const orderedDrivers = defaultMapOrder
+      .map((id) => drivers.find((d) => d.driverId === id))
+      .filter(Boolean);
+
+    orderedDrivers.forEach((d, idx) => {
+      const rNum = 12 + idx;
+      const row = ws9.getRow(rNum);
+      row.values = [
+        d.strategicPriority || "Human Capacity",
+        `${d.driverId} ${d.name}`,
+        (Number(d.score) || 0).toFixed(1),
+        d.measurableKpis || "",
+        d.evidence || ""
+      ];
+      row.height = 28;
+      row.eachCell((c) => {
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: idx % 2 === 1 ? "F8FAFC" : "FFFFFF" } };
+        c.font = { name: "Segoe UI", size: 9.5, color: { argb: "0F172A" } };
+        applyCellBorder(c);
+      });
+      row.getCell(1).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(1).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      row.getCell(2).alignment = { vertical: "middle", indent: 1 };
+      row.getCell(2).font = { name: "Segoe UI", size: 9.5, bold: true, color: { argb: "0F172A" } };
+      row.getCell(3).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(3).font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "F15A22" } };
+      row.getCell(4).alignment = { vertical: "middle", indent: 1, wrapText: true };
+      row.getCell(5).alignment = { vertical: "middle", indent: 1, wrapText: true };
+    });
+
+    ws9.columns = [
+      { width: 28 },
+      { width: 38 },
+      { width: 16 },
+      { width: 52 },
+      { width: 52 }
+    ];
+
     const buffer = await wb.xlsx.writeBuffer();
 
     res.setHeader("Content-Disposition", `attachment; filename="${data.orgName.replace(/\s+/g, '_')}_Benefits_Realization_Scorecard.xlsx"`);
@@ -1272,5 +1438,321 @@ export const exportBenefitsExcel = async (req, res) => {
   } catch (error) {
     console.error("[BENEFITS EXPORT ERROR]", error);
     return res.status(500).json({ message: "Failed to export Excel report", error: error.message });
+  }
+};
+
+/**
+ * Helper: Safely escape XML characters
+ */
+const escapeXml = (str) =>
+  (str || "")
+    .toString()
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+
+/**
+ * @desc    Export dynamic 11-slide PowerPoint presentation (.pptx) injected with live MongoDB values
+ * @route   GET /api/v1/benefits/export-pptx
+ * @access  Private (flexibleProtect)
+ */
+export const exportBenefitsPptx = async (req, res) => {
+  try {
+    const orgQuery = req.query.orgName || req.user?.orgName || "Langara College";
+    const deckType = (req.query.type || "prm").toString().toLowerCase();
+    const data = await findBenefitsDoc(orgQuery, true);
+
+    if (!data) {
+      return res.status(404).json({ message: "Benefits realization data not found" });
+    }
+
+    const overallScore = (Number(data.overallScore) || 3.9).toFixed(1);
+    const targetScore = (Number(data.targetScore) || 5.0).toFixed(1);
+    const realizationPct = Math.round(Number(data.realizationPercentage) || 78);
+
+    // If type=program, export the 2-slide Program Benefits Roll-up Dashboard PPTX
+    if (deckType === "program") {
+      const progTemplatePath = path.resolve(__dirname, "../templates/Langara_Program_Benefits_Template.pptx");
+      if (!fs.existsSync(progTemplatePath)) {
+        return res.status(500).json({ message: "Program Benefits template not found on server" });
+      }
+      const progBuffer = fs.readFileSync(progTemplatePath);
+      const progZip = await JSZip.loadAsync(progBuffer);
+
+      // Slide 1 of Program Benefits Dashboard: Dynamic Reporting Date, Rollout Progress & Budget
+      let progSlide1 = await progZip.file("ppt/slides/slide1.xml")?.async("string");
+      if (progSlide1 && data.programRollup) {
+        const pr = data.programRollup;
+        if (pr.reportingDate) {
+          progSlide1 = progSlide1.replace("November 27, 2026", escapeXml(pr.reportingDate));
+        }
+        if (pr.approxTeamsRemaining !== undefined) {
+          progSlide1 = progSlide1.replace("&lt;20&gt;", `&lt;${escapeXml(pr.approxTeamsRemaining)}&gt;`);
+        }
+        if (pr.startDate) {
+          progSlide1 = progSlide1.replace("Apr 1, 2025", escapeXml(pr.startDate));
+        }
+        if (pr.endDate) {
+          progSlide1 = progSlide1.replace("Jan 31, 2028", escapeXml(pr.endDate));
+        }
+        progZip.file("ppt/slides/slide1.xml", progSlide1);
+      }
+
+      let progSlide2 = await progZip.file("ppt/slides/slide2.xml")?.async("string");
+      if (progSlide2) {
+        progSlide2 = progSlide2
+          .replace(/Mean Score: 3\.9 \/ 5\.0/g, `Mean Score: ${escapeXml(overallScore)} / ${escapeXml(targetScore)}`)
+          .replace(/<a:t>78% INDEX<\/a:t>/g, `<a:t>${realizationPct}% INDEX</a:t>`);
+
+        const templateDrivers = [
+          { id: "B1", score: "4.2", status: "On Track", ev: "227 active cloud files; 4.5/5 version control survey, 40.2% ROT reduction (2,175 ➔ 1,300 files)." },
+          { id: "B2", score: "3.8", status: "Monitor", ev: "4.5/5 restricted access confidence; 0 'Everyone' grants; 0% Purview labels (205 files unlabelled)." },
+          { id: "B3", score: "4.0", status: "On Track", ev: "4.5/5 support awareness; 15.1% storage reduction (3.90 ➔ 3.31 GB); 0 path length errors." },
+          { id: "B4", score: "3.6", status: "Monitor", ev: "3.5/5 off-site work ease; OneDrive sync coaching required to replace manual file uploads." },
+          { id: "B5", score: "4.1", status: "On Track", ev: "Single source of truth; folder depth 8 ➔ 2 (-75%), folders 541 ➔ 44 (-91.9%), duplicate files -58.1%." },
+          { id: "B6", score: "3.7", status: "Progressing", ev: "4.0/5 collaboration ease; workflow transition underway across PRM libraries." },
+          { id: "B7", score: "3.5", status: "On Track", ev: "5.0/5 metadata confidence; generic filenames reduced 347 ➔ 41 (-88.2%)." },
+          { id: "B8", score: "4.5", status: "On Track", ev: "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (1,151 staff)." },
+          { id: "B9", score: "3.9", status: "Dollar Savings ", ev: "15.1% storage reduction (3.90 ➔ 3.31 GB)" }
+        ];
+
+        if (Array.isArray(data.scorecard)) {
+          templateDrivers.forEach((td) => {
+            const liveDriver = data.scorecard.find((d) => d.driverId === td.id);
+            if (liveDriver) {
+              const liveScore = (Number(liveDriver.score) || Number(td.score)).toFixed(1);
+              if (liveDriver.evidence && liveDriver.evidence !== td.ev) {
+                progSlide2 = progSlide2.replace(escapeXml(td.ev), escapeXml(liveDriver.evidence));
+                progSlide2 = progSlide2.replace(td.ev, escapeXml(liveDriver.evidence));
+              }
+              const idTag = `<a:t>${td.id}</a:t>`;
+              const idPos = progSlide2.indexOf(idTag);
+              if (idPos !== -1) {
+                const nextRowPos = progSlide2.indexOf("</a:tr>", idPos);
+                if (nextRowPos !== -1) {
+                  let rowXml = progSlide2.substring(idPos, nextRowPos);
+                  rowXml = rowXml.replace(`<a:t>${td.score}</a:t>`, `<a:t>${escapeXml(liveScore)}</a:t>`);
+                  if (td.id !== "B9" && liveDriver.status) {
+                    rowXml = rowXml.replace(`<a:t>${td.status}</a:t>`, `<a:t>${escapeXml(liveDriver.status)}</a:t>`);
+                  }
+                  progSlide2 = progSlide2.substring(0, idPos) + rowXml + progSlide2.substring(nextRowPos);
+                }
+              }
+            }
+          });
+        }
+
+        const meanPos = progSlide2.indexOf("<a:t>MEAN</a:t>");
+        if (meanPos !== -1) {
+          const endMeanRow = progSlide2.indexOf("</a:tr>", meanPos);
+          if (endMeanRow !== -1) {
+            let meanRowXml = progSlide2.substring(meanPos, endMeanRow);
+            meanRowXml = meanRowXml.replace("<a:t>3.9</a:t>", `<a:t>${escapeXml(overallScore)}</a:t>`);
+            progSlide2 = progSlide2.substring(0, meanPos) + meanRowXml + progSlide2.substring(endMeanRow);
+          }
+        }
+        progZip.file("ppt/slides/slide2.xml", progSlide2);
+      }
+
+      const progOut = await progZip.generateAsync({
+        type: "nodebuffer",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 }
+      });
+
+      const safeOrg = (data.orgName || "Langara_LCP").replace(/\s+/g, "_");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeOrg}_Program_Benefits_Dashboard.pptx"`);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+      return res.send(progOut);
+    }
+
+    const templatePath = path.resolve(__dirname, "../templates/Langara_PRM_Master_Template.pptx");
+    if (!fs.existsSync(templatePath)) {
+      return res.status(500).json({ message: "Master PowerPoint template not found on server" });
+    }
+
+    const templateBuffer = fs.readFileSync(templatePath);
+    const zip = await JSZip.loadAsync(templateBuffer);
+
+    // 1. SLIDE 4: Executive Realization Dashboard (Overall Score, 4 Pillars, Outcomes)
+    let slide4Xml = await zip.file("ppt/slides/slide4.xml")?.async("string");
+    if (slide4Xml) {
+      slide4Xml = slide4Xml
+        .replace(/<a:t>3\.9<\/a:t>/g, `<a:t>${escapeXml(overallScore)}</a:t>`)
+        .replace(/<a:t>\/ 5\.0 \(78%\)<\/a:t>/g, `<a:t>/ ${escapeXml(targetScore)} (${realizationPct}%)</a:t>`);
+
+      // Update 4 Pillars statuses if modified in DB
+      if (Array.isArray(data.pillars)) {
+        const deliv = data.pillars.find((p) => p.name?.toLowerCase().includes("delivery"));
+        const adopt = data.pillars.find((p) => p.name?.toLowerCase().includes("adoption"));
+        const benef = data.pillars.find((p) => p.name?.toLowerCase().includes("benefit"));
+        const risk = data.pillars.find((p) => p.name?.toLowerCase().includes("risk"));
+
+        if (benef?.status) {
+          slide4Xml = slide4Xml.replace(/<a:t>Progressing<\/a:t>/, `<a:t>${escapeXml(benef.status)}</a:t>`);
+        }
+        if (risk?.status) {
+          slide4Xml = slide4Xml.replace(/<a:t>Monitor<\/a:t>/, `<a:t>${escapeXml(risk.status)}</a:t>`);
+        }
+        if (deliv?.status && deliv.status !== "On Track") {
+          slide4Xml = slide4Xml.replace(/<a:t>On Track<\/a:t>/, `<a:t>${escapeXml(deliv.status)}</a:t>`);
+        }
+        if (adopt?.status && adopt.status !== "On Track") {
+          // Replace second occurrence if adoption changed
+          let count = 0;
+          slide4Xml = slide4Xml.replace(/<a:t>On Track<\/a:t>/g, (match) => {
+            count++;
+            return count === 2 ? `<a:t>${escapeXml(adopt.status)}</a:t>` : match;
+          });
+        }
+      }
+
+      // Update Outcomes if modified in DB
+      if (data.outcomes?.folderCount) {
+        const fc = data.outcomes.folderCount;
+        const pct = Math.abs(Number(fc.percentChange) || 91.9).toFixed(1);
+        slide4Xml = slide4Xml
+          .replace(/•  91\.9% Fewer Folders/g, `•  ${pct}% Fewer Folders`)
+          .replace(/541 reduced to 44/g, `${fc.baseline ?? 541} reduced to ${fc.current ?? 44}`);
+      }
+      if (data.outcomes?.duplicateFiles) {
+        const df = data.outcomes.duplicateFiles;
+        const pct = Math.abs(Number(df.percentChange) || 58.1).toFixed(1);
+        slide4Xml = slide4Xml
+          .replace(/•  58\.1% Fewer Duplicate Files/g, `•  ${pct}% Fewer Duplicate Files`)
+          .replace(/117 reduced to 49/g, `${df.baseline ?? 117} reduced to ${df.current ?? 49}`)
+          .replace(/117  ➔  49/g, `${df.baseline ?? 117}  ➔  ${df.current ?? 49}`)
+          .replace(/-58\.1%/g, `-${pct}%`);
+      }
+      if (data.outcomes?.genericNames) {
+        const gn = data.outcomes.genericNames;
+        const pct = Math.abs(Number(gn.percentChange) || 88.2).toFixed(1);
+        slide4Xml = slide4Xml
+          .replace(/347  ➔  41/g, `${gn.baseline ?? 347}  ➔  ${gn.current ?? 41}`)
+          .replace(/-88\.2%/g, `-${pct}%`);
+      }
+
+      zip.file("ppt/slides/slide4.xml", slide4Xml);
+    }
+
+    // 2. SLIDE 5: Strategic Benefits Scorecard Table (Drivers B1 - B9 + Mean Row)
+    let slide5Xml = await zip.file("ppt/slides/slide5.xml")?.async("string");
+    if (slide5Xml) {
+      slide5Xml = slide5Xml
+        .replace(
+          /Mean Score: 3\.9 \/ 5\.0/g,
+          `Mean Score: ${escapeXml(overallScore)} / ${escapeXml(targetScore)}`
+        )
+        .replace(/<a:t>78% INDEX<\/a:t>/g, `<a:t>${realizationPct}% INDEX</a:t>`);
+
+      // Original baseline driver map from template
+      const templateDrivers = [
+        { id: "B1", score: "4.2", status: "On Track", ev: "227 active cloud files; 4.5/5 version control survey, 40.2% ROT reduction (2,175 ➔ 1,300 files)." },
+        { id: "B2", score: "3.8", status: "Monitor", ev: "4.5/5 restricted access confidence; 0 'Everyone' grants; 0% Purview labels (205 files unlabelled)." },
+        { id: "B3", score: "4.0", status: "On Track", ev: "4.5/5 support awareness; 15.1% storage reduction (3.90 ➔ 3.31 GB); 0 path length errors." },
+        { id: "B4", score: "3.6", status: "Monitor", ev: "3.5/5 off-site work ease; OneDrive sync coaching required to replace manual file uploads." },
+        { id: "B5", score: "4.1", status: "On Track", ev: "Single source of truth; folder depth 8 ➔ 2 (-75%), folders 541 ➔ 44 (-91.9%), duplicate files -58.1%." },
+        { id: "B6", score: "3.7", status: "Progressing", ev: "4.0/5 collaboration ease; workflow transition underway across PRM libraries." },
+        { id: "B7", score: "3.5", status: "On Track", ev: "5.0/5 metadata confidence; generic filenames reduced 347 ➔ 41 (-88.2%)." },
+        { id: "B8", score: "4.5", status: "On Track", ev: "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (1,151 staff)." },
+        { id: "B9", score: "3.9", status: "Dollar Savings ", ev: "15.1% storage reduction (3.90 ➔ 3.31 GB)" }
+      ];
+
+      if (Array.isArray(data.scorecard)) {
+        templateDrivers.forEach((td) => {
+          const liveDriver = data.scorecard.find((d) => d.driverId === td.id);
+          if (liveDriver) {
+            const liveScore = (Number(liveDriver.score) || Number(td.score)).toFixed(1);
+            if (liveDriver.evidence && liveDriver.evidence !== td.ev) {
+              slide5Xml = slide5Xml.replace(escapeXml(td.ev), escapeXml(liveDriver.evidence));
+              slide5Xml = slide5Xml.replace(td.ev, escapeXml(liveDriver.evidence));
+            }
+            // Match driver cell row context in XML
+            const idTag = `<a:t>${td.id}</a:t>`;
+            const idPos = slide5Xml.indexOf(idTag);
+            if (idPos !== -1) {
+              const nextRowPos = slide5Xml.indexOf("</a:tr>", idPos);
+              if (nextRowPos !== -1) {
+                let rowXml = slide5Xml.substring(idPos, nextRowPos);
+                rowXml = rowXml.replace(`<a:t>${td.score}</a:t>`, `<a:t>${escapeXml(liveScore)}</a:t>`);
+                if (td.id !== "B9" && liveDriver.status) {
+                  rowXml = rowXml.replace(`<a:t>${td.status}</a:t>`, `<a:t>${escapeXml(liveDriver.status)}</a:t>`);
+                }
+                slide5Xml = slide5Xml.substring(0, idPos) + rowXml + slide5Xml.substring(nextRowPos);
+              }
+            }
+          }
+        });
+      }
+
+      // Update MEAN row score
+      const meanPos = slide5Xml.indexOf("<a:t>MEAN</a:t>");
+      if (meanPos !== -1) {
+        const endMeanRow = slide5Xml.indexOf("</a:tr>", meanPos);
+        if (endMeanRow !== -1) {
+          let meanRowXml = slide5Xml.substring(meanPos, endMeanRow);
+          meanRowXml = meanRowXml.replace("<a:t>3.9</a:t>", `<a:t>${escapeXml(overallScore)}</a:t>`);
+          slide5Xml = slide5Xml.substring(0, meanPos) + meanRowXml + slide5Xml.substring(endMeanRow);
+        }
+      }
+
+      zip.file("ppt/slides/slide5.xml", slide5Xml);
+    }
+
+    // 3. SLIDE 7 & SLIDE 8: Recommendations & Needs Attention Remediation
+    let slide7Xml = await zip.file("ppt/slides/slide7.xml")?.async("string");
+    let slide8Xml = await zip.file("ppt/slides/slide8.xml")?.async("string");
+
+    if (Array.isArray(data.needsAttention) && data.needsAttention.length > 0) {
+      const na1 = data.needsAttention[0];
+      const na2 = data.needsAttention[1];
+
+      const origNa1Rec = "LCP Project 1 is piloting Purview auto-labelling and security classifications across selected PRM libraries using retain-only labels, with no automated deletion or disposition. Retention schedules are being gathered through the LCP program requirements.";
+      const origNa2Rec = "Deliver targeted 15-minute coaching clinics on OneDrive sync vs. manual uploads.";
+
+      if (na1?.recommendation && slide7Xml) {
+        slide7Xml = slide7Xml.replace(origNa1Rec, escapeXml(na1.recommendation));
+        zip.file("ppt/slides/slide7.xml", slide7Xml);
+      }
+
+      if (slide8Xml) {
+        if (na1?.recommendation) {
+          slide8Xml = slide8Xml.replace(origNa1Rec, escapeXml(na1.recommendation));
+        }
+        if (na1?.issue) {
+          slide8Xml = slide8Xml.replace(
+            "0% retention labels applied. 205 potentially sensitive administrative and student files remain unlabeled in SharePoint document libraries.",
+            escapeXml(na1.issue)
+          );
+        }
+        if (na2?.recommendation) {
+          slide8Xml = slide8Xml.replace(origNa2Rec, escapeXml(na2.recommendation));
+        }
+        zip.file("ppt/slides/slide8.xml", slide8Xml);
+      }
+    }
+
+    // 4. SLIDE 9: Benefit Checkpoints Roadmap — Stage-Gate Governance
+    let slide9Xml = await zip.file("ppt/slides/slide9.xml")?.async("string");
+    if (slide9Xml) {
+      slide9Xml = slide9Xml.replace(/<a:t>3\.9 \/ 5\.0<\/a:t>/g, `<a:t>${escapeXml(overallScore)} / ${escapeXml(targetScore)}</a:t>`);
+      zip.file("ppt/slides/slide9.xml", slide9Xml);
+    }
+
+    const outBuffer = await zip.generateAsync({
+      type: "nodebuffer",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 }
+    });
+
+    const safeOrg = (data.orgName || "Langara_PRM").replace(/\s+/g, "_");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeOrg}_Executive_Scorecard.pptx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+    return res.send(outBuffer);
+  } catch (error) {
+    console.error("[BENEFITS PPTX EXPORT ERROR]", error);
+    return res.status(500).json({ message: "Failed to export PowerPoint presentation", error: error.message });
   }
 };

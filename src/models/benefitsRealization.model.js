@@ -57,8 +57,16 @@ const scorecardDriverSchema = new Schema(
     target: { type: Number, default: 5.0 },
     status: {
       type: String,
-      enum: ["On Track", "Monitor", "Progressing", "Verified"],
+      enum: ["On Track", "Monitor", "Progressing", "Verified", "Dollar Savings Not Quantified", "Needs Attention"],
       default: "On Track"
+    },
+    strategicPriority: {
+      type: String,
+      default: "Human Capacity"
+    },
+    measurableKpis: {
+      type: String,
+      default: ""
     },
     evidence: { type: String, default: "" }
   },
@@ -246,6 +254,36 @@ const benefitsRealizationSchema = new Schema(
         type: String,
         default: "Low variance detected, the organization is moving with aligned execution."
       }
+    },
+    programRollup: {
+      reportingDate: { type: String, default: "November 27, 2026" },
+      programManager: { type: String, default: "Seynabou Diack" },
+      programSponsor: { type: String, default: "Justin Yau" },
+      startDate: { type: String, default: "Apr 1, 2025" },
+      endDate: { type: String, default: "Jan 31, 2028" },
+      projectProgress: { type: String, default: "1 of 7" },
+      newSitesInOperation: { type: String, default: "5 of 9 in Project 1" },
+      approxTeamsRemaining: { type: Number, default: 20 },
+      budget: [
+        {
+          fundType: { type: String, default: "Operating (FY27)" },
+          baseline: { type: String, default: "$9,352" },
+          ytd: { type: String, default: "$7,862" },
+          etc: { type: String, default: "$1,490" },
+          eac: { type: String, default: "$9,352" },
+          variance: { type: String, default: "0%" }
+        }
+      ],
+      strategicPriorities: [
+        {
+          priority: { type: String, required: true },
+          totalScore: { type: Number, default: 0 },
+          maxScore: { type: Number, default: 20 },
+          averageScore: { type: Number, default: 4.0 },
+          benefitCount: { type: Number, default: 4 },
+          driverIds: [{ type: String }]
+        }
+      ]
     }
   },
   {

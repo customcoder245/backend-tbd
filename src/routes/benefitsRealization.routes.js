@@ -6,7 +6,8 @@ import {
   updateScorecardDriver,
   updateNeedsAttention,
   updateGovernanceConfig,
-  exportBenefitsExcel
+  exportBenefitsExcel,
+  exportBenefitsPptx
 } from "../controllers/benefitsRealization.controller.js";
 
 const router = Router();
@@ -42,6 +43,31 @@ const router = Router();
  *               format: binary
  */
 router.get("/export-excel", flexibleProtect, exportBenefitsExcel);
+
+/**
+ * @swagger
+ * /api/v1/benefits/export-pptx:
+ *   get:
+ *     summary: Export dynamic 11-slide PowerPoint presentation (.pptx) injected with live MongoDB metrics
+ *     tags: [Benefits Realization]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: orgName
+ *         schema:
+ *           type: string
+ *         description: Organization name (default Langara College)
+ *     responses:
+ *       200:
+ *         description: PowerPoint presentation binary stream
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.presentationml.presentation:
+ *             schema:
+ *               type: string
+ *               format: binary
+ */
+router.get("/export-pptx", flexibleProtect, exportBenefitsPptx);
 
 /**
  * @swagger
