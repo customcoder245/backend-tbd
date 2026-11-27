@@ -15,7 +15,7 @@ function createMockReqRes(reqData = {}) {
     query: reqData.query || {},
     body: reqData.body || {},
     params: reqData.params || {},
-    user: reqData.user || { role: "superAdmin", orgName: "Langara College" },
+    user: reqData.user || { role: "superAdmin", orgName: "Langara College" }
   };
 
   const res = {
@@ -37,7 +37,7 @@ function createMockReqRes(reqData = {}) {
     send(payload) {
       this.data = payload;
       return this;
-    },
+    }
   };
 
   return { req, res };
@@ -70,12 +70,22 @@ async function runTestSuite() {
     console.log(`   ✅ Program: ${d.programName}`);
     console.log(`   ✅ PID: ${d.pid}`);
     console.log(`   ✅ Wave: ${d.waveName}`);
-    console.log(`   ✅ Overall Score: ${d.overallScore} / ${d.targetScore} (${d.realizationPercentage}%)`);
+    console.log(
+      `   ✅ Overall Score: ${d.overallScore} / ${d.targetScore} (${d.realizationPercentage}%)`
+    );
     console.log(`   ✅ Active Checkpoint: Checkpoint ${d.activeCheckpointNumber}`);
-    console.log(`   ✅ Stakeholders: ${d.stakeholders.map((s) => `${s.name} (${s.role})`).join("; ")}`);
-    console.log(`   ✅ 4 Pillars: ${d.pillars.map((p) => `${p.name}: ${p.score} [${p.status}]`).join(", ")}`);
-    console.log(`   ✅ Outcomes Hygiene: Folder count ${d.outcomes.folderCount.baseline} ➔ ${d.outcomes.folderCount.current} (${d.outcomes.folderCount.percentChange}%)`);
-    console.log(`   ✅ Security & Governance: ${d.outcomes.everyoneGrants} 'Everyone' grants, ${d.outcomes.trainedStaff}/${d.outcomes.totalStaff} staff trained`);
+    console.log(
+      `   ✅ Stakeholders: ${d.stakeholders.map((s) => `${s.name} (${s.role})`).join("; ")}`
+    );
+    console.log(
+      `   ✅ 4 Pillars: ${d.pillars.map((p) => `${p.name}: ${p.score} [${p.status}]`).join(", ")}`
+    );
+    console.log(
+      `   ✅ Outcomes Hygiene: Folder count ${d.outcomes.folderCount.baseline} ➔ ${d.outcomes.folderCount.current} (${d.outcomes.folderCount.percentChange}%)`
+    );
+    console.log(
+      `   ✅ Security & Governance: ${d.outcomes.everyoneGrants} 'Everyone' grants, ${d.outcomes.trainedStaff}/${d.outcomes.totalStaff} staff trained`
+    );
     console.log(`   ✅ Strategic Scorecard: ${d.scorecard.length} drivers`);
     console.log(`   ✅ Needs Attention Items: ${d.needsAttention.length} priorities`);
   }
@@ -84,7 +94,7 @@ async function runTestSuite() {
   console.log("\n3. Testing PUT /api/v1/benefits/checkpoint (updateActiveCheckpoint)...");
   {
     const { req, res } = createMockReqRes({
-      body: { orgName: "Langara College", checkpointNumber: 4 },
+      body: { orgName: "Langara College", checkpointNumber: 4 }
     });
     await benefitsController.updateActiveCheckpoint(req, res);
     if (res.statusCode !== 200 || !res.data?.success) {
@@ -101,17 +111,19 @@ async function runTestSuite() {
 
     // Revert back to 3 for Langara PRM standard
     const { req: reqRev, res: resRev } = createMockReqRes({
-      body: { orgName: "Langara College", checkpointNumber: 3 },
+      body: { orgName: "Langara College", checkpointNumber: 3 }
     });
     await benefitsController.updateActiveCheckpoint(reqRev, resRev);
-    console.log(`   ✅ Restored checkpoint back to: Checkpoint ${resRev.data.data.activeCheckpointNumber}`);
+    console.log(
+      `   ✅ Restored checkpoint back to: Checkpoint ${resRev.data.data.activeCheckpointNumber}`
+    );
   }
 
   // TEST 3: PUT Update Scorecard Driver
   console.log("\n4. Testing PUT /api/v1/benefits/scorecard-driver (updateScorecardDriver)...");
   {
     const { req, res } = createMockReqRes({
-      body: { orgName: "Langara College", driverId: "B1", score: 4.3, status: "On Track" },
+      body: { orgName: "Langara College", driverId: "B1", score: 4.3, status: "On Track" }
     });
     await benefitsController.updateScorecardDriver(req, res);
     if (res.statusCode !== 200 || !res.data?.success) {
@@ -119,11 +131,13 @@ async function runTestSuite() {
     }
     const b1 = res.data.data.scorecard.find((s) => s.driverId === "B1");
     console.log(`   ✅ Updated driver B1 (${b1.name}) score: ${b1.score}`);
-    console.log(`   ✅ Recalculated overall score: ${res.data.data.overallScore} (${res.data.data.realizationPercentage}%)`);
+    console.log(
+      `   ✅ Recalculated overall score: ${res.data.data.overallScore} (${res.data.data.realizationPercentage}%)`
+    );
 
     // Restore B1 back to 4.2
     const { req: reqB1, res: resB1 } = createMockReqRes({
-      body: { orgName: "Langara College", driverId: "B1", score: 4.2, status: "On Track" },
+      body: { orgName: "Langara College", driverId: "B1", score: 4.2, status: "On Track" }
     });
     await benefitsController.updateScorecardDriver(reqB1, resB1);
     console.log(`   ✅ Restored driver B1 back to baseline score: 4.2`);
@@ -141,8 +155,8 @@ async function runTestSuite() {
       body: {
         orgName: "Langara College",
         id: firstPriority.id,
-        recommendation: testRec,
-      },
+        recommendation: testRec
+      }
     });
     await benefitsController.updateNeedsAttention(req, res);
     if (res.statusCode !== 200 || !res.data?.success) {
@@ -156,8 +170,8 @@ async function runTestSuite() {
       body: {
         orgName: "Langara College",
         id: firstPriority.id,
-        recommendation: originalRec,
-      },
+        recommendation: originalRec
+      }
     });
     await benefitsController.updateNeedsAttention(reqRestore, resRestore);
     console.log("   ✅ Cleanly reverted recommendation back to pristine original state");
@@ -192,14 +206,16 @@ async function runTestSuite() {
       "Hygiene & Outcomes",
       "Needs Attention",
       "Survey Results",
-      "Technical M365 Audit",
+      "Technical M365 Audit"
     ];
     for (const sheetName of expectedSheets) {
       if (!workbook.SheetNames.includes(sheetName)) {
         throw new Error(`Missing expected worksheet: ${sheetName}`);
       }
     }
-    console.log("   ✅ All 7 Excel worksheets validated with complete tabular data matching client workbook!");
+    console.log(
+      "   ✅ All 7 Excel worksheets validated with complete tabular data matching client workbook!"
+    );
   }
 
   // TEST 6: Org Fallback (WTEC alias)
@@ -210,7 +226,9 @@ async function runTestSuite() {
     if (res.statusCode !== 200 || !res.data?.success) {
       throw new Error(`WTEC query failed: ${JSON.stringify(res.data)}`);
     }
-    console.log(`   ✅ WTEC alias loaded correctly: ${res.data.data.programName} (${res.data.data.orgName})`);
+    console.log(
+      `   ✅ WTEC alias loaded correctly: ${res.data.data.programName} (${res.data.data.orgName})`
+    );
   }
 
   console.log("\n==========================================================");

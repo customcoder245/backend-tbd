@@ -27,7 +27,7 @@ function createMockRes() {
     send(payload) {
       this.data = payload;
       return this;
-    },
+    }
   };
 }
 
@@ -47,7 +47,10 @@ async function runAdversarialTests() {
   console.log("1. Testing Checkpoint validation boundary checks...");
   for (const badCp of [0, 6, -1, 999, "abc", null]) {
     const res = createMockRes();
-    await controller.updateActiveCheckpoint({ user: defaultAdmin, body: { orgName: "Langara College", checkpointNumber: badCp } }, res);
+    await controller.updateActiveCheckpoint(
+      { user: defaultAdmin, body: { orgName: "Langara College", checkpointNumber: badCp } },
+      res
+    );
     if (res.statusCode !== 400 || res.data?.success !== false) {
       issuesFound.push(`Checkpoint ${badCp} did not return HTTP 400 Bad Request`);
     }
@@ -58,7 +61,10 @@ async function runAdversarialTests() {
   console.log("2. Testing Scorecard Driver error handling...");
   {
     const res = createMockRes();
-    await controller.updateScorecardDriver({ user: defaultAdmin, body: { orgName: "Langara College", driverId: "B99", score: 4.0 } }, res);
+    await controller.updateScorecardDriver(
+      { user: defaultAdmin, body: { orgName: "Langara College", driverId: "B99", score: 4.0 } },
+      res
+    );
     if (res.statusCode !== 404 || res.data?.success !== false) {
       issuesFound.push("Non-existent driverId B99 did not return HTTP 404 Not Found");
     } else {
@@ -69,7 +75,10 @@ async function runAdversarialTests() {
   // 3. Edge Case: Missing required score in scorecard update
   {
     const res = createMockRes();
-    await controller.updateScorecardDriver({ user: defaultAdmin, body: { orgName: "Langara College", driverId: "B1" } }, res);
+    await controller.updateScorecardDriver(
+      { user: defaultAdmin, body: { orgName: "Langara College", driverId: "B1" } },
+      res
+    );
     if (res.statusCode !== 400 || res.data?.success !== false) {
       issuesFound.push("Missing score in updateScorecardDriver did not return HTTP 400");
     } else {
@@ -81,7 +90,13 @@ async function runAdversarialTests() {
   console.log("3. Testing Needs Attention error handling...");
   {
     const res = createMockRes();
-    await controller.updateNeedsAttention({ user: defaultAdmin, body: { orgName: "Langara College", id: "NON_EXISTENT_ID", recommendation: "test" } }, res);
+    await controller.updateNeedsAttention(
+      {
+        user: defaultAdmin,
+        body: { orgName: "Langara College", id: "NON_EXISTENT_ID", recommendation: "test" }
+      },
+      res
+    );
     if (res.statusCode !== 404 || res.data?.success !== false) {
       issuesFound.push("Non-existent needs attention id did not return HTTP 404");
     } else {
@@ -92,7 +107,10 @@ async function runAdversarialTests() {
   // 5. Edge Case: Missing id in Needs Attention update
   {
     const res = createMockRes();
-    await controller.updateNeedsAttention({ user: defaultAdmin, body: { orgName: "Langara College", recommendation: "test" } }, res);
+    await controller.updateNeedsAttention(
+      { user: defaultAdmin, body: { orgName: "Langara College", recommendation: "test" } },
+      res
+    );
     if (res.statusCode !== 400 || res.data?.success !== false) {
       issuesFound.push("Missing id in updateNeedsAttention did not return HTTP 400");
     } else {
@@ -119,7 +137,10 @@ async function runAdversarialTests() {
     if (res.statusCode !== 200 || !res.data?.data) {
       issuesFound.push("Arbitrary unknown org name failed to fallback to default tenant");
     } else {
-      console.log("   ✅ Fallback to primary tenant for unknown org succeeded:", res.data.data.orgName);
+      console.log(
+        "   ✅ Fallback to primary tenant for unknown org succeeded:",
+        res.data.data.orgName
+      );
     }
   }
 
@@ -137,7 +158,9 @@ async function runAdversarialTests() {
       if (wb.SheetNames.length !== 7) {
         issuesFound.push(`Excel sheets count is ${wb.SheetNames.length}, expected 7`);
       } else {
-        console.log(`   ✅ Excel export is valid binary (${buffer.length} bytes), 7 worksheets matching client workbook`);
+        console.log(
+          `   ✅ Excel export is valid binary (${buffer.length} bytes), 7 worksheets matching client workbook`
+        );
       }
     }
   }
