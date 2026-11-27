@@ -6,6 +6,9 @@ import {
   updateScorecardDriver,
   updateNeedsAttention,
   updateGovernanceConfig,
+  updateOutcomes,
+  updateCheckpointsTracker,
+  updateSurveyQuestions,
   exportBenefitsExcel,
   exportBenefitsPptx
 } from "../controllers/benefitsRealization.controller.js";
@@ -213,5 +216,8 @@ router.put("/needs-attention", flexibleProtect, updateNeedsAttention);
  *         description: Updated governance configuration
  */
 router.put("/governance-config", flexibleProtect, updateGovernanceConfig);
+router.put("/outcomes", flexibleProtect, updateOutcomes);
+router.put("/checkpoints-tracker", flexibleProtect, updateCheckpointsTracker);
+router.put("/surveys", flexibleProtect, updateSurveyQuestions);
 
 export default router;

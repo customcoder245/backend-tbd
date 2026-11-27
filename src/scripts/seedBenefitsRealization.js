@@ -95,8 +95,8 @@ const seedData = [
       genericNames: { baseline: 347, current: 41, percentChange: -88.2 },
       everyoneGrants: 0,
       folderExceptions: 0,
-      trainedStaff: 1151,
-      totalStaff: 1151,
+      trainedStaff: 2,
+      totalStaff: 2,
       activeFiles: 227
     },
     needsAttention: [
@@ -221,7 +221,7 @@ const seedData = [
         measurableKpis:
           "% of target users active in approved workspaces • Storage-choice knowledge check • Secure and consistent sharing",
         evidence:
-          "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (1,151 staff)."
+          "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (2/2 PRM staff)."
       },
       {
         driverId: "B9",
@@ -417,8 +417,8 @@ const seedData = [
       genericNames: { baseline: 347, current: 41, percentChange: -88.2 },
       everyoneGrants: 0,
       folderExceptions: 0,
-      trainedStaff: 1151,
-      totalStaff: 1151,
+      trainedStaff: 2,
+      totalStaff: 2,
       activeFiles: 227
     },
     needsAttention: [
@@ -543,7 +543,7 @@ const seedData = [
         measurableKpis:
           "% of target users active in approved workspaces • Storage-choice knowledge check • Secure and consistent sharing",
         evidence:
-          "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (1,151 staff)."
+          "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (2/2 PRM staff)."
       },
       {
         driverId: "B9",

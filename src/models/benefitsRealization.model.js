@@ -3,8 +3,13 @@ import mongoose, { Schema } from "mongoose";
 const checkpointSchema = new Schema(
   {
     checkpointNumber: { type: Number, required: true }, // 1 to 5
-    name: { type: String, required: true }, // "Baseline", "3-Month Review", "90-Day Review", etc.
-    targetDate: { type: String, required: true }, // "Nov 2024", "Nov 2026", etc.
+    name: { type: String, required: true }, // "Baseline", "Hypercare / Operational Readiness", etc.
+    targetDate: { type: String, required: true }, // Display label e.g. "Nov 2026"
+    dueDate: { type: Date, default: null }, // Exact calendar date for 2-day automated email alert
+    ownerName: { type: String, default: "Joanne Rajotte" },
+    ownerEmail: { type: String, default: "sdesouza@langara.ca" },
+    alertEmail: { type: String, default: "sdesouza@langara.ca" },
+    alertSent: { type: Boolean, default: false },
     score: { type: Number, default: 0 },
     status: {
       type: String,
@@ -99,8 +104,8 @@ const outcomesSchema = new Schema(
     },
     everyoneGrants: { type: Number, default: 0 },
     folderExceptions: { type: Number, default: 0 },
-    trainedStaff: { type: Number, default: 1151 },
-    totalStaff: { type: Number, default: 1151 },
+    trainedStaff: { type: Number, default: 2 },
+    totalStaff: { type: Number, default: 2 },
     activeFiles: { type: Number, default: 227 }
   },
   { _id: false }
@@ -409,7 +414,20 @@ const benefitsRealizationSchema = new Schema(
           driverIds: [{ type: String }]
         }
       ]
-    }
+    },
+    surveyQuestions: [
+      {
+        id: { type: String, default: "" },
+        domain: { type: String, default: "General" },
+        question: { type: String, required: true },
+        benefitLink: { type: String, default: "B8" },
+        siteOwnerScore: { type: Schema.Types.Mixed, default: "-" },
+        siteMemberScore: { type: Schema.Types.Mixed, default: "-" },
+        meanScore: { type: Number, default: 4.0 },
+        floorStatus: { type: String, default: "On Target" },
+        source: { type: String, enum: ["Internal", "MS Forms"], default: "MS Forms" }
+      }
+    ]
   },
   {
     timestamps: true

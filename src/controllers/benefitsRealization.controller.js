@@ -310,29 +310,37 @@ export const updateNeedsAttention = async (req, res) => {
 };
 
 /**
- * @desc    Update governance configuration (scoring methodology, thresholds, RAG colors)
+ * @desc    Update governance configuration (scoring methodology, thresholds, RAG colors, Benefits Map priorities)
  * @route   PUT /api/v1/benefits/governance-config
- * @access  Private (SuperAdmin only)
+ * @access  Private (SuperAdmin or Authorized Client Admin for their own tenant)
  */
 export const updateGovernanceConfig = async (req, res) => {
   try {
-    const isSuperAdmin = req.user?.role?.toLowerCase() === "superadmin";
-    if (!isSuperAdmin) {
+    const userRole = (req.user?.role || "").toLowerCase();
+    const isSuperAdmin = userRole === "superadmin";
+    const isClientAdmin = userRole === "admin";
+
+    if (!isSuperAdmin && !isClientAdmin) {
       return res.status(403).json({
         success: false,
-        message: "Access denied. Only SuperAdmin can configure governance rules and thresholds."
+        message:
+          "Access denied. Only SuperAdmin or authorized Client Admin can configure governance rules."
       });
     }
 
-    const { orgName, governanceConfig } = req.body;
-    if (!governanceConfig) {
+    const { orgName, governanceConfig, driverPriorities } = req.body;
+    if (!governanceConfig && !driverPriorities) {
       return res.status(400).json({
         success: false,
-        message: "governanceConfig object is required."
+        message: "governanceConfig or driverPriorities object is required."
       });
     }
 
-    const orgTarget = orgName || req.user?.orgName || "Langara College";
+    // Tenant isolation: Client Admins can only mutate their own organization
+    const orgTarget = isSuperAdmin
+      ? orgName || req.user?.orgName || "Langara College"
+      : req.user?.orgName || "Langara College";
+
     const record = await findBenefitsDoc(orgTarget, false, false);
 
     if (!record) {
@@ -342,24 +350,55 @@ export const updateGovernanceConfig = async (req, res) => {
       });
     }
 
-    record.governanceConfig = {
-      ...(record.governanceConfig?.toObject?.() || {}),
-      ...governanceConfig
-    };
+    if (governanceConfig) {
+      record.governanceConfig = {
+        ...(record.governanceConfig?.toObject?.() || {}),
+        ...governanceConfig
+      };
 
-    // If thresholds include driverScore, evaluate all driver statuses dynamically
-    if (Array.isArray(governanceConfig.thresholds)) {
-      const driverThresh = governanceConfig.thresholds.find((t) => t.key === "driverScore");
-      if (driverThresh && Array.isArray(record.scorecard)) {
-        record.scorecard.forEach((d) => {
-          const sc = Number(d.score) || 0;
-          if (sc >= (driverThresh.greenMin || 4.0)) {
-            d.status = "On Track";
-          } else if (sc >= (driverThresh.amberMin || 3.5)) {
-            d.status = "Monitor";
-          } else {
-            d.status = "Needs Attention";
-          }
+      // If thresholds include driverScore, evaluate all driver statuses dynamically (except B9 if Dollar Savings Not Quantified)
+      if (Array.isArray(governanceConfig.thresholds)) {
+        const driverThresh = governanceConfig.thresholds.find((t) => t.key === "driverScore");
+        if (driverThresh && Array.isArray(record.scorecard)) {
+          record.scorecard.forEach((d) => {
+            if (d.driverId === "B9" && d.status === "Dollar Savings Not Quantified") return;
+            const sc = Number(d.score) || 0;
+            if (sc >= (driverThresh.greenMin || 4.0)) {
+              d.status = "On Track";
+            } else if (sc >= (driverThresh.amberMin || 3.5)) {
+              d.status = "Monitor";
+            } else {
+              d.status = "Needs Attention";
+            }
+          });
+        }
+      }
+    }
+
+    // Allow editing Benefits Map Strategic Priority relationships (B1-B9 -> Human Capacity / Technology Utilization / Campus Development)
+    if (
+      driverPriorities &&
+      typeof driverPriorities === "object" &&
+      Array.isArray(record.scorecard)
+    ) {
+      record.scorecard.forEach((d) => {
+        if (driverPriorities[d.driverId]) {
+          d.strategicPriority = driverPriorities[d.driverId];
+        }
+      });
+
+      // Recalculate Strategic Priority Roll-Ups
+      if (record.programRollup && Array.isArray(record.programRollup.strategicPriorities)) {
+        record.programRollup.strategicPriorities.forEach((sp) => {
+          const matched = record.scorecard.filter(
+            (d) => (d.strategicPriority || "").toLowerCase() === (sp.priority || "").toLowerCase()
+          );
+          const sum = matched.reduce((acc, d) => acc + (Number(d.score) || 0), 0);
+          sp.totalScore = Number(sum.toFixed(1));
+          sp.maxScore = matched.length * 5.0;
+          sp.averageScore = matched.length > 0 ? Number((sum / matched.length).toFixed(1)) : 0;
+          sp.benefitCount = matched.length;
+          sp.driverIds = matched.map((m) => m.driverId);
         });
       }
     }
@@ -368,7 +407,7 @@ export const updateGovernanceConfig = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Governance configuration and thresholds updated successfully.",
+      message: "Governance configuration, thresholds, and Benefits Map updated successfully.",
       data: record
     });
   } catch (error) {
@@ -378,6 +417,179 @@ export const updateGovernanceConfig = async (req, res) => {
       message: "Failed to update governance configuration",
       error: error.message
     });
+  }
+};
+
+/**
+ * @desc    Update Hygiene & Outcomes (including Staff Training Completion manual entry)
+ * @route   PUT /api/v1/benefits/outcomes
+ * @access  Private (Admin / SuperAdmin)
+ */
+export const updateOutcomes = async (req, res) => {
+  try {
+    const userRole = (req.user?.role || "").toLowerCase();
+    const isSuperAdmin = userRole === "superadmin";
+    if (!isSuperAdmin && userRole !== "admin") {
+      return res.status(403).json({ success: false, message: "Access denied." });
+    }
+
+    const { orgName, trainedStaff, totalStaff, activeFiles } = req.body;
+    const orgTarget = isSuperAdmin
+      ? orgName || req.user?.orgName || "Langara College"
+      : req.user?.orgName || "Langara College";
+
+    const record = await findBenefitsDoc(orgTarget, false, false);
+    if (!record) {
+      return res
+        .status(404)
+        .json({ success: false, message: `Record for '${orgTarget}' not found.` });
+    }
+
+    if (trainedStaff !== undefined) record.outcomes.trainedStaff = Number(trainedStaff);
+    if (totalStaff !== undefined) record.outcomes.totalStaff = Number(totalStaff);
+    if (activeFiles !== undefined) record.outcomes.activeFiles = Number(activeFiles);
+
+    // Sync B8 evidence text if trainedStaff/totalStaff changed
+    const b8 = record.scorecard?.find((d) => d.driverId === "B8");
+    if (b8 && record.outcomes.totalStaff > 0) {
+      const pct = Math.round((record.outcomes.trainedStaff / record.outcomes.totalStaff) * 100);
+      b8.evidence = `4.5/5 training satisfaction, 4.5/5 team responsiveness; ${pct}% staff training completion (${record.outcomes.trainedStaff}/${record.outcomes.totalStaff} PRM staff).`;
+    }
+
+    await record.save();
+    return res.status(200).json({
+      success: true,
+      message: "Outcomes & Staff Training metrics updated successfully.",
+      data: record
+    });
+  } catch (error) {
+    console.error("[BENEFITS OUTCOMES UPDATE ERROR]", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to update outcomes", error: error.message });
+  }
+};
+
+/**
+ * @desc    Update Benefits Checkpoints Tracker (dates, Benefits Owner, alert emails)
+ * @route   PUT /api/v1/benefits/checkpoints-tracker
+ * @access  Private (Admin / SuperAdmin)
+ */
+export const updateCheckpointsTracker = async (req, res) => {
+  try {
+    const userRole = (req.user?.role || "").toLowerCase();
+    const isSuperAdmin = userRole === "superadmin";
+    if (!isSuperAdmin && userRole !== "admin") {
+      return res.status(403).json({ success: false, message: "Access denied." });
+    }
+
+    const { orgName, checkpoints } = req.body;
+    if (!Array.isArray(checkpoints)) {
+      return res.status(400).json({ success: false, message: "checkpoints array is required." });
+    }
+
+    const orgTarget = isSuperAdmin
+      ? orgName || req.user?.orgName || "Langara College"
+      : req.user?.orgName || "Langara College";
+
+    const record = await findBenefitsDoc(orgTarget, false, false);
+    if (!record) {
+      return res
+        .status(404)
+        .json({ success: false, message: `Record for '${orgTarget}' not found.` });
+    }
+
+    record.checkpoints = checkpoints.map((cp) => ({
+      checkpointNumber: Number(cp.checkpointNumber),
+      name: cp.name,
+      targetDate: cp.targetDate || "",
+      dueDate: cp.dueDate ? new Date(cp.dueDate) : null,
+      ownerName: cp.ownerName || "",
+      ownerEmail: cp.ownerEmail || "",
+      alertEmail: cp.alertEmail || "sdesouza@langara.ca",
+      alertSent: Boolean(cp.alertSent),
+      score: Number(cp.score) || 0,
+      status: cp.status || "UPCOMING",
+      notes: cp.notes || ""
+    }));
+
+    await record.save();
+    return res.status(200).json({
+      success: true,
+      message: "Benefits Checkpoint Tracker & 2-day alert schedule saved.",
+      data: record
+    });
+  } catch (error) {
+    console.error("[CHECKPOINTS TRACKER UPDATE ERROR]", error);
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: "Failed to update checkpoints tracker",
+        error: error.message
+      });
+  }
+};
+
+/**
+ * @desc    Manage Change Management Survey Questions & Import External (MS Forms) Results
+ * @route   PUT /api/v1/benefits/surveys
+ * @access  Private (Admin / SuperAdmin)
+ */
+export const updateSurveyQuestions = async (req, res) => {
+  try {
+    const userRole = (req.user?.role || "").toLowerCase();
+    const isSuperAdmin = userRole === "superadmin";
+    if (!isSuperAdmin && userRole !== "admin") {
+      return res.status(403).json({ success: false, message: "Access denied." });
+    }
+
+    const { orgName, surveyQuestions } = req.body;
+    if (!Array.isArray(surveyQuestions)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "surveyQuestions array is required." });
+    }
+
+    const orgTarget = isSuperAdmin
+      ? orgName || req.user?.orgName || "Langara College"
+      : req.user?.orgName || "Langara College";
+
+    const record = await findBenefitsDoc(orgTarget, false, false);
+    if (!record) {
+      return res
+        .status(404)
+        .json({ success: false, message: `Record for '${orgTarget}' not found.` });
+    }
+
+    record.surveyQuestions = surveyQuestions.map((sq, idx) => {
+      const mean = Number(sq.meanScore) || 4.0;
+      const floorStatus =
+        mean >= 4.0 ? "Above Target" : mean >= 3.0 ? "Above Floor" : "Below Floor";
+      return {
+        id: sq.id || `SQ-${idx + 1}`,
+        domain: sq.domain || "General",
+        question: sq.question || "",
+        benefitLink: sq.benefitLink || "B8",
+        siteOwnerScore: sq.siteOwnerScore ?? "-",
+        siteMemberScore: sq.siteMemberScore ?? "-",
+        meanScore: mean,
+        floorStatus: sq.floorStatus || floorStatus,
+        source: sq.source === "Internal" ? "Internal" : "MS Forms"
+      };
+    });
+
+    await record.save();
+    return res.status(200).json({
+      success: true,
+      message: "Change Management survey questions & results updated successfully.",
+      data: record
+    });
+  } catch (error) {
+    console.error("[SURVEYS UPDATE ERROR]", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to update survey questions", error: error.message });
   }
 };
 
@@ -984,7 +1196,7 @@ export const exportBenefitsExcel = async (req, res) => {
       [
         "Staff Training Completion",
         "-",
-        `${data.outcomes?.trainedStaff || 1151} / ${data.outcomes?.totalStaff || 1151}`,
+        `${data.outcomes?.trainedStaff ?? 2} / ${data.outcomes?.totalStaff ?? 2}`,
         "100%",
         "Full Adoption",
         "All PRM site owners and members fully trained on modern SharePoint practices."
@@ -1156,7 +1368,7 @@ export const exportBenefitsExcel = async (req, res) => {
     });
     surThRow.getCell(2).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
 
-    const surveyQuestions = [
+    const defaultSurveyQuestions = [
       [
         "Site ownership",
         "I feel confident managing access and permissions for the SharePoint site.",
@@ -1302,6 +1514,19 @@ export const exportBenefitsExcel = async (req, res) => {
         "Above Target"
       ]
     ];
+
+    const surveyQuestions =
+      Array.isArray(data.surveyQuestions) && data.surveyQuestions.length > 0
+        ? data.surveyQuestions.map((sq) => [
+            sq.domain || "General",
+            sq.question || "",
+            sq.benefitLink || "B8",
+            sq.siteOwnerScore ?? "-",
+            sq.siteMemberScore ?? "-",
+            Number(sq.meanScore) || 4.0,
+            sq.floorStatus || "On Target"
+          ])
+        : defaultSurveyQuestions;
 
     surveyQuestions.forEach((sq, idx) => {
       const rNum = 5 + idx;
@@ -2159,7 +2384,7 @@ export const exportBenefitsPptx = async (req, res) => {
             id: "B8",
             score: "4.5",
             status: "On Track",
-            ev: "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (1,151 staff)."
+            ev: "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (2/2 PRM staff)."
           },
           {
             id: "B9",
@@ -2375,7 +2600,7 @@ export const exportBenefitsPptx = async (req, res) => {
           id: "B8",
           score: "4.5",
           status: "On Track",
-          ev: "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (1,151 staff)."
+          ev: "4.5/5 training satisfaction, 4.5/5 team responsiveness; 100% staff training completion (2/2 PRM staff)."
         },
         {
           id: "B9",
@@ -2480,6 +2705,79 @@ export const exportBenefitsPptx = async (req, res) => {
         `<a:t>${escapeXml(overallScore)} / ${escapeXml(targetScore)}</a:t>`
       );
       zip.file("ppt/slides/slide9.xml", slide9Xml);
+    }
+
+    // 5. SLIDE 10: APPENDIX — Native Editable RAG Thresholds Table (Injected Dynamically from Config Worksheet)
+    let slide10Xml = await zip.file("ppt/slides/slide10.xml")?.async("string");
+    if (slide10Xml && Array.isArray(data.governanceConfig?.thresholds)) {
+      const defaultAppendixRows = [
+        {
+          key: "driverScore",
+          title: "Driver Performance (/5.0)",
+          g: "Score >= 4.0",
+          a: "Score 3.5 - 3.9",
+          r: "Score < 3.5"
+        },
+        {
+          key: "surveyMean",
+          title: "Survey Question Mean (/5.0)",
+          g: "Mean >= 4.0 (Above Target)",
+          a: "Mean 3.0 - 3.9 (Above Floor)",
+          r: "Mean < 3.0 (Below Floor)"
+        },
+        {
+          key: "folderReduction",
+          title: "Folder Architecture Hygiene",
+          g: "Reduction >= 80%",
+          a: "Reduction 50% - 79%",
+          r: "Reduction < 50%"
+        },
+        {
+          key: "duplicateReduction",
+          title: "Duplicate File Hygiene",
+          g: "Reduction >= 50%",
+          a: "Reduction 25% - 49%",
+          r: "Reduction < 25%"
+        },
+        {
+          key: "sharingGrants",
+          title: "Open Access ('Everyone') Grants",
+          g: "0 Grants (Zero Trust)",
+          a: "1 - 5 Grants with review",
+          r: "> 5 Unapproved Grants"
+        },
+        {
+          key: "staffTraining",
+          title: "Staff Training Enablement",
+          g: "100% Completed",
+          a: "80% - 99% Completed",
+          r: "< 80% Completed"
+        },
+        {
+          key: "purviewLabelling",
+          title: "Purview Retention & Labelling",
+          g: ">= 90% Labelled",
+          a: "50% - 89% Labelled",
+          r: "< 50% Labelled"
+        }
+      ];
+
+      defaultAppendixRows.forEach((def, idx) => {
+        const live =
+          data.governanceConfig.thresholds.find((t) => t.key === def.key) ||
+          data.governanceConfig.thresholds[idx];
+        if (live) {
+          if (live.title)
+            slide10Xml = slide10Xml.replace(escapeXml(def.title), escapeXml(live.title));
+          if (live.greenCondition)
+            slide10Xml = slide10Xml.replace(escapeXml(def.g), escapeXml(live.greenCondition));
+          if (live.amberCondition)
+            slide10Xml = slide10Xml.replace(escapeXml(def.a), escapeXml(live.amberCondition));
+          if (live.redCondition)
+            slide10Xml = slide10Xml.replace(escapeXml(def.r), escapeXml(live.redCondition));
+        }
+      });
+      zip.file("ppt/slides/slide10.xml", slide10Xml);
     }
 
     const outBuffer = await zip.generateAsync({
